@@ -5,8 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 function fetchSpecialists() {
-    console.log('Fetching specialists from http://localhost:3000/api/specialists');
-    fetch('http://localhost:3000/api/specialists')
+    console.log('Fetching specialists from /api/specialists');
+    fetch('/api/specialists')
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -104,7 +104,7 @@ function showError(message) {
 
 function openSpecialistModal(specialistId) {
     console.log(`Opening modal for specialist ID: ${specialistId}`);
-    fetch(`http://localhost:3000/api/specialist/${specialistId}/services`)
+    fetch(`/api/specialist/${specialistId}/services`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -246,7 +246,7 @@ function loadAvailableDates() {
     console.log(`Fetching available dates for specialist ${window.currentSpecialistId}, service ${window.currentServiceId} from ${startDate} to ${endDate}`);
     
     // Запрашиваем доступные даты у API
-    fetch(`http://localhost:3000/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
+    fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -380,7 +380,7 @@ function loadAvailableTime(date) {
     }
     
     console.log(`Fetching schedule for specialist ${window.currentSpecialistId}, service ${window.currentServiceId} on date ${date}`);
-    fetch(`http://localhost:3000/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/schedule/${date}`)
+    fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/schedule/${date}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -445,7 +445,7 @@ function closeSpecialistModal() {
 
 // Функция для получения информации о мастере
 function fetchSpecialistInfo(specialistId) {
-    return fetch(`http://localhost:3000/api/specialist/${specialistId}`)
+    return fetch(`/api/specialist/${specialistId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -467,7 +467,7 @@ function showConfirmationStepSpecialist(time, scheduleId) {
     
     // Получаем информацию об услуге и мастере одновременно
     Promise.all([
-        fetch(`http://localhost:3000/api/service/${window.currentServiceId}`).then(r => r.json()),
+        fetch(`/api/service/${window.currentServiceId}`).then(r => r.json()),
         fetchSpecialistInfo(window.currentSpecialistId)
     ])
     .then(([serviceData, specialistData]) => {
@@ -608,7 +608,7 @@ function submitBookingSpecialist() {
     submitBtn.disabled = true;
     submitBtn.textContent = 'ОБРАБОТКА...';
     
-    fetch('http://localhost:3000/api/appointment', {
+    fetch('/api/appointment', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

@@ -113,7 +113,7 @@ function loadServicesContent() {
 
     // Функция загрузки мастеров для журнала
     function loadSpecialistsForJournal() {
-        fetch('http://localhost:3000/api/specialists')
+        fetch('/api/specialists')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Ошибка загрузки мастеров');
@@ -234,7 +234,7 @@ async function loadAppointmentDays(year, month) {
     const endDate = `${year}-${(month + 1).toString().padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
     
     try {
-        const response = await fetch(`http://localhost:3000/api/appointments?specialistId=${window.currentSpecialistId}&startDate=${startDate}&endDate=${endDate}`);
+        const response = await fetch(`/api/appointments?specialistId=${window.currentSpecialistId}&startDate=${startDate}&endDate=${endDate}`);
         if (!response.ok) throw new Error('Ошибка загрузки дней с записями');
         
         const data = await response.json();
@@ -341,7 +341,7 @@ function selectDate(date, day) {
 function loadAppointmentsForDate(date) {
     if (!window.currentSpecialistId) return;
     
-    fetch(`http://localhost:3000/api/appointments?specialistId=${window.currentSpecialistId}&date=${date}`)
+    fetch(`/api/appointments?specialistId=${window.currentSpecialistId}&date=${date}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Ошибка загрузки записей');
@@ -388,7 +388,7 @@ function displayAppointments(appointments) {
 
 function cancelAppointment(appointmentId) {
     if (confirm('Вы уверены, что хотите отменить эту запись?')) {
-        fetch(`http://localhost:3000/api/appointments/${appointmentId}`, {
+        fetch(`/api/appointments/${appointmentId}`, {
             method: 'DELETE'
         })
         .then(response => {
@@ -428,7 +428,7 @@ function showError(message) {
 // Функция для загрузки услуг в форму
 async function loadServicesForForm() {
     try {
-        const response = await fetch('http://localhost:3000/api/services');
+        const response = await fetch('/api/services');
         if (!response.ok) throw new Error('Ошибка загрузки услуг');
         
         const data = await response.json();
@@ -585,7 +585,7 @@ async function handleAddAppointment(e) {
     };
     
     try {
-        const response = await fetch('http://localhost:3000/api/admin/appointment', {
+        const response = await fetch('/api/admin/appointment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

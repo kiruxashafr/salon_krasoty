@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
 function fetchServices() {
-    fetch('http://localhost:3000/api/services')
+    fetch('/api/services')
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
@@ -87,7 +87,7 @@ function openServiceModal(serviceId) {
     console.log(`Opening modal for service ID: ${serviceId}`);
     
     // Сначала получаем информацию об услуге
-    fetch(`http://localhost:3000/api/service/${serviceId}`)
+    fetch(`/api/service/${serviceId}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -97,7 +97,7 @@ function openServiceModal(serviceId) {
         .then(serviceData => {
             if (serviceData.message === 'success') {
                 // Затем получаем мастеров, которые предоставляют эту услугу
-                fetch(`http://localhost:3000/api/service/${serviceId}/specialists`)
+                fetch(`/api/service/${serviceId}/specialists`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error(`HTTP error! Status: ${response.status}`);
@@ -274,7 +274,7 @@ function loadAvailableDatesService() {
     console.log(`Fetching available dates for specialist ${window.currentSpecialistId}, service ${window.currentServiceId} from ${startDate} to ${endDate}`);
     
     // Запрашиваем доступные даты у API
-    fetch(`http://localhost:3000/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
+    fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -393,7 +393,7 @@ function loadAvailableTimeService(date) {
     }
     
     console.log(`Fetching schedule for specialist ${window.currentSpecialistId}, service ${window.currentServiceId} on date ${date}`);
-    fetch(`http://localhost:3000/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/schedule/${date}`)
+    fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/schedule/${date}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error(`HTTP error! Status: ${response.status}`);
@@ -477,7 +477,7 @@ function showConfirmationStepService(time, scheduleId) {
     window.scheduleId = scheduleId;
     
     // Получаем информацию о мастере
-    fetch(`http://localhost:3000/api/specialist/${window.currentSpecialistId}`)
+    fetch(`/api/specialist/${window.currentSpecialistId}`)
         .then(response => response.json())
         .then(data => {
             if (data.message === 'success') {
@@ -622,7 +622,7 @@ function submitBookingService() {
     submitBtn.textContent = 'ОБРАБОТКА...';
     
     // Отправляем запрос на сервер
-    fetch('http://localhost:3000/api/appointment', {
+    fetch('/api/appointment', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
