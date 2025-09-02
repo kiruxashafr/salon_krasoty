@@ -10,7 +10,7 @@ const PORT = 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.static('sh'));
-
+app.use(express.static('back')); // Serve static files from 'back'
 // Initialize SQLite database
 const db = new sqlite3.Database('./database.db', (err) => {
     if (err) {
@@ -98,6 +98,10 @@ function initializeDatabase() {
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'sh', 'главная.html'));
 });
+// Serve admin page
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'back', 'admin.html'));
+});
 
 // API endpoint to get all services
 app.get('/api/services', (req, res) => {
@@ -116,7 +120,20 @@ app.get('/api/services', (req, res) => {
 app.get('/:page', (req, res) => {
     const page = req.params.page;
     if (page.endsWith('.html')) {
-        res.sendFile(path.join(__dirname, 'sh', page));
+        const shPath = path.join(__dirname, 'sh', page);
+        const backPath = path.join(__dirname, 'back', page);
+
+        // Check if file exists in 'sh' folder
+        if (require('fs').existsSync(shPath)) {
+            res.sendFile(shPath);
+        }
+        // Check if file exists in 'back' folder
+        else if (require('fs').existsSync(backPath)) {
+            res.sendFile(backPath);
+        }
+        else {
+            res.status(404).json({ error: 'Page not found' });
+        }
     } else {
         res.status(404).json({ error: 'Page not found' });
     }
@@ -463,6 +480,134 @@ app.post('/api/services', (req, res) => {
                 цена, 
                 фото 
             }
+        });
+    });
+});
+
+
+
+app.get('/api/appointments', (req, res) => {
+    const specialistId = req.query.specialistId;
+    const date = req.query.date;
+    
+    let sql = `
+        SELECT 
+            з.id,
+            з.дата,
+            з.время,
+            з.цена,
+            к.имя as клиент_имя,
+            к.телефон as клиент_телефон,
+            у.название as услуга_название,
+            м.имя as мастер_имя
+        FROM записи з
+        JOIN клиенты к ON з.клиент_id = к.id
+        JOIN услуги у ON з.услуга_id = у.id
+        JOIN мастера м ON з.мастер_id = м.id
+    `;
+    
+    const params = [];
+    
+    if (specialistId) {
+        sql += ' WHERE з.мастер_id = ?';
+        params.push(specialistId);
+    }
+    
+    if (date) {
+        if (specialistId) {
+            sql += ' AND з.дата = ?';
+        } else {
+            sql += ' WHERE з.дата = ?';
+        }
+        params.push(date);
+    }
+    
+    sql += ' ORDER BY з.дата DESC, з.время DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// API endpoint to cancel appointment
+app.delete('/api/appointments/:id', (req, res) => {
+    const appointmentId = req.params.id;
+    
+    // Находим запись чтобы получить информацию о времени
+    const findSql = `
+        SELECT мастер_id, услуга_id, дата, время 
+        FROM записи 
+        WHERE id = ?
+    `;
+    
+    db.get(findSql, [appointmentId], (err, appointment) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (!appointment) {
+            res.status(404).json({ error: 'Запись не найдена' });
+            return;
+        }
+        
+        // Начинаем транзакцию
+        db.serialize(() => {
+            db.run("BEGIN TRANSACTION");
+            
+            // 1. Удаляем запись
+            const deleteSql = "DELETE FROM записи WHERE id = ?";
+            db.run(deleteSql, [appointmentId], function(err) {
+                if (err) {
+                    db.run("ROLLBACK");
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                
+                // 2. Освобождаем время в расписании
+                const updateScheduleSql = `
+                    UPDATE расписание 
+                    SET доступно = 1 
+                    WHERE мастер_id = ? 
+                    AND услуга_id = ?
+                    AND дата = ?
+                    AND время = ?
+                `;
+                
+                db.run(updateScheduleSql, [
+                    appointment.мастер_id,
+                    appointment.услуга_id,
+                    appointment.дата,
+                    appointment.время
+                ], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    // Коммитим транзакцию
+                    db.run("COMMIT", function(err) {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        res.json({
+                            message: "success",
+                            deletedId: appointmentId
+                        });
+                    });
+                });
+            });
         });
     });
 });

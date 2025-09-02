@@ -1,0 +1,362 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f5f5f5;
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Боковое меню */
+.sidebar {
+    width: 60px;
+    background-color: #2c3e50;
+    transition: width 0.3s ease;
+    overflow: hidden;
+    position: fixed;
+    height: 100vh;
+    z-index: 1000;
+}
+
+.sidebar.open {
+    width: 250px;
+}
+
+.menu-toggle {
+    padding: 20px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.menu-toggle span {
+    width: 25px;
+    height: 3px;
+    background-color: white;
+    transition: 0.3s;
+}
+
+.main-menu {
+    padding: 20px 0;
+}
+
+.main-menu ul {
+    list-style: none;
+}
+
+.main-menu li {
+    margin-bottom: 5px;
+}
+
+.main-menu a {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    color: white;
+    text-decoration: none;
+    transition: background-color 0.3s;
+    white-space: nowrap;
+}
+
+.main-menu a:hover {
+    background-color: #34495e;
+}
+
+.main-menu a.active {
+    background-color: #3498db;
+}
+
+.main-menu a.logout {
+    margin-top: 20px;
+    background-color: #e74c3c;
+}
+
+.main-menu a.logout:hover {
+    background-color: #c0392b;
+}
+
+/* Основное содержимое */
+.main-content {
+    flex: 1;
+    margin-left: 60px;
+    transition: margin-left 0.3s ease;
+}
+
+.main-content.expanded {
+    margin-left: 250px;
+}
+
+.content-header {
+    background-color: white;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.content-header h1 {
+    color: #2c3e50;
+    font-size: 24px;
+}
+
+.content-body {
+    padding: 0 20px 20px 20px;
+}
+
+/* Контейнер контента */
+#contentContainer {
+    background-color: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    min-height: 400px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 0;
+    }
+    
+    .sidebar.open {
+        width: 100%;
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .main-content.expanded {
+        margin-left: 0;
+    }
+}
+
+
+/* Стили для выбора мастеров в админке */
+.specialists-selection {
+    margin-bottom: 2rem;
+}
+
+.specialists-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.specialist-card-admin {
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.specialist-card-admin:hover {
+    border-color: #3498db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.specialist-card-admin.selected {
+    border-color: #3498db;
+    background-color: #e8f4fd;
+}
+
+.specialist-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.specialist-info h4 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.specialist-info p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+/* Стили для календаря */
+.calendar-section {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.month-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.month-nav-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.month-nav-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.current-month {
+    font-size: 18px;
+    font-weight: bold;
+    min-width: 150px;
+    text-align: center;
+}
+
+.date-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+}
+
+.day-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 0.8rem;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.date-cell {
+    text-align: center;
+    padding: 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.date-cell.empty {
+    background-color: transparent;
+    cursor: default;
+}
+
+.date-cell.past-date {
+    background-color: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.date-cell.available-date {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    color: #2e7d32;
+}
+
+.date-cell.available-date:hover {
+    background-color: #4caf50;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Стили для списка записей */
+.appointments-list {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.appointments-list h3 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+#appointmentsTable {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#appointmentsTable th,
+#appointmentsTable td {
+    padding: 0.8rem;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+#appointmentsTable th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+#appointmentsTable tr:hover {
+    background-color: #f8f9fa;
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 12px;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #c0392b;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .specialists-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .date-grid {
+        gap: 0.3rem;
+    }
+    
+    .date-cell {
+        padding: 0.5rem;
+        font-size: 14px;
+    }
+    
+    #appointmentsTable {
+        font-size: 14px;
+    }
+    
+    #appointmentsTable th,
+    #appointmentsTable td {
+        padding: 0.5rem;
+    }
+}
+
+
+
+
