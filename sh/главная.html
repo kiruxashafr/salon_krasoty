@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shafranov</title>
+    <link rel="stylesheet" href="css/header.css">
+    <link rel="stylesheet" href="css/services.css">
+    <link rel="stylesheet" href="css/contact.css">
+    <link rel="stylesheet" href="css/specialists.css">
+    <link rel="stylesheet" href="css/order.css">
+
+    <!-- Превью фото -->
+    <link rel="icon" type="image/jpeg" href="photo/фавикон/лого минимализм.png">
+    <meta property="og:image" content="photo/фавикон/лого минимализм.png">
+</head>
+
+
+    <div class="containerrr">
+	<div class="loaderrr"></div>
+	<div class="loaderrr"></div>
+	<div class="loaderrr"></div>
+</div>
+    <!-- Add this header inside the <div class="container"> before the existing content -->
+<header class="header">
+    <div class="header-content">
+            <div class="logo">SHAFRANOV</div>
+            <div class="header-right">
+                <button class="contact-btn">ЗАПИСАТЬСЯ</button>
+                <div class="menu-container">
+                    <label class="hamburger">
+                        <input type="checkbox">
+            <svg viewBox="0 0 32 32">
+                <path class="line line-top-bottom" d="M27 10 13 10C10.8 10 9 8.2 9 6 9 3.5 10.8 2 13 2 15.2 2 17 3.8 17 6L17 26C17 28.2 18.8 30 21 30 23.2 30 25 28.2 25 26 25 23.8 23.2 22 21 22L7 22"></path>
+                <path class="line" d="M7 16 27 16"></path>
+            </svg>
+        </label>
+
+    </div>
+
+        </div>
+    </div>
+</header>
+
+<main>
+<body>
+
+        <div class="modal" id="modal">
+            <div class="modal-content">
+                <button class="close-btn">ЗАКРЫТЬ</button>
+                <ul>
+                    <li>ГЛАВНАЯ</li>
+                    <li>О НАС</li>
+                    <li>РАБОТЫ</li>
+                    <li>КОНТАКТЫ</li>
+                </ul>
+                <div class="contact-box">
+                    <a href="https://m.vk.com/shafranov_k"><img src="photo/header/vk.png" alt="VK"></a>
+                    <a href="https://t.me/Shafranov_k" target="_blank"><img src="photo/header/tg.png" alt="Telegram"></a>
+                </div>
+            </div>
+        </div>
+
+
+
+        <section class="fullscreen-img-hero">
+
+    <picture>
+        <source media="(max-width: 500px)" srcset="photo/header/main-bg2.jpg">
+        <source media="(min-width: 501px) and (max-width: 1200px)" srcset="photo/header/main-bg3.jpg">
+        <img src="photo/header/main-bg1.jpg" alt="Фоновое изображение" class="fullscreen-img-hero-image">
+    </picture>
+        <div class="fullscreen-img-hero-content">
+        <h1 class="hero-title">БЬЮТИ УСЛУГИ</h1>
+        <p class="hero-description">СОВРЕМЕННЫЙ САЛОН КРАСОТЫ: ПРОФЕССИОНАЛЬНЫЕ УСЛУГИ, ИНДИВИДУАЛЬНЫЙ ПОДХОД, ВЫСОКОЕ КАЧЕСТВО И УЮТНАЯ АТМОСФЕРА ДЛЯ ВАШЕГО ПРЕОБРАЖЕНИЯ.</p>
+    </div>
+
+
+        </section>
+
+
+        <section class="services-section">
+    <h2 class="services-title">НАШИ УСЛУГИ</h2>
+    <div id="services-container" class="services-container">
+        <!-- Services will be loaded here dynamically -->
+    </div>
+</section>
+<!-- Модальное окно для записи на услугу -->
+<div id="service-modal" class="service-modal">
+    <div class="service-modal-content">
+        <!-- Контент будет заполнен JavaScript -->
+    </div>
+</div>
+
+<!-- После секции услуг -->
+<section class="specialists-section">
+    <h2 class="specialists-title">НАШИ СПЕЦИАЛИСТЫ</h2>
+    <div id="specialists-container" class="specialists-container">
+        <!-- Specialists will be loaded here dynamically -->
+    </div>
+</section>
+
+<!-- Модальное окно специалиста -->
+<div id="specialist-modal" class="specialist-modal">
+    <div class="specialist-modal-content">
+        <!-- Content will be loaded dynamically -->
+    </div>
+</div>
+
+
+<section class="contactwin">
+      <h2 class="works-heading">КОНТАКТЫ</h2>
+  <div class="cont">
+    <img src="photo/картинки/ава.jpg" alt="Profile Photo" class="profile-photo">
+    <h1 class="profile-name">Мастер маникюра</h1>
+
+    <div class="contact-boxx">
+        <a href="https://m.vk.com/shafranov_k" class="contact-link-vk"><img src="photo/header/vk.png" alt="VK"></a>
+        <a href="https://t.me/Shafranov_k" class="contact-link-telegram"><img src="photo/header/tg.png" alt="Telegram"></a>
+        <a href="https://wa.me/qr/QKNVZOAIILZNM1" class="contact-link-whatsapp"><img src="photo/header/pngwing.com (3).png" alt="wats"></a>
+        <a href="mailto:kirshafranov@gmail.com" class="contact-link-mail"><img src="photo/header/pngwing.com (1).png" alt="mail"></a>
+        <a href="tel:89255355278" class="contact-link-phone"><img src="photo/header/pngwing.com (4).png" alt="tel"></a>
+    </div>
+    </div>
+</section>
+
+
+
+
+    <script src="js/header.js"></script>
+    <script src="js/services.js"></script>
+    <script src="js/specialists.js"></script>
+</body>
+</main>
+
+</html>
