@@ -61,13 +61,15 @@ function initializeDatabase() {
         
         db.run(`
             CREATE TABLE IF NOT EXISTS мастера (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                имя TEXT,
-                описание TEXT,
-                фото TEXT
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            имя TEXT,
+            описание TEXT,
+            фото TEXT,
+            доступен INTEGER DEFAULT 1
             )
         `);
-        
+
+
         db.run(`
             CREATE TABLE IF NOT EXISTS расписание (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,7 +164,7 @@ app.get('/api/service/:id', (req, res) => {
 
 // API endpoint to get all specialists
 app.get('/api/specialists', (req, res) => {
-    const sql = "SELECT id, имя, описание, фото FROM мастера ORDER BY имя";
+    const sql = "SELECT id, имя, описание, фото FROM мастера WHERE доступен = 1 ORDER BY имя";
     db.all(sql, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
@@ -206,6 +208,7 @@ app.get('/api/service/:id/specialists', (req, res) => {
         FROM мастера м
         JOIN расписание р ON м.id = р.мастер_id
         WHERE р.услуга_id = ?
+        AND м.доступен = 1
         ORDER BY м.имя
     `;
     
@@ -608,6 +611,218 @@ app.delete('/api/appointments/:id', (req, res) => {
                     });
                 });
             });
+        });
+    });
+});
+
+
+app.get('/api/appointments-range', (req, res) => {
+    const specialistId = req.query.specialistId;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    
+    if (!specialistId || !startDate || !endDate) {
+        return res.status(400).json({ error: 'Specialist ID and date range are required' });
+    }
+    
+    const sql = `
+        SELECT 
+            з.дата,
+            COUNT(з.id) as appointment_count
+        FROM записи з
+        WHERE з.мастер_id = ?
+        AND з.дата BETWEEN ? AND ?
+        GROUP BY з.дата
+        ORDER BY з.дата
+    `;
+    
+    db.all(sql, [specialistId, startDate, endDate], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const result = {};
+        rows.forEach(row => {
+            result[row.дата] = row.appointment_count;
+        });
+        
+        res.json({
+            message: "success",
+            data: result
+        });
+    });
+});
+
+// API endpoint to add specialist
+app.post('/api/specialists', (req, res) => {
+    const { имя, описание, фото } = req.body;
+    
+    if (!имя) {
+        return res.status(400).json({ error: 'Имя мастера обязательно' });
+    }
+    
+    const sql = `INSERT INTO мастера (имя, описание, фото) VALUES (?, ?, ?)`;
+    
+    db.run(sql, [имя, описание, фото], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                имя,
+                описание,
+                фото
+            }
+        });
+    });
+});
+
+// API endpoint to add service
+app.post('/api/services-new', (req, res) => {
+    const { категория, название, описание, цена, фото } = req.body;
+    
+    if (!категория || !название || !цена) {
+        return res.status(400).json({ error: 'Категория, название и цена обязательны' });
+    }
+    
+    const sql = `INSERT INTO услуги (категория, название, описание, цена, фото) VALUES (?, ?, ?, ?, ?)`;
+    
+    db.run(sql, [категория, название, описание, цена, фото], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                категория,
+                название,
+                описание,
+                цена,
+                фото
+            }
+        });
+    });
+});
+
+
+// API endpoint для админского добавления записи (без проверки расписания)
+app.post('/api/admin/appointment', (req, res) => {
+    const { specialistId, serviceId, date, time, clientName, clientPhone } = req.body;
+    
+    if (!specialistId || !serviceId || !date || !time || !clientName || !clientPhone) {
+        return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
+    }
+    
+    // Start transaction
+    db.serialize(() => {
+        // Begin transaction
+        db.run("BEGIN TRANSACTION");
+        
+        // 1. Check if client exists, if not - create
+        const checkClientSql = "SELECT id FROM клиенты WHERE телефон = ?";
+        db.get(checkClientSql, [clientPhone], (err, clientRow) => {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            let clientId;
+            if (clientRow) {
+                // Client exists
+                clientId = clientRow.id;
+                
+                // Update client name if needed
+                const updateClientSql = "UPDATE клиенты SET имя = ? WHERE id = ?";
+                db.run(updateClientSql, [clientName, clientId], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    createAppointment(clientId);
+                });
+            } else {
+                // Create new client
+                const insertClientSql = "INSERT INTO клиенты (имя, телефон) VALUES (?, ?)";
+                db.run(insertClientSql, [clientName, clientPhone], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    clientId = this.lastID;
+                    createAppointment(clientId);
+                });
+            }
+            
+            function createAppointment(clientId) {
+                // 2. Get service price
+                const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
+                db.get(getPriceSql, [serviceId], (err, serviceRow) => {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    if (!serviceRow) {
+                        db.run("ROLLBACK");
+                        res.status(404).json({ error: 'Услуга не найдена' });
+                        return;
+                    }
+                    
+                    const price = serviceRow.цена;
+                    
+                    // 3. Create appointment record
+                    const insertAppointmentSql = `
+                        INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `;
+                    
+                    db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        // Commit transaction
+                        db.run("COMMIT", function(err) {
+                            if (err) {
+                                db.run("ROLLBACK");
+                                res.status(500).json({ error: err.message });
+                                return;
+                            }
+                            
+                            res.json({
+                                message: "success",
+                                appointment: {
+                                    id: this.lastID,
+                                    clientId: clientId,
+                                    specialistId: specialistId,
+                                    serviceId: serviceId,
+                                    date: date,
+                                    time: time,
+                                    price: price,
+                                    clientName: clientName,
+                                    clientPhone: clientPhone
+                                }
+                            });
+                        });
+                    });
+                });
+            }
         });
     });
 });

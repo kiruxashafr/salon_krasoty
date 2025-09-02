@@ -16,6 +16,7 @@ function fetchSpecialists() {
         .then(data => {
             console.log('Fetched specialists data:', data);
             if (data.message === 'success') {
+                // Сервер уже отфильтровал специалистов, просто отображаем их
                 displaySpecialists(data.data);
             } else {
                 console.error('Invalid response:', data);
