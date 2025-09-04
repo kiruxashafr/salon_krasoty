@@ -13,94 +13,33 @@ body {
 
 /* Боковое меню */
 .sidebar {
-    width: 60px;
-    background-color: #2c3e50;
-    transition: width 0.3s ease;
-    overflow: hidden;
+    width: 280px;
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
     position: fixed;
     height: 100vh;
     z-index: 1000;
-}
-
-.sidebar.open {
-    width: 250px;
-}
-
-.menu-toggle {
-    padding: 20px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.menu-toggle span {
-    width: 25px;
-    height: 3px;
-    background-color: white;
-    transition: 0.3s;
-}
-
-.main-menu {
-    padding: 20px 0;
-}
-
-.main-menu ul {
-    list-style: none;
-}
-
-.main-menu li {
-    margin-bottom: 5px;
-}
-
-.main-menu a {
-    display: flex;
-    align-items: center;
-    padding: 15px 20px;
-    color: white;
-    text-decoration: none;
-    transition: background-color 0.3s;
-    white-space: nowrap;
-}
-
-.main-menu a:hover {
-    background-color: #34495e;
-}
-
-.main-menu a.active {
-    background-color: #3498db;
-}
-
-.main-menu a.logout {
-    margin-top: 20px;
-    background-color: #e74c3c;
-}
-
-.main-menu a.logout:hover {
-    background-color: #c0392b;
+    transition: transform 0.3s ease-in-out;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.3);
 }
 
 /* Основное содержимое */
 .main-content {
     flex: 1;
-    margin-left: 60px;
+    margin-left: 280px;
     transition: margin-left 0.3s ease;
+    min-width: 0; /* Предотвращает выход за пределы экрана */
 }
 
-.main-content.expanded {
-    margin-left: 250px;
-}
-
+/* Стили для header */
 .content-header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px 20px;
     background-color: white;
-    padding: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-}
-
-.content-header h1 {
-    color: #2c3e50;
-    font-size: 24px;
+    z-index: 100;
 }
 
 .content-body {
@@ -111,30 +50,12 @@ body {
 #contentContainer {
     background-color: white;
     border-radius: 8px;
+    margin-top: 2.5%;
     padding: 20px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     min-height: 400px;
+    overflow-x: auto; /* Добавляем горизонтальную прокрутку если нужно */
 }
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .sidebar {
-        width: 0;
-    }
-    
-    .sidebar.open {
-        width: 100%;
-    }
-    
-    .main-content {
-        margin-left: 0;
-    }
-    
-    .main-content.expanded {
-        margin-left: 0;
-    }
-}
-
 
 /* Стили для выбора мастеров в админке */
 .specialists-selection {
@@ -158,6 +79,19 @@ body {
     align-items: center;
     gap: 1rem;
 }
+.phone-input-container {
+    display: flex
+;
+    align-items: center;
+}
+.phone-prefix {
+    background: #f8f9fa;
+    padding: 0.75rem;
+    border: 1px solid #ced4da;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+}
+
 
 .specialist-card-admin:hover {
     border-color: #3498db;
@@ -191,13 +125,14 @@ body {
     font-size: 14px;
 }
 
-/* Стили для календаря */
+/* Стили для календаря - улучшенная адаптивность */
 .calendar-section {
     margin: 2rem 0;
     padding: 1.5rem;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow-x: auto; /* Прокрутка для календаря на маленьких экранах */
 }
 
 .month-navigation {
@@ -206,6 +141,7 @@ body {
     align-items: center;
     margin-bottom: 1rem;
     gap: 1rem;
+    flex-wrap: wrap; /* Перенос на маленьких экранах */
 }
 
 .month-nav-btn {
@@ -215,6 +151,7 @@ body {
     padding: 0.5rem 1rem;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-width: 44px; /* Минимальный размер для touch */
 }
 
 .month-nav-btn:hover {
@@ -230,24 +167,30 @@ body {
 
 .date-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 0.5rem;
+    grid-template-columns: repeat(7, minmax(30px, 1fr)); /* Минимальный размер ячеек */
+    gap: 0.3rem; /* Уменьшаем отступы на мобильных */
 }
 
 .day-header {
     text-align: center;
     font-weight: bold;
-    padding: 0.8rem;
+    padding: 0.5rem;
     background-color: #f5f5f5;
     border-radius: 5px;
+    font-size: 12px; /* Уменьшаем шрифт на мобильных */
 }
 
 .date-cell {
     text-align: center;
-    padding: 0.8rem;
+    padding: 0.5rem;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-height: 40px; /* Минимальная высота для touch */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
 }
 
 .date-cell.empty {
@@ -273,13 +216,38 @@ body {
     transform: scale(1.05);
 }
 
-/* Стили для списка записей */
+/* Стили для дней с записями */
+.date-cell.has-appointments {
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    position: relative;
+}
+
+.date-cell.has-appointments:hover {
+    background-color: #ffc107;
+    color: white;
+}
+
+.date-cell.has-appointments:after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+    background-color: #856404;
+    border-radius: 50%;
+}
+
+/* Стили для таблицы записей - улучшенная адаптивность */
 .appointments-list {
     margin-top: 2rem;
     padding: 1.5rem;
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow-x: auto; /* Горизонтальная прокрутка для таблицы */
 }
 
 .appointments-list h3 {
@@ -290,6 +258,7 @@ body {
 #appointmentsTable {
     width: 100%;
     border-collapse: collapse;
+    min-width: 600px; /* Минимальная ширина таблицы */
 }
 
 #appointmentsTable th,
@@ -297,6 +266,7 @@ body {
     padding: 0.8rem;
     text-align: left;
     border-bottom: 1px solid #eee;
+    white-space: nowrap; /* Предотвращаем перенос текста */
 }
 
 #appointmentsTable th {
@@ -316,6 +286,8 @@ body {
     cursor: pointer;
     font-size: 14px;
     transition: all 0.2s ease;
+    min-width: 44px; /* Минимальный размер для touch */
+    min-height: 44px;
 }
 
 .btn-sm {
@@ -442,135 +414,441 @@ body {
     background-color: #2980b9;
 }
 
-/* Стили для форм добавления мастера и услуги */
-.add-form {
-    max-width: 600px;
-    margin: 2rem 0;
-    padding: 1.5rem;
-    background-color: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.add-form h3 {
-    margin-bottom: 1.5rem;
-    color: #2c3e50;
-}
-
-.file-upload {
-    border: 2px dashed #ddd;
-    padding: 2rem;
-    text-align: center;
-    border-radius: 8px;
+/* Стили для кнопки меню */
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
     cursor: pointer;
-    transition: border-color 0.3s;
-}
-
-.file-upload:hover {
-    border-color: #3498db;
-}
-
-.file-upload input {
-    display: none;
-}
-
-.image-preview {
-    margin-top: 1rem;
-    max-width: 200px;
-    max-height: 200px;
-    display: none;
-}
-
-/* Кнопка добавления */
-.add-btn {
-    background-color: #27ae60;
-    color: white;
-    border: none;
-    padding: 0.75rem 1.5rem;
+    padding: 8px;
     border-radius: 4px;
-    cursor: pointer;
-    margin-bottom: 1rem;
-    transition: background-color 0.2s;
-}
-
-.add-btn:hover {
-    background-color: #229954;
-}
-
-
-.phone-input-container {
-    display: flex;
-    align-items: center;
-}
-
-.phone-prefix {
     background: #f8f9fa;
-    padding: 0.75rem;
-    border: 1px solid #ced4da;
-    border-right: none;
-    border-radius: 4px 0 0 4px;
+    border: 1px solid #dee2e6;
+    z-index: 1001;
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
 }
 
-.phone-input {
-    border-radius: 0 4px 4px 0;
-    flex: 1;
+.menu-toggle span {
+    width: 20px;
+    height: 2px;
+    background-color: #2c3e50;
+    transition: 0.3s;
 }
 
-.error-message {
-    color: #e74c3c;
-    font-size: 12px;
-    margin-top: 5px;
+/* Кнопка закрытия меню */
+.close-menu {
     display: none;
-}
-
-.error-message.show {
-    display: block;
-}
-/* Добавим в конец файла */
-
-/* Стили для новой формы времени */
-.add-appointment-form .form-row {
-    display: flex;
-    gap: 1rem;
-    align-items: end;
-}
-
-.add-appointment-form .form-group {
-    margin-bottom: 1rem;
-}
-
-.add-appointment-form input[type="number"] {
-    text-align: center;
-}
-
-/* Улучшенные стили для кнопки отмены */
-.btn-danger {
-    background-color: #e74c3c;
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 44px;
+    height: 44px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    z-index: 1002;
 }
 
-.btn-danger:hover {
-    background-color: #c0392b;
+.close-menu:before, .close-menu:after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 2px;
+    background-color: white;
 }
 
-.btn-sm {
-    padding: 0.3rem 0.6rem;
-    font-size: 12px;
+.close-menu:before {
+    transform: translate(-50%, -50%) rotate(45deg);
 }
 
-/* Стили для контейнера времени */
-.time-input-container {
+.close-menu:after {
+    transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+/* Улучшенные стили меню */
+.main-menu {
+    padding: 60px 0 20px 0;
+}
+
+.main-menu ul {
+    list-style: none;
+}
+
+.main-menu li {
+    margin-bottom: 2px;
+}
+
+.main-menu a {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    padding: 15px 25px;
+    color: white;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    position: relative;
+    font-weight: 500;
+    min-height: 50px; /* Увеличиваем область клика */
 }
 
-.time-input-container span {
-    font-weight: bold;
-    color: #2c3e50;
+.main-menu a:hover {
+    background-color: rgba(255,255,255,0.1);
+    transform: translateX(5px);
 }
+
+.main-menu a.active {
+    background-color: #3498db;
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+}
+
+.main-menu a.active:before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 4px;
+    height: 60%;
+    background-color: white;
+    border-radius: 0 2px 2px 0;
+}
+
+.main-menu a.logout {
+    margin-top: 30px;
+    background-color: #e74c3c;
+    border-left: 4px solid #c0392b;
+}
+
+.main-menu a.logout:hover {
+    background-color: #c0392b;
+    transform: none;
+}
+
+/* Иконки меню - обновленная иконка для журнала */
+.main-menu a:before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 15px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    opacity: 0.8;
+}
+
+.main-menu a[data-section="journal"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z'/%3E%3C/svg%3E");
+}
+
+.main-menu a[data-section="schedule"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z'/%3E%3C/svg%3E");
+}
+
+.main-menu a[data-section="specialists"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z'/%3E%3C/svg%3E");
+}
+
+.main-menu a[data-section="services"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19.5 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm-6.5 4c0-2.21-1.79-4-4-4S5 9.79 5 12s1.79 4 4 4 4-1.79 4-4zm-6.5 4c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4zm13 0c2.21 0 4 1.79 4 4s-1.79 4-4 4-4-1.79-4-4 1.79-4 4-4z'/%3E%3C/svg%3E");
+}
+
+.main-menu a[data-section="clients"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+}
+
+.main-menu a[data-section="settings"]:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z'/%3E%3C/svg%3E");
+}
+
+.main-menu a.logout:before {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z'/%3E%3C/svg%3E");
+}
+
+/* Мобильная адаптация */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        top: 0;
+        left: 0;
+        height: 100vh;
+    }
+    
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    .menu-toggle {
+        display: flex;
+    }
+    
+    .close-menu {
+        display: block;
+    }
+    
+    /* Затемнение фона */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        backdrop-filter: blur(3px);
+    }
+    
+    .sidebar.open ~ .sidebar-overlay {
+        display: block;
+    }
+    
+    /* Блокировка прокрутки при открытом меню */
+    body.menu-open {
+        overflow: hidden;
+    }
+    
+    /* Адаптация календаря для мобильных */
+    .date-grid {
+        grid-template-columns: repeat(7, minmax(35px, 1fr));
+        gap: 0.2rem;
+    }
+    
+    .date-cell {
+        padding: 0.3rem;
+        font-size: 12px;
+        min-height: 35px;
+    }
+    
+    .day-header {
+        padding: 0.3rem;
+        font-size: 11px;
+    }
+    
+    /* Адаптация таблицы для мобильных */
+     .appointments-list {
+        padding: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    #appointmentsTable {
+        display: block;
+        width: 100%;
+        min-width: unset;
+        font-size: 14px;
+    }
+    
+    #appointmentsTable thead {
+        display: none;
+    }
+    
+    #appointmentsTable tbody,
+    #appointmentsTable tr {
+        display: block;
+        width: 100%;
+    }
+    
+    #appointmentsTable tr {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        border: 1px solid #e3f2fd;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.1);
+        transition: all 0.3s ease;
+    }
+    
+    #appointmentsTable tr:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(33, 150, 243, 0.15);
+    }
+    
+    #appointmentsTable td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem 0;
+        border: none;
+        border-bottom: 1px solid #f0f6ff;
+        white-space: normal;
+        min-height: 44px;
+    }
+    
+    #appointmentsTable td:last-child {
+        border-bottom: none;
+        justify-content: center;
+        padding-top: 1rem;
+        margin-top: 0.5rem;
+        border-top: 2px dashed #e3f2fd;
+    }
+    
+    #appointmentsTable td:before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: #1976d2;
+        margin-right: 1rem;
+        flex-shrink: 0;
+        min-width: 70px;
+        font-size: 13px;
+    }
+    
+    /* Особый стиль для времени - выделяем больше */
+    #appointmentsTable td[data-label="Время"] {
+        background-color: #e3f2fd;
+        margin: -1rem -1rem 1rem -1rem;
+        padding: 1rem;
+        border-radius: 8px 8px 0 0;
+        font-weight: bold;
+        font-size: 16px;
+        color: #0d47a1;
+    }
+    
+    #appointmentsTable td[data-label="Время"]:before {
+        content: "🕒 ";
+        font-size: 16px;
+        color: #0d47a1;
+    }
+    
+
+    
+    /* Скрываем заголовок "Действия" для мобильных */
+    #appointmentsTable td[data-label="Действия"]:before {
+        display: none;
+    }
+    
+    /* Улучшаем кнопку отмены */
+    #appointmentsTable .btn-danger {
+        background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+        border: none;
+        border-radius: 25px;
+        padding: 0.6rem 1.2rem;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+    }
+    
+    #appointmentsTable .btn-danger:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    #appointmentsTable tr {
+        padding: 0.8rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    #appointmentsTable td {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+        padding: 0.6rem 0;
+    }
+    
+    #appointmentsTable td:before {
+        margin-right: 0;
+        margin-bottom: 0.2rem;
+        font-size: 12px;
+    }
+    
+    #appointmentsTable td[data-label="Время"] {
+        margin: -0.8rem -0.8rem 0.8rem -0.8rem;
+        padding: 0.8rem;
+        font-size: 15px;
+    }
+    
+    #appointmentsTable td:last-child {
+        align-items: center;
+        padding-top: 0.8rem;
+    }
+    
+    /* Компактные кнопки */
+    .btn {
+        padding: 0.4rem 0.8rem;
+        font-size: 12px;
+        min-width: 36px;
+        min-height: 36px;
+    }
+}
+
+/* Плавные переходы для всех элементов */
+#appointmentsTable tr,
+#appointmentsTable td,
+.btn {
+    transition: all 0.3s ease;
+
+}
+
+/* Еще более мелкие экраны */
+@media (max-width: 480px) {
+    .content-body {
+        padding: 0 10px 10px 10px;
+    }
+    
+    #contentContainer {
+        padding: 15px;
+    }
+    
+    .specialists-list {
+        grid-template-columns: 1fr;
+    }
+    
+    #appointmentsTable td {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.3rem;
+    }
+    
+    #appointmentsTable td:before {
+        margin-right: 0;
+        margin-bottom: 0.3rem;
+    }
+    
+    #appointmentsTable td:last-child {
+        align-items: center;
+    }
+    
+    .month-navigation {
+        gap: 0.5rem;
+    }
+    
+    .current-month {
+        font-size: 16px;
+        min-width: 120px;
+    }
+    
+    .date-grid {
+        grid-template-columns: repeat(7, minmax(30px, 1fr));
+    }
+    
+    .date-cell {
+        padding: 0.2rem;
+        font-size: 11px;
+        min-height: 30px;
+    }
+}
+
+/* Анимация гамбургер-кнопки */
+.menu-toggle.active span:nth-child(1) {
+    transform: rotate(45deg) translate(6px, 6px);
+}
+
+.menu-toggle.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.menu-toggle.active span:nth-child(3) {
+    transform: rotate(-45deg) translate(6px, -6px);
+}
+
+/* Стили для формы добавления записи и других элементов остаются без изменений */
+/* [Здесь должен быть остальной CSS код] */

@@ -9,15 +9,11 @@
 <body>
     <!-- Боковое меню -->
     <div class="sidebar">
-        <div class="menu-toggle" id="menuToggle">
-            <span></span>
-            <span></span>
-            <span></span>
-        </div>
+        <div class="close-menu" id="closeMenu"></div>
         
         <nav class="main-menu" id="mainMenu">
             <ul>
-                <li><a href="#" data-section="journal" class="active">📋 Журнал записей</a></li>
+                <li><a href="#" data-section="journal">📋 Журнал записей</a></li>
                 <li><a href="#" data-section="schedule">📅 Расписание</a></li>
                 <li><a href="#" data-section="specialists">👥 Мастера</a></li>
                 <li><a href="#" data-section="services">💅 Услуги</a></li>
@@ -27,10 +23,16 @@
             </ul>
         </nav>
     </div>
-
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
     <!-- Основное содержимое -->
     <div class="main-content">
         <header class="content-header">
+            <div class="menu-toggle" id="menuToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
             <h1 id="currentSection">Журнал записей</h1>
         </header>
         
