@@ -2,6 +2,8 @@ const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const cors = require('cors');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 const PORT = 3000;
@@ -20,6 +22,44 @@ const db = new sqlite3.Database('./database.db', (err) => {
         console.log('Connected to SQLite database.');
         initializeDatabase();
     }
+});
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = 'photo/работники/';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        // Генерируем уникальное имя файла
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'master-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+const upload = multer({ 
+    storage: storage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only image files are allowed'));
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
+
+app.post('/api/upload-photo', upload.single('photo'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+    
+    res.json({
+        message: "success",
+        filePath: req.file.path
+    });
 });
 
 // Database initialization
@@ -822,6 +862,143 @@ app.post('/api/admin/appointment', (req, res) => {
                         });
                     });
                 });
+            }
+        });
+    });
+});
+
+// В API endpoint для получения всех мастеров изменим запрос
+app.get('/api/specialists-all', (req, res) => {
+    const sql = "SELECT id, имя, описание, фото, доступен FROM мастера WHERE доступен != 0 ORDER BY доступен DESC, имя";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// Add new specialist
+app.post('/api/specialists', (req, res) => {
+    const { имя, описание, фото } = req.body;
+    
+    if (!имя) {
+        return res.status(400).json({ error: 'Имя мастера обязательно' });
+    }
+    
+    const sql = `INSERT INTO мастера (имя, описание, фото, доступен) VALUES (?, ?, ?, 1)`;
+    
+    db.run(sql, [имя, описание, фото || 'photo/работники/default.jpg'], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                имя,
+                описание,
+                фото: фото || 'photo/работники/default.jpg',
+                доступен: 1
+            }
+        });
+    });
+});
+
+// Update specialist
+app.put('/api/specialist/:id', (req, res) => {
+    const specialistId = req.params.id;
+    const { имя, описание, фото } = req.body;
+    
+    if (!имя) {
+        return res.status(400).json({ error: 'Имя мастера обязательно' });
+    }
+    
+    const sql = `UPDATE мастера SET имя = ?, описание = ?, фото = ? WHERE id = ?`;
+    
+    db.run(sql, [имя, описание, фото || 'photo/работники/default.jpg', specialistId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Мастер не найден' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: specialistId,
+                имя,
+                описание,
+                фото: фото || 'photo/работники/default.jpg'
+            }
+        });
+    });
+});
+
+// Update specialist visibility
+app.patch('/api/specialist/:id/visibility', (req, res) => {
+    const specialistId = req.params.id;
+    const { доступен } = req.body;
+    
+    if (![1, 2].includes(доступен)) {
+        return res.status(400).json({ error: 'Неверное значение видимости' });
+    }
+    
+    const sql = `UPDATE мастера SET доступен = ? WHERE id = ?`;
+    
+    db.run(sql, [доступен, specialistId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Мастер не найден' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: specialistId,
+                доступен
+            }
+        });
+    });
+});
+
+// Delete specialist (set доступен = 0)
+app.delete('/api/specialist/:id', (req, res) => {
+    const specialistId = req.params.id;
+    
+    const sql = `UPDATE мастера SET доступен = 0 WHERE id = ?`;
+    
+    db.run(sql, [specialistId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Мастер не найден' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: specialistId,
+                deleted: true
             }
         });
     });

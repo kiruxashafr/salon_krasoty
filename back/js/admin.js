@@ -61,15 +61,19 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Функция загрузки контента раздела
-    function loadSection(sectionName) {
-        if (window.innerWidth < 768) {
-            showLoading();
-        }
-        
-        // Обновляем активный пункт меню
-        updateActiveMenu(sectionName);
-        currentActiveSection = sectionName;
+function loadSection(sectionName) {
+    if (window.innerWidth < 768) {
+        showLoading();
+    }
+    
+    // Обновляем активный пункт меню
+    updateActiveMenu(sectionName);
+    currentActiveSection = sectionName;
 
+    // Закрываем меню на мобильных устройствах
+    if (window.innerWidth < 1024 && isMenuOpen) {
+        toggleMenu();
+    }
         // Обновляем заголовок
         const sectionTitle = Array.from(menuLinks).find(link => 
             link.dataset.section === sectionName
@@ -84,8 +88,9 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'schedule':
                 contentContainer.innerHTML = '<p>Раздел "Расписание" в разработке</p>';
                 break;
+            // admin.js - в функцию loadSection добавить:
             case 'specialists':
-                contentContainer.innerHTML = '<p>Раздел "Мастера" в разработке</p>';
+                loadMastersSection();
                 break;
             case 'services':
                 contentContainer.innerHTML = '<p>Раздел "Услуги" в разработке</p>';
@@ -101,20 +106,20 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Обработчики событий для меню
-    menuLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const section = this.dataset.section;
-            if (section) {
-                loadSection(section);
-                // Всегда закрываем меню на мобильных после выбора раздела
-                if (window.innerWidth < 768 && isMenuOpen) {
-                    toggleMenu();
-                }
+// В обработчиках кликов по меню добавим закрытие
+menuLinks.forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const section = this.dataset.section;
+        if (section) {
+            loadSection(section);
+            // Всегда закрываем меню после выбора раздела
+            if (isMenuOpen) {
+                toggleMenu();
             }
-        });
+        }
     });
+});
 
   let resizeTimeout;
 let lastWindowWidth = window.innerWidth;
