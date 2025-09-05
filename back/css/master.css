@@ -49,11 +49,7 @@
     border: 2px solid transparent;
 }
 
-.master-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    border-color: #3498db;
-}
+
 
 .master-card.hidden {
     border-color: #e74c3c;
@@ -326,6 +322,8 @@ textarea.form-control {
 
 .master-card {
     animation: fadeIn 0.4s ease;
+    margin-bottom: 4%;
+
 }
 
 .master-form-container {

@@ -1246,6 +1246,218 @@ app.delete('/api/specialist/:id', (req, res) => {
     });
 });
 
+
+// API endpoint to get available schedule
+// API endpoint to get available schedule with date filter
+app.get('/api/schedule-available', (req, res) => {
+    const fromDate = req.query.fromDate;
+    
+    let sql = `
+        SELECT 
+            р.*,
+            м.имя as мастер_имя,
+            у.название as услуга_название,
+            у.цена as услуга_цена
+        FROM расписание р
+        JOIN мастера м ON р.мастер_id = м.id
+        JOIN услуги у ON р.услуга_id = у.id
+        WHERE р.доступно = 1
+    `;
+    
+    const params = [];
+    
+    if (fromDate) {
+        sql += ' AND р.дата >= ?';
+        params.push(fromDate);
+    }
+    
+    sql += ' ORDER BY р.дата ASC, р.время ASC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// API endpoint to get schedule by ID
+app.get('/api/schedule/:id', (req, res) => {
+    const scheduleId = req.params.id;
+    const sql = `
+        SELECT 
+            р.*,
+            м.имя as мастер_имя,
+            у.название as услуга_название,
+            у.цена as услуга_цена
+        FROM расписание р
+        JOIN мастера м ON р.мастер_id = м.id
+        JOIN услуги у ON р.услуга_id = у.id
+        WHERE р.id = ?
+    `;
+    
+    db.get(sql, [scheduleId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            res.status(404).json({ error: 'Schedule not found' });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: row
+        });
+    });
+});
+
+// API endpoint to add schedule
+app.post('/api/schedule', (req, res) => {
+    const { дата, время, мастер_id, услуга_id, доступно } = req.body;
+    
+    if (!дата || !время || !мастер_id || !услуга_id) {
+        return res.status(400).json({ error: 'Все поля обязательны' });
+    }
+    
+    // Проверяем, не существует ли уже такой записи
+    const checkSql = `
+        SELECT id FROM расписание 
+        WHERE мастер_id = ? 
+        AND услуга_id = ?
+        AND дата = ?
+        AND время = ?
+    `;
+    
+    db.get(checkSql, [мастер_id, услуга_id, дата, время], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (row) {
+            res.status(409).json({ error: 'Такое время уже существует для этого мастера и услуги' });
+            return;
+        }
+        
+        const insertSql = `
+            INSERT INTO расписание (дата, время, мастер_id, услуга_id, доступно)
+            VALUES (?, ?, ?, ?, ?)
+        `;
+        
+        db.run(insertSql, [дата, время, мастер_id, услуга_id, доступно || 1], function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: {
+                    id: this.lastID,
+                    дата,
+                    время,
+                    мастер_id,
+                    услуга_id,
+                    доступно: доступно || 1
+                }
+            });
+        });
+    });
+});
+
+// API endpoint to update schedule
+app.put('/api/schedule/:id', (req, res) => {
+    const scheduleId = req.params.id;
+    const { дата, время, мастер_id, услуга_id } = req.body;
+    
+    if (!дата || !время || !мастер_id || !услуга_id) {
+        return res.status(400).json({ error: 'Все поля обязательны' });
+    }
+    
+    // Проверяем, не существует ли уже такой записи (кроме текущей)
+    const checkSql = `
+        SELECT id FROM расписание 
+        WHERE мастер_id = ? 
+        AND услуга_id = ?
+        AND дата = ?
+        AND время = ?
+        AND id != ?
+    `;
+    
+    db.get(checkSql, [мастер_id, услуга_id, дата, время, scheduleId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (row) {
+            res.status(409).json({ error: 'Такое время уже существует для этого мастера и услуги' });
+            return;
+        }
+        
+        const updateSql = `
+            UPDATE расписание 
+            SET дата = ?, время = ?, мастер_id = ?, услуга_id = ?
+            WHERE id = ?
+        `;
+        
+        db.run(updateSql, [дата, время, мастер_id, услуга_id, scheduleId], function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            if (this.changes === 0) {
+                res.status(404).json({ error: 'Расписание не найдено' });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: {
+                    id: scheduleId,
+                    дата,
+                    время,
+                    мастер_id,
+                    услуга_id
+                }
+            });
+        });
+    });
+});
+
+// API endpoint to delete schedule
+app.delete('/api/schedule/:id', (req, res) => {
+    const scheduleId = req.params.id;
+    
+    const sql = "DELETE FROM расписание WHERE id = ?";
+    
+    db.run(sql, [scheduleId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Расписание не найдено' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: scheduleId,
+                deleted: true
+            }
+        });
+    });
+});
+
 // Error handling for undefined routes
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });

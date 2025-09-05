@@ -86,7 +86,7 @@ function loadSection(sectionName) {
                 loadJournalContent();
                 break;
             case 'freetime':
-                contentContainer.innerHTML = '<p>Раздел "Свободное время" в разработке</p>';
+                loadFreeTimeSection();
                 break;
             case 'schedule':
                 contentContainer.innerHTML = '<p>Раздел "Расписание" в разработке</p>';
@@ -95,10 +95,10 @@ function loadSection(sectionName) {
             case 'specialists':
                 loadMastersSection();
                 break;
-// В функцию loadSection добавить:
-case 'services':
-    loadServicesSection();
-    break;
+            // В функцию loadSection добавить:
+            case 'services':
+                loadServicesSection();
+                break;
             case 'clients':
                 contentContainer.innerHTML = '<p>Раздел "Клиенты" в разработке</p>';
                 break;
@@ -271,23 +271,32 @@ window.addEventListener('resize', function() {
         });
     }
 
-    // Функция выбора мастера
-    function selectSpecialistForJournal(specialistId, specialistName) {
-        window.currentSpecialistId = specialistId;
-        window.currentSpecialistName = specialistName;
-        
-        // Показываем выбранного мастера
-        document.querySelectorAll('.specialist-card-admin').forEach(card => {
-            card.classList.remove('selected');
+// Функция выбора мастера
+function selectSpecialistForJournal(specialistId, specialistName) {
+    window.currentSpecialistId = specialistId;
+    window.currentSpecialistName = specialistName;
+    
+    // Показываем выбранного мастера
+    document.querySelectorAll('.specialist-card-admin').forEach(card => {
+        card.classList.remove('selected');
+    });
+    document.querySelector(`[data-specialist-id="${specialistId}"]`).classList.add('selected');
+    
+    // Показываем календарь
+    const calendarSection = document.getElementById('calendarSection');
+    calendarSection.style.display = 'block';
+    
+    // Инициализируем календарь
+    initCalendar();
+    
+    // Прокручиваем к календарю после небольшой задержки (чтобы успел отрендериться)
+    setTimeout(() => {
+        calendarSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
         });
-        document.querySelector(`[data-specialist-id="${specialistId}"]`).classList.add('selected');
-        
-        // Показываем календарь
-        document.getElementById('calendarSection').style.display = 'block';
-        
-        // Инициализируем календарь
-        initCalendar();
-    }
+    }, 100);
+}
 
     // Обработчики событий
     menuToggle.addEventListener('click', toggleMenu);
@@ -469,7 +478,16 @@ function selectDate(date, day) {
         addBtn.onclick = showAddAppointmentForm;
         appointmentsList.querySelector('h3').after(addBtn);
     }
+    
+    // Прокручиваем к списку записей после загрузки данных
+    setTimeout(() => {
+        appointmentsList.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }, 300); // Увеличиваем задержку для гарантии загрузки данных
 }
+
 
 function loadAppointmentsForDate(date) {
     if (!window.currentSpecialistId) return;
@@ -497,6 +515,17 @@ function loadAppointmentsForDate(date) {
         .then(data => {
             if (data.message === 'success') {
                 displayAppointments(data.data);
+                
+                // Дополнительная прокрутка после загрузки записей
+                setTimeout(() => {
+                    const appointmentsList = document.getElementById('appointmentsList');
+                    if (appointmentsList) {
+                        appointmentsList.scrollIntoView({ 
+                            behavior: 'smooth', 
+                            block: 'start' 
+                        });
+                    }
+                }, 100);
             }
         })
         .catch(error => {
@@ -682,6 +711,16 @@ function showAddAppointmentForm() {
     
     document.getElementById('appointmentsList').insertAdjacentHTML('beforeend', formHTML);
     loadServicesForForm();
+        // Прокручиваем к форме
+    setTimeout(() => {
+        const formContainer = document.getElementById('addAppointmentFormContainer');
+        if (formContainer) {
+            formContainer.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+    }, 100);
     
     // Добавляем валидацию телефона
     const phoneInput = document.querySelector('input[name="clientPhone"]');

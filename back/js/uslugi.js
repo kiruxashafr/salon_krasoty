@@ -3,12 +3,54 @@ class ServicesManager {
     constructor() {
         this.currentServiceId = null;
         this.isEditMode = false;
+        this.existingCategories = [];
         this.init();
     }
 
     init() {
         this.loadServices();
+        this.loadCategories();
         this.setupEventListeners();
+    }
+
+    async loadCategories() {
+        try {
+            const response = await fetch('/api/services-all');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    // Получаем уникальные категории из всех услуг
+                    const categories = [...new Set(data.data
+                        .filter(service => service.категория && service.категория.trim() !== '')
+                        .map(service => service.категория.trim()))];
+                    
+                    this.existingCategories = categories.sort();
+                    this.updateCategoryDropdown();
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки категорий:', error);
+        }
+    }
+
+    updateCategoryDropdown() {
+        const dropdown = document.getElementById('categoryDropdown');
+        const input = document.getElementById('serviceCategory');
+        
+        if (dropdown && this.existingCategories.length > 0) {
+            dropdown.innerHTML = this.existingCategories.map(category => 
+                `<div class="dropdown-item" onclick="servicesManager.selectCategory('${category}')">${category}</div>`
+            ).join('');
+        }
+    }
+
+    selectCategory(category) {
+        const input = document.getElementById('serviceCategory');
+        const dropdown = document.getElementById('categoryDropdown');
+        
+        input.value = category;
+        dropdown.style.display = 'none';
+        input.focus();
     }
 
     async loadServices() {
@@ -23,7 +65,6 @@ class ServicesManager {
             const data = await response.json();
             
             if (data.message === 'success') {
-                // Фильтруем услуги с доступен != 0
                 const activeServices = data.data.filter(service => service.доступен !== 0);
                 this.displayServices(activeServices);
             }
@@ -140,10 +181,22 @@ class ServicesManager {
                 
                 <form class="service-form" id="serviceForm" onsubmit="servicesManager.handleSubmit(event)" enctype="multipart/form-data">
                     <div class="form-row">
-                        <div class="form-group">
+                        <div class="form-group category-group">
                             <label for="serviceCategory">Категория *</label>
-                            <input type="text" id="serviceCategory" name="category" class="form-control" 
-                                   value="${serviceData?.категория || ''}" required>
+                            <div class="category-input-container">
+                                <input type="text" id="serviceCategory" name="category" class="form-control" 
+                                       value="${serviceData?.категория || ''}" 
+                                       placeholder="Введите категорию или выберите из списка"
+                                       required
+                                       onfocus="servicesManager.showCategoryDropdown()"
+                                       onblur="setTimeout(() => servicesManager.hideCategoryDropdown(), 150)"
+                                       oninput="servicesManager.filterCategories(this.value)">
+                                <div id="categoryDropdown" class="category-dropdown"></div>
+                                <button type="button" class="category-dropdown-toggle" onclick="servicesManager.toggleCategoryDropdown()">
+                                    ▼
+                                </button>
+                            </div>
+                            <small>Существующие категории: ${this.existingCategories.join(', ') || 'пока нет'}</small>
                         </div>
                         
                         <div class="form-group">
@@ -191,11 +244,53 @@ class ServicesManager {
 
         document.getElementById('servicesContainer').insertAdjacentHTML('beforeend', formHTML);
         
+        // Обновляем выпадающий список
+        this.updateCategoryDropdown();
+        
         // Прокрутка к форме
         document.querySelector('.service-form-container').scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start' 
         });
+    }
+
+    showCategoryDropdown() {
+        const dropdown = document.getElementById('categoryDropdown');
+        if (dropdown && this.existingCategories.length > 0) {
+            dropdown.style.display = 'block';
+        }
+    }
+
+    hideCategoryDropdown() {
+        const dropdown = document.getElementById('categoryDropdown');
+        if (dropdown) {
+            dropdown.style.display = 'none';
+        }
+    }
+
+    toggleCategoryDropdown() {
+        const dropdown = document.getElementById('categoryDropdown');
+        if (dropdown) {
+            dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    filterCategories(searchText) {
+        const dropdown = document.getElementById('categoryDropdown');
+        if (!dropdown) return;
+
+        const filteredCategories = this.existingCategories.filter(category =>
+            category.toLowerCase().includes(searchText.toLowerCase())
+        );
+
+        if (filteredCategories.length > 0) {
+            dropdown.innerHTML = filteredCategories.map(category => 
+                `<div class="dropdown-item" onclick="servicesManager.selectCategory('${category}')">${category}</div>`
+            ).join('');
+            dropdown.style.display = 'block';
+        } else {
+            dropdown.style.display = 'none';
+        }
     }
 
     handleFileSelect(event) {
@@ -219,90 +314,92 @@ class ServicesManager {
         }
     }
 
-async handleSubmit(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const category = formData.get('category').trim();
-    const name = formData.get('name').trim();
-    const price = parseFloat(formData.get('price'));
-    const description = formData.get('description').trim();
-    const photoFile = formData.get('photo');
-
-    if (!category || !name || isNaN(price)) {
-        alert('Пожалуйста, заполните все обязательные поля');
-        return;
-    }
-
-    try {
-        this.showFormLoading();
+    async handleSubmit(event) {
+        event.preventDefault();
         
-        let photoPath = '';
-        if (photoFile && photoFile.size > 0) {
-            photoPath = await this.uploadPhoto(photoFile);
-        } else if (this.isEditMode) {
-            const currentPreview = document.querySelector('.image-preview');
-            if (currentPreview && !currentPreview.src.startsWith('data:')) {
-                photoPath = currentPreview.src;
+        const formData = new FormData(event.target);
+        const category = formData.get('category').trim();
+        const name = formData.get('name').trim();
+        const price = parseFloat(formData.get('price'));
+        const description = formData.get('description').trim();
+        const photoFile = formData.get('photo');
+
+        if (!category || !name || isNaN(price)) {
+            alert('Пожалуйста, заполните все обязательные поля');
+            return;
+        }
+
+        try {
+            this.showFormLoading();
+            
+            let photoPath = '';
+            if (photoFile && photoFile.size > 0) {
+                photoPath = await this.uploadPhoto(photoFile);
+            } else if (this.isEditMode) {
+                const currentPreview = document.querySelector('.image-preview');
+                if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                    photoPath = currentPreview.src;
+                } else {
+                    photoPath = 'photo/услуги/default.jpg';
+                }
             } else {
                 photoPath = 'photo/услуги/default.jpg';
             }
-        } else {
-            photoPath = 'photo/услуги/default.jpg';
-        }
 
-        // Получаем текущий статус услуги (только в режиме редактирования)
-        let доступен = 1; // по умолчанию активна
-        if (this.isEditMode) {
-            // Находим карточку услуги и проверяем ее текущий статус
-            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-            if (serviceCard) {
-                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+            let доступен = 1;
+            if (this.isEditMode) {
+                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+                if (serviceCard) {
+                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+                }
             }
-        }
 
-        const serviceData = {
-            категория: category,
-            название: name,
-            цена: price,
-            описание: description,
-            фото: photoPath,
-            доступен: доступен // добавляем поле доступен
-        };
+            const serviceData = {
+                категория: category,
+                название: name,
+                цена: price,
+                описание: description,
+                фото: photoPath,
+                доступен: доступен
+            };
 
-        const url = this.isEditMode 
-            ? `/api/service/${this.currentServiceId}` 
-            : '/api/services-new';
+            const url = this.isEditMode 
+                ? `/api/service/${this.currentServiceId}` 
+                : '/api/services-new';
+                
+            const method = this.isEditMode ? 'PUT' : 'POST';
             
-        const method = this.isEditMode ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(serviceData)
-        });
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(serviceData)
+            });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка сохранения');
-        }
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сохранения');
+            }
 
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            alert(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
-            this.closeForm();
-            this.loadServices();
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                alert(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
+                
+                // Обновляем список категорий после добавления/редактирования
+                await this.loadCategories();
+                
+                this.closeForm();
+                this.loadServices();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading();
         }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        alert('Не удалось сохранить: ' + error.message);
-    } finally {
-        this.hideFormLoading();
     }
-}
 
     async uploadPhoto(file) {
         const formData = new FormData();
@@ -328,36 +425,36 @@ async handleSubmit(event) {
         }
     }
 
-async toggleServiceVisibility(serviceId, status) {
-    const action = status === 1 ? 'показать' : 'скрыть';
-    
-    if (confirm(`Вы уверены, что хотите ${action} эту услугу?`)) {
-        try {
-            const response = await fetch(`/api/service/${serviceId}/visibility`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ доступен: status })
-            });
+    async toggleServiceVisibility(serviceId, status) {
+        const action = status === 1 ? 'показать' : 'скрыть';
+        
+        if (confirm(`Вы уверены, что хотите ${action} эту услугу?`)) {
+            try {
+                const response = await fetch(`/api/service/${serviceId}/visibility`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ доступен: status })
+                });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка изменения видимости');
-            }
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Ошибка изменения видимости');
+                }
 
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                alert(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
-                this.loadServices();
+                const data = await response.json();
+                
+                if (data.message === 'success') {
+                    alert(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
+                    this.loadServices();
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось изменить видимость услуги: ' + error.message);
             }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось изменить видимость услуги: ' + error.message);
         }
     }
-}
 
     async deleteService(serviceId) {
         if (confirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить!')) {
@@ -446,6 +543,20 @@ async toggleServiceVisibility(serviceId, status) {
         document.getElementById('addServiceBtn')?.addEventListener('click', () => {
             this.showAddForm();
         });
+
+        // Закрытие выпадающего списка при клике вне его
+        document.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('categoryDropdown');
+            const input = document.getElementById('serviceCategory');
+            const toggle = document.querySelector('.category-dropdown-toggle');
+            
+            if (dropdown && input && toggle && 
+                !dropdown.contains(e.target) && 
+                !input.contains(e.target) && 
+                !toggle.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
     }
 }
 
@@ -471,6 +582,53 @@ function loadServicesSection() {
                 </div>
             </div>
         </div>
+        
+        <style>
+            .category-group {
+                position: relative;
+            }
+            
+            .category-input-container {
+                position: relative;
+            }
+            
+            .category-dropdown {
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                background: white;
+                border: 1px solid #ddd;
+                border-top: none;
+                max-height: 200px;
+                overflow-y: auto;
+                display: none;
+                z-index: 1000;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            }
+            
+            .dropdown-item {
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #eee;
+            }
+            
+            .dropdown-item:hover {
+                background-color: #f5f5f5;
+            }
+            
+            .category-dropdown-toggle {
+                position: absolute;
+                right: 8px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: none;
+                border: none;
+                cursor: pointer;
+                font-size: 12px;
+                color: #666;
+            }
+        </style>
     `;
 
     // Инициализируем менеджер услуг
