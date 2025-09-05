@@ -84,6 +84,68 @@ app.post('/api/upload-photo', upload.single('photo'), (req, res) => {
     }
 });
 
+// Добавить после существующего upload-photo endpoint
+const serviceStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, 'photo/услуги/');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        const timestamp = Date.now();
+        const extension = path.extname(file.originalname);
+        const safeName = `service_${timestamp}${extension}`;
+        cb(null, safeName);
+    }
+});
+
+const uploadService = multer({ 
+    storage: serviceStorage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Только изображения разрешены'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+});
+
+app.post('/api/upload-service-photo', uploadService.single('photo'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+        
+        res.json({
+            message: "success",
+            filePath: 'photo/услуги/' + req.file.filename
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки фото услуги:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
+    }
+});
+
+// Добавить endpoint для получения всех услуг
+app.get('/api/services-all', (req, res) => {
+    const sql = "SELECT * FROM услуги WHERE доступен != 0 ORDER BY доступен DESC, категория, название";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
 // Обработчик ошибок multer
 app.use((error, req, res, next) => {
     if (error instanceof multer.MulterError) {
@@ -180,7 +242,7 @@ app.get('/admin', (req, res) => {
 
 // API endpoint to get all services
 app.get('/api/services', (req, res) => {
-    const sql = "SELECT * FROM услуги ORDER BY категория, название";
+    const sql = "SELECT * FROM услуги WHERE доступен = 1 ORDER BY категория, название";
     db.all(sql, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
@@ -192,6 +254,41 @@ app.get('/api/services', (req, res) => {
         });
     });
 });
+
+
+// API endpoint to add service
+app.post('/api/services-new', (req, res) => {
+    const { категория, название, описание, цена, фото, доступен } = req.body;
+    
+    if (!категория || !название || !цена) {
+        return res.status(400).json({ error: 'Категория, название и цена обязательны' });
+    }
+    
+    const sql = `INSERT INTO услуги (категория, название, описание, цена, фото, доступен) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    
+    db.run(sql, [категория, название, описание, цена, фото, доступен || 1], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                категория,
+                название,
+                описание,
+                цена,
+                фото,
+                доступен: доступен || 1
+            }
+        });
+    });
+});
+
+
 app.get('/:page', (req, res) => {
     const page = req.params.page;
     if (page.endsWith('.html')) {
@@ -235,6 +332,116 @@ app.get('/api/service/:id', (req, res) => {
     });
 });
 
+// API endpoint to update service
+// API endpoint to update service
+app.put('/api/service/:id', (req, res) => {
+    const serviceId = req.params.id;
+    const { категория, название, описание, цена, фото, доступен } = req.body;
+    
+    if (!категория || !название || !цена) {
+        return res.status(400).json({ error: 'Категория, название и цена обязательны' });
+    }
+    
+    // Создаем динамический SQL запрос в зависимости от переданных полей
+    let sql = `UPDATE услуги SET категория = ?, название = ?, описание = ?, 
+               цена = ?, фото = ?`;
+    let params = [категория, название, описание, цена, фото];
+    
+    // Добавляем поле доступен только если оно передано
+    if (доступен !== undefined) {
+        sql += ', доступен = ?';
+        params.push(доступен);
+    }
+    
+    sql += ' WHERE id = ?';
+    params.push(serviceId);
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Услуга не найдена' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: serviceId,
+                категория,
+                название,
+                описание,
+                цена,
+                фото,
+                доступен: доступен !== undefined ? доступен : null // возвращаем текущее значение
+            }
+        });
+    });
+});
+
+// API endpoint to update service visibility
+// API endpoint to update service visibility - ИСПРАВЛЕННАЯ ВЕРСИЯ
+app.patch('/api/service/:id/visibility', (req, res) => {
+    const serviceId = req.params.id;
+    const { доступен } = req.body;
+    
+    // Разрешаем значения 1 и 2 (было только [0, 1])
+    if (![1, 2].includes(доступен)) {
+        return res.status(400).json({ error: 'Неверное значение доступности. Допустимо: 1 (активна) или 2 (скрыта)' });
+    }
+    
+    const sql = `UPDATE услуги SET доступен = ? WHERE id = ?`;
+    
+    db.run(sql, [доступен, serviceId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Услуга не найдена' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: serviceId,
+                доступен
+            }
+        });
+    });
+});
+// API endpoint to delete service (set доступен = 0)
+app.delete('/api/service/:id', (req, res) => {
+    const serviceId = req.params.id;
+    
+    const sql = `UPDATE услуги SET доступен = 0 WHERE id = ?`;
+    
+    db.run(sql, [serviceId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Услуга не найдена' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: serviceId,
+                deleted: true
+            }
+        });
+    });
+});
+
 // API endpoint to get all specialists
 app.get('/api/specialists', (req, res) => {
     const sql = "SELECT id, имя, описание, фото FROM мастера WHERE доступен = 1 ORDER BY имя";
@@ -251,6 +458,7 @@ app.get('/api/specialists', (req, res) => {
 });
 
 // API endpoint to get specialist's services (из расписания)
+// API endpoint to get specialist's services (из расписания)
 app.get('/api/specialist/:id/services', (req, res) => {
     const specialistId = req.params.id;
     const sql = `
@@ -258,6 +466,7 @@ app.get('/api/specialist/:id/services', (req, res) => {
         FROM услуги у
         JOIN расписание р ON у.id = р.услуга_id
         WHERE р.мастер_id = ?
+        AND у.доступен = 1
         ORDER BY у.категория, у.название
     `;
     

@@ -95,9 +95,10 @@ function loadSection(sectionName) {
             case 'specialists':
                 loadMastersSection();
                 break;
-            case 'services':
-                contentContainer.innerHTML = '<p>Раздел "Услуги" в разработке</p>';
-                break;
+// В функцию loadSection добавить:
+case 'services':
+    loadServicesSection();
+    break;
             case 'clients':
                 contentContainer.innerHTML = '<p>Раздел "Клиенты" в разработке</p>';
                 break;

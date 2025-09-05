@@ -22,7 +22,9 @@
     color: #1b1c1d;
     margin: 2rem 0 1rem;
     text-align: left;
-    font-family: 'nasir', Arial, sans-serif;}
+    font-family: 'soviet', Arial, sans-serif;
+    text-transform: uppercase;
+}
 
 .category-services {
     display: grid;
