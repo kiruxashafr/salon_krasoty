@@ -1,5 +1,4 @@
 // master.js
-// master.js - обновленная версия
 class MastersManager {
     constructor() {
         this.currentMasterId = null;
@@ -34,9 +33,99 @@ class MastersManager {
         }
     }
 
-    // ... остальной код класса MastersManager без изменений ...
+    displayMasters(masters) {
+        const container = document.getElementById('mastersContainer');
+        
+        if (!masters || masters.length === 0) {
+            container.innerHTML = `
+                <div class="no-masters">
+                    <h3>Мастеров пока нет</h3>
+                    <p>Добавьте первого мастера, нажав кнопку "Добавить мастера"</p>
+                </div>
+            `;
+            return;
+        }
 
-    renderMasterForm(masterData = null) {
+        container.innerHTML = masters.map(master => this.createMasterCard(master)).join('');
+    }
+
+    createMasterCard(master) {
+            let photoUrl = master.фото || 'photo/работники/default.jpg';
+    if (photoUrl.startsWith('data:')) {
+        photoUrl = 'photo/работники/default.jpg';
+    }
+        const isHidden = master.доступен === 2;
+        const statusText = isHidden ? 'Скрыт' : 'Активен';
+        const statusClass = isHidden ? 'hidden' : '';
+
+        return `
+            <div class="master-card ${statusClass}" data-master-id="${master.id}">
+                <div class="master-header">
+                    <img src="${master.фото || 'photo/работники/default.jpg'}" 
+                         alt="${master.имя}" 
+                         class="master-image"
+                         onerror="this.src='photo/работники/default.jpg'">
+                    <div class="master-info">
+                        <h3 class="master-name">
+                            ${master.имя}
+                            <span class="master-status">${statusText}</span>
+                        </h3>
+                        <p class="master-description">${master.описание || 'Описание отсутствует'}</p>
+                    </div>
+                </div>
+                
+                <div class="master-actions">
+                    <button class="action-btn btn-edit" onclick="mastersManager.editMaster(${master.id})">
+                        ✏️ Редактировать
+                    </button>
+                    
+                    ${isHidden ? `
+                        <button class="action-btn btn-restore" onclick="mastersManager.toggleMasterVisibility(${master.id}, 1)">
+                            👁️ Показать
+                        </button>
+                    ` : `
+                        <button class="action-btn btn-hide" onclick="mastersManager.toggleMasterVisibility(${master.id}, 2)">
+                            👁️ Скрыть
+                        </button>
+                    `}
+                    
+                    <button class="action-btn btn-delete" onclick="mastersManager.deleteMaster(${master.id})">
+                        🗑️ Удалить
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    showAddForm() {
+        this.isEditMode = false;
+        this.currentMasterId = null;
+        this.renderMasterForm();
+    }
+
+    async editMaster(masterId) {
+        try {
+            this.showFormLoading();
+            const response = await fetch(`/api/specialist/${masterId}`);
+            
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки данных мастера');
+            }
+            
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                this.isEditMode = true;
+                this.currentMasterId = masterId;
+                this.renderMasterForm(data.data);
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Не удалось загрузить данные мастера');
+        }
+    }
+
+renderMasterForm(masterData = null) {
         const formHTML = `
             <div class="master-form-container">
                 <div class="form-header">
@@ -114,32 +203,38 @@ class MastersManager {
         }
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
+async handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const name = formData.get('name').trim();
+    const description = formData.get('description').trim();
+    const photoFile = formData.get('photo');
+
+    if (!name) {
+        alert('Пожалуйста, введите имя мастера');
+        return;
+    }
+
+    try {
+        this.showFormLoading();
         
-        const formData = new FormData(event.target);
-        const name = formData.get('name').trim();
-        const description = formData.get('description').trim();
-        const photoFile = formData.get('photo');
-
-        if (!name) {
-            alert('Пожалуйста, введите имя мастера');
-            return;
-        }
-
-        try {
-            this.showFormLoading();
-            
-            // Если выбран файл, загружаем его
-            let photoPath = '';
-            if (photoFile && photoFile.size > 0) {
-                photoPath = await this.uploadPhoto(photoFile);
-            } else if (this.isEditMode) {
-                // В режиме редактирования сохраняем старое фото, если новое не выбрано
-                photoPath = document.querySelector('.image-preview')?.src || 'photo/работники/default.jpg';
-            } else {
-                photoPath = 'photo/работники/default.jpg';
-            }
+        // Если выбран файл, загружаем его
+// master.js - исправленная часть handleSubmit
+let photoPath = '';
+if (photoFile && photoFile.size > 0) {
+    photoPath = await this.uploadPhoto(photoFile);
+} else if (this.isEditMode) {
+    // В режиме редактирования сохраняем старое фото, если новое не выбрано
+    const currentPreview = document.querySelector('.image-preview');
+    if (currentPreview && !currentPreview.src.startsWith('data:')) {
+        photoPath = currentPreview.src;
+    } else {
+        photoPath = 'photo/работники/default.jpg';
+    }
+} else {
+    photoPath = 'photo/работники/default.jpg';
+}
 
             const masterData = {
                 имя: name,
@@ -181,29 +276,151 @@ class MastersManager {
         }
     }
 
-    async uploadPhoto(file) {
-        const formData = new FormData();
-        formData.append('photo', file);
+// master.js - исправленная функция uploadPhoto
+async uploadPhoto(file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        const response = await fetch('/api/upload-photo', {
+            method: 'POST',
+            body: formData
+        });
         
-        try {
-            const response = await fetch('/api/upload-photo', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки фото');
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка загрузки фото');
+        }
+        
+        const data = await response.json();
+        return data.filePath;
+    } catch (error) {
+        console.error('Ошибка загрузки фото:', error);
+        alert('Ошибка загрузки фото: ' + error.message);
+        return 'photo/работники/default.jpg';
+    }
+}
+    async toggleMasterVisibility(masterId, status) {
+        const action = status === 1 ? 'показать' : 'скрыть';
+        
+        if (confirm(`Вы уверены, что хотите ${action} этого мастера?`)) {
+            try {
+                const response = await fetch(`/api/specialist/${masterId}/visibility`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ доступен: status })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка изменения видимости');
+                }
+
+                const data = await response.json();
+                
+                if (data.message === 'success') {
+                    alert(`Мастер успешно ${action === 'показать' ? 'показан' : 'скрыт'}!`);
+                    this.loadMasters(); // Перезагружаем список
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось изменить видимость мастера');
             }
-            
-            const data = await response.json();
-            return data.filePath;
-        } catch (error) {
-            console.error('Ошибка загрузки фото:', error);
-            return 'photo/работники/default.jpg';
         }
     }
 
-    // ... остальные методы без изменений ...
+    async deleteMaster(masterId) {
+        if (confirm('Вы уверены, что хотите удалить этого мастера? Это действие нельзя отменить!')) {
+            try {
+                const response = await fetch(`/api/specialist/${masterId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ошибка удаления мастера');
+                }
+
+                const data = await response.json();
+                
+                if (data.message === 'success') {
+                    alert('Мастер успешно удален!');
+                    this.loadMasters(); // Перезагружаем список
+                }
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Не удалось удалить мастера');
+            }
+        }
+    }
+
+    closeForm() {
+        const formContainer = document.querySelector('.master-form-container');
+        if (formContainer) {
+            formContainer.remove();
+        }
+    }
+
+    showLoading() {
+        const container = document.getElementById('mastersContainer');
+        container.innerHTML = `
+            <div class="loading" style="text-align: center; padding: 2rem;">
+                <div class="spinner"></div>
+                <p>Загрузка мастеров...</p>
+            </div>
+        `;
+    }
+
+    showFormLoading() {
+        const form = document.getElementById('masterForm');
+        if (form) {
+            const submitBtn = form.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px;"></div> Сохранение...';
+            
+            // Добавляем overlay поверх формы
+            const formContainer = document.querySelector('.master-form-container');
+            formContainer.style.position = 'relative';
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'loading-overlay';
+            overlay.innerHTML = '<div class="spinner"></div>';
+            formContainer.appendChild(overlay);
+        }
+    }
+
+    hideFormLoading() {
+        const form = document.getElementById('masterForm');
+        if (form) {
+            const submitBtn = form.querySelector('.submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера';
+            
+            // Убираем overlay
+            const overlay = document.querySelector('.loading-overlay');
+            if (overlay) overlay.remove();
+        }
+    }
+
+    showError(message) {
+        const container = document.getElementById('mastersContainer');
+        container.innerHTML = `
+            <div class="error" style="text-align: center; padding: 2rem; color: #e74c3c;">
+                <h3>Ошибка</h3>
+                <p>${message}</p>
+                <button onclick="mastersManager.loadMasters()" class="btn btn-primary">
+                    ⟳ Попробовать снова
+                </button>
+            </div>
+        `;
+    }
+
+    setupEventListeners() {
+        // Обработчик для кнопки добавления
+        document.getElementById('addMasterBtn')?.addEventListener('click', () => {
+            this.showAddForm();
+        });
+    }
 }
 
 // Инициализация менеджера мастеров

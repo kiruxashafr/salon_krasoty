@@ -13,6 +13,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('sh'));
 app.use(express.static('back')); // Serve static files from 'back'
+app.use('/photo', express.static('photo'));
+// Добавьте в начало server.js для отладки
+console.log('Текущая директория:', __dirname);
+console.log('Путь к папке фото:', path.join(__dirname, 'photo/работники/'));
 // Initialize SQLite database
 const db = new sqlite3.Database('./database.db', (err) => {
     if (err) {
@@ -23,9 +27,12 @@ const db = new sqlite3.Database('./database.db', (err) => {
         initializeDatabase();
     }
 });
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        const dir = 'photo/работники/';
+        // Используем абсолютный путь к папке
+        const dir = path.join(__dirname, 'photo/работники/');
+        // Создаем папку если ее нет
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
@@ -33,17 +40,22 @@ const storage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         // Генерируем уникальное имя файла
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'master-' + uniqueSuffix + path.extname(file.originalname));
+        const timestamp = Date.now();
+        const extension = path.extname(file.originalname);
+        const safeName = `master_${timestamp}${extension}`;
+        
+        cb(null, safeName);
     }
 });
+
 const upload = multer({ 
     storage: storage,
     fileFilter: function (req, file, cb) {
+        // Проверяем что файл является изображением
         if (file.mimetype.startsWith('image/')) {
             cb(null, true);
         } else {
-            cb(new Error('Only image files are allowed'));
+            cb(new Error('Только изображения разрешены'), false);
         }
     },
     limits: {
@@ -51,15 +63,35 @@ const upload = multer({
     }
 });
 
+// API endpoint для загрузки фото
 app.post('/api/upload-photo', upload.single('photo'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+        
+        console.log('Файл сохранен по пути:', req.file.path);
+        console.log('Имя файла:', req.file.filename);
+        
+        // Возвращаем относительный путь к файлу
+        res.json({
+            message: "success",
+            filePath: 'photo/работники/' + req.file.filename
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки фото:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
     }
-    
-    res.json({
-        message: "success",
-        filePath: req.file.path
-    });
+});
+
+// Обработчик ошибок multer
+app.use((error, req, res, next) => {
+    if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+            return res.status(400).json({ error: 'Размер файла слишком большой (макс. 5MB)' });
+        }
+    }
+    res.status(400).json({ error: error.message });
 });
 
 // Database initialization
@@ -96,6 +128,7 @@ function initializeDatabase() {
                 описание TEXT,
                 цена REAL,
                 фото TEXT
+                доступен INTEGER DEFAULT 1
             )
         `);
         

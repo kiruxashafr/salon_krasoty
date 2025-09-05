@@ -85,6 +85,9 @@ function loadSection(sectionName) {
             case 'journal':
                 loadJournalContent();
                 break;
+            case 'freetime':
+                contentContainer.innerHTML = '<p>Раздел "Свободное время" в разработке</p>';
+                break;
             case 'schedule':
                 contentContainer.innerHTML = '<p>Раздел "Расписание" в разработке</p>';
                 break;
