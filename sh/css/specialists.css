@@ -1,0 +1,442 @@
+.specialists-section {
+    padding: 4rem 2rem;
+    background-color: #f9f9f9;
+}
+
+.specialists-title {
+    font-size: clamp(28px, 5vw, 48px);
+    text-align: center;
+    margin-bottom: 3rem;
+    color: #1b1c1d;
+    font-family: 'soviet', Arial, sans-serif;
+}
+
+.specialists-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.specialist-card {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    height: 400px; /* Увеличиваем высоту для лучшего отображения фото */
+    transition: transform 0.3s ease;
+}
+
+
+
+.specialist-content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.9));
+    padding: 1.5rem;
+    color: white;
+    height: 30%;
+}
+
+.specialist-content .specialist-info p {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 3.2em; /* примерно две строки */
+}
+
+.specialist-name {
+    font-size: 28px;
+    margin: 0 0 0.1rem 0;
+    font-weight: 700;
+    font-family: 'nasir', Arial, sans-serif;}
+
+.specialist-description {
+    font-size: 16px;
+    margin-bottom: 1rem;
+    margin-bottom: 0.3em !important;
+    opacity: 0.9;
+    font-family: 'nasir', Arial, sans-serif;}
+.specialist-btn {
+    background: none;
+    color: #ffffff;
+    border: 1px solid rgb(255, 255, 255);
+    padding: 0.5em 1em;
+    border-radius: 33px;
+    font-family: 'nasir', Arial, sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: block;
+    margin-left: auto;
+    margin-right: 0;
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.5rem;
+}
+
+.specialist-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* Модальное окно специалиста */
+.specialist-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.specialist-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 10px;
+    font-family: 'acrobat', Arial, sans-serif;
+    width: 80%;
+    max-width: 600px;
+    position: relative;
+    overflow-y: auto;
+}
+
+.close-modal-btn {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 32px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 1001;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-services-list {
+    margin: 1.5rem 0;
+}
+
+.modal-service-item {
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.modal-service-item h4 {
+    margin: 0;
+    flex: 1;
+    font-size: 18px;
+}
+
+.modal-service-item p {
+    margin: 0;
+    font-size: 16px;
+    font-family: 'Courier New', Courier, monospace;
+    color: #333;
+}
+
+.modal-service-item:hover {
+    background-color: #f5f5f5;
+    transform: translateX(5px);
+}
+
+.modal-service-item.selected-service {
+    background-color: #e6f7ff;
+    border-color: #91d5ff;
+}
+
+.time-selection {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.time-selection h3 {
+    margin-bottom: 1rem;
+}
+
+#appointment-date {
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.time-slots {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.time-slot-btn {
+    padding: 0.8rem;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.time-slot-btn:hover {
+    background-color: #f0f0f0;
+    transform: scale(1.05);
+}
+
+.time-slot-btn:active {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+/* Стили для выбора даты */
+.date-selection {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.month-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 1rem;
+    gap: 1rem;
+}
+
+.month-nav-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 5px 14px;
+    font-size: 20px;
+    border: 1px solid #ddd;
+    padding-bottom: 7px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.month-nav-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.current-month {
+    font-size: 18px;
+    min-width: 150px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.date-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.day-header {
+    text-align: center;
+    font-weight: bold;
+    padding: 0.5rem;
+    background-color: #f5f5f5;
+    border-radius: 5px;
+}
+
+.date-cell {
+    text-align: center;
+    padding: 0.8rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.date-cell.empty {
+    background-color: transparent;
+    cursor: default;
+}
+
+.date-cell.past-date {
+    background-color: #f0f0f0;
+    color: #999;
+    cursor: not-allowed;
+}
+
+.specialist-modal-content .submit-btn{
+    padding: 0.5rem 1rem;
+    font-family: 'acrobat', Arial, sans-serif;
+    position: relative;
+    float: right;
+}
+
+.date-cell.available-date {
+    background-color: #e8f5e8;
+    border: 1px solid #4caf50;
+    color: #2e7d32;
+}
+
+.date-cell.available-date:hover {
+    background-color: #4caf50;
+    color: white;
+    transform: scale(1.05);
+}
+
+.date-cell.no-availability {
+background-color: #f0f0f0;
+    border: 1px solid #707070;
+    color: #000000;
+    cursor: not-allowed;
+}
+
+.date-cell.available-date:after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 6px;
+    height: 6px;
+    background-color: #4caf50;
+    border-radius: 50%;
+}
+
+.loading-dates {
+    color: #666;
+}
+
+/* Мобильная версия для календаря */
+@media (max-width: 768px) {
+    .date-grid {
+        gap: 0.3rem;
+    }
+    
+    .date-cell {
+        padding: 0.5rem;
+        font-size: 14px;
+    }
+    
+    .month-navigation {
+        gap: 0.5rem;
+    }
+    
+    .month-nav-btn {
+        padding: 0.3rem 0.8rem;
+    }
+    
+    .current-month {
+        font-size: 16px;
+        min-width: 120px;
+    }
+    
+    .date-cell.available-date:after {
+        width: 4px;
+        height: 4px;
+        bottom: 2px;
+        right: 2px;
+    }
+}
+
+/* Мобильная версия */
+@media (max-width: 768px) {
+    .specialists-container {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
+    .specialist-card {
+        height: 350px;
+    }
+    
+    .specialist-modal {
+        background-color: rgba(0, 0, 0, 0.95);
+    }
+    
+    .specialist-modal-content {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        margin: 0;
+        border-radius: 0;
+        max-width: none;
+        max-height: none;
+        padding: 1rem;
+    }
+    .specialist-btn{
+        bottom: 1rem;
+    }
+    
+    .close-modal-btn {
+        right: 1.5rem;
+        top: 22px;
+        font-size: 44px;
+        border-radius: 50%;
+        font-weight: 100;
+    }
+    
+    .time-slots {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .modal-service-item {
+        padding: 1.2rem;
+    }
+    
+    .modal-service-item h4 {
+        font-size: 16px;
+    }
+    
+    .modal-service-item p {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .specialists-section {
+        padding: 2rem 1rem;
+    }
+    
+    .specialist-card {
+        height: 300px;
+    }
+    
+    .specialist-name {
+        font-size: 24px;
+    }
+    
+    .time-slots {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .specialist-modal-content {
+        padding: 0.5rem;
+    }
+    
+    .close-modal-btn {
+        right: 1rem;
+        top: 1rem;
+        font-size: 30px;
+        width: 35px;
+        height: 35px;
+    }
+}

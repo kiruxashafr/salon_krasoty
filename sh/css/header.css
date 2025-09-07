@@ -1,0 +1,369 @@
+@font-face {
+    font-family: 'soviet';
+    src: url('../fonts/soviet/SovMod.ttf') format('truetype');
+    font-style: normal;
+}
+/* шрифтовая парар под советский */
+@font-face {
+    font-family: 'nasir';
+    src: url('../fonts/nasir/Nasir\ Udin\ -\ Departura-ExtraLight.otf') format('truetype');
+    font-style: normal;
+}
+@font-face {
+    font-family: 'forum';
+    src: url('../fonts/forum/Forum-Regular.ttf') format('truetype');
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'cormorant';
+    src: url('../fonts/cormorant/Cormorant-Medium.ttf') format('truetype');
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'acrobat';
+    src: url('../fonts/acrobat/Akrobat-Light.ttf') format('truetype');
+    font-style: normal;
+}
+/* для ценников */
+@font-face {
+    font-family: 'unageo';
+    src: url('../fonts/unageo/Unageo-Light.ttf') format('truetype');
+    font-style: normal;
+}
+
+
+body {
+    margin: 0;
+    padding: 0;
+
+    font-weight: 400;
+    scroll-behavior: smooth;
+}
+
+html, body {
+    overflow-x: hidden;
+}
+
+.fullscreen-img-hero {
+    position: relative;
+    height: 100vh; /* Full viewport height by default */
+    width: 100%;
+    overflow: hidden;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+
+
+.fullscreen-img-hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+object-position: right;
+    right: 0;
+    z-index: 1;
+}
+
+.fullscreen-img-hero-content {
+    color: white;
+    max-width: 1200px;
+    width: 100%;
+    padding: 2em;
+    text-align: left;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    z-index: 2;
+    position: relative;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+}
+
+.hero-title {
+    font-family: 'soviet', Arial, sans-serif;
+    font-size: clamp(32px, 7vw, 70px);
+    margin: 0 0 1rem 0;
+}
+
+.hero-description {
+    font-family: 'forum', Arial, sans-serif;
+    font-size: clamp(15px, 2vw, 21px);
+    margin: 0;
+    width: 50%;
+}
+@media screen and (max-width: 1200px) {
+    .fullscreen-img-hero-image {
+        object-position: right;
+        right: 0;
+    }
+}
+@media screen and (max-width: 500px) {
+    .fullscreen-img-hero {
+        height: 100%; /* Allow section to adjust based on wrapper */
+        min-height: 100vh; /* Ensure minimum viewport height */
+    }
+
+
+    .fullscreen-img-hero-image {
+        object-fit: cover;
+        width: auto;
+        object-position: center;
+        display: block; /* Ensure image sizes correctly */
+        position: absolute; /* Change to relative to flow within wrapper */
+    }
+
+    .fullscreen-img-hero-content {
+        padding: 1em;
+        width: 90%;
+        height: auto; /* Adapt to wrapper/image height */
+        position: absolute; /* Position within wrapper */
+        top: 50%;
+        left: 0;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+    }
+
+    .hero-description {
+        width: 80%;
+    }
+}
+
+@media (max-width: 550px) {
+    .hero-description {
+        width: 80%;
+    }
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+}
+
+
+.container,
+.about-section {
+    min-height: 100vh; /* Allow sections to grow with content */
+    scroll-snap-align: start;
+}
+
+.container {
+    position: relative;
+    width: 100%;
+}
+
+.hamburger {
+    cursor: pointer;
+}
+
+.hamburger input {
+    display: none;
+}
+
+.hamburger svg {
+    height: 3em;
+    transition: transform 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.line {
+    fill: none;
+    stroke: white;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 3;
+    transition: stroke-dasharray 600ms cubic-bezier(0.4, 0, 0.2, 1),
+                stroke-dashoffset 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.line-top-bottom {
+    stroke-dasharray: 12 63;
+}
+
+.hamburger input:checked + svg {
+    transform: rotate(-45deg);
+}
+
+.hamburger input:checked + svg .line-top-bottom {
+    stroke-dasharray: 20 300;
+    stroke-dashoffset: -32.42;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(5px);
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
+}
+
+.modal-content {
+    background-color: rgba(27, 28, 29, 1);
+    padding: 10px;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 300px;
+    position: relative;
+    text-align: center;
+    border: 1px solid rgb(250 250 250 / 20%);
+    font-family: 'soviet', Arial, sans-serif;
+    font-weight: 400;
+}
+
+.close-btn {
+    position: absolute;
+    top: 1em;
+    right: 1em;
+    background: none;
+    border: 1.5px solid rgb(250 250 250 / 20%);
+    color: white;
+    font-size: 15px;
+    cursor: pointer;
+    border-radius: 33px;
+    padding: 0.2em 0.5em;
+    font-family: 'nasir', Arial, sans-serif;
+    font-weight: 300;
+}
+
+.island {
+    width: 100vw;
+    height: 93vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: scale(1);
+    background: rgb(52, 65, 73);
+    filter: url(#octave1) brightness(2.25) contrast(1.05) blur(0.25rem);
+}
+
+ul {
+    list-style: none;
+    padding: 0;
+    text-align: left;
+    width: 165px;
+}
+
+ul li {
+    color: white;
+    margin: 15px;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'nasir', Arial, sans-serif;
+    font-weight: 400;
+    position: relative;
+}
+
+ul li::after {
+    content: '';
+    display: block;
+    width: 135px;
+    height: 1px;
+    background-color: rgb(250 250 250 / 20%);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.3s ease-in-out;
+    margin-top: 15px;
+}
+
+ul li.draw::after {
+    transform: scaleX(1);
+}
+
+.contact-box {
+    margin-top: 2em;
+    display: flex;
+    justify-content: space-evenly;
+    border: 2px solid white;
+    border-radius: 5px;
+    width: 105px;
+}
+
+
+.contact-box a {
+    filter: brightness(0) invert(1);
+    padding: 6px;
+}
+
+.contact-box img {
+    width: 2em;
+    height: 2em;
+}
+
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: #00000026;
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    transition: transform 0.3s ease-in-out;
+    padding: 1em 2em;
+    box-sizing: border-box;
+    border: none;
+    border-bottom: 1px solid rgb(250 250 250 / 20%);
+}
+
+.header.hidden {
+    transform: translateY(-100%);
+}
+
+.header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.logo {
+    color: white;
+    font-family: 'soviet', Arial, sans-serif;
+    font-weight: 700;
+    font-size: clamp(10px, 6vw, 30px);
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1em;
+}
+
+.contact-btn {
+    background: none;
+    border: 1.5px solid rgb(250 250 250 / 20%);
+    color: white;
+    font-family: 'forum', Arial, sans-serif;
+    font-weight: 300;
+    font-size: clamp(10px, 3vw, 16px);
+    padding: 0.5em 1em;
+    border-radius: 33px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    align-self: center;
+}
+
+.contact-btn:hover {
+    background-color: rgb(250 250 250 / 10%);
+}
+
+.menu-container {
+    display: flex;
+    align-items: center;
+}

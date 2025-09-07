@@ -1,0 +1,382 @@
+
+
+
+.clients-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.clients-filters {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 14px;
+}
+
+.filter-select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+    min-width: 150px;
+}
+
+.clients-table-container {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.clients-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.clients-table th {
+    background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+    color: white;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+}
+
+.clients-table th:hover {
+    background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+}
+
+.clients-table th.sort-asc:after {
+    content: ' ↑';
+    position: absolute;
+    right: 10px;
+}
+
+.clients-table th.sort-desc:after {
+    content: ' ↓';
+    position: absolute;
+    right: 10px;
+}
+
+.clients-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.clients-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.client-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.client-row:hover {
+    background-color: #e8f4fd !important;
+}
+
+.client-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.client-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.client-phone {
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.stats-value {
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.stats-value.total-price {
+    color: #27ae60;
+    font-weight: 700;
+}
+
+.stats-value.records-count {
+    color: #3498db;
+}
+
+.stats-value.last-date {
+    color: #e67e22;
+}
+
+.loading, .error {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+}
+
+.error {
+    color: #e74c3c;
+}
+
+.no-clients {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+}
+
+/* Модальное окно с заказами клиента */
+.client-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+}
+
+.client-modal-content {
+    background-color: white;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.close-modal {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #7f8c8d;
+    background: none;
+    border: none;
+    padding: 0.5rem;
+}
+
+.close-modal:hover {
+    color: #e74c3c;
+}
+
+.client-details-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #eee;
+}
+
+.client-details-name {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0 0 0.5rem 0;
+}
+
+.client-details-phone {
+    color: #7f8c8d;
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+.client-appointments {
+    margin-top: 2rem;
+}
+
+.appointments-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.appointments-table th {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #eee;
+}
+
+.appointments-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+.appointments-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.appointment-date {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.appointment-time {
+    color: #7f8c8d;
+}
+
+.appointment-service {
+    font-weight: 500;
+}
+
+.appointment-specialist {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.appointment-price {
+    font-weight: 600;
+    color: #27ae60;
+    text-align: right;
+}
+
+.no-appointments {
+    text-align: center;
+    padding: 2rem;
+    color: #7f8c8d;
+    font-style: italic;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .clients-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .clients-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .filter-group {
+        width: 100%;
+    }
+    
+    .filter-select {
+        width: 100%;
+    }
+    
+    /* Скрываем все колонки кроме имени и телефона */
+    .clients-table th:nth-child(n+3),
+    .clients-table td:nth-child(n+3) {
+        display: none;
+    }
+    
+    /* Увеличиваем размер ячеек для удобного нажатия */
+    .clients-table td {
+        padding: 0.8rem;
+        min-height: 60px;
+        display: flex;
+        align-items: center;
+    }
+    
+    /* Делаем таблицу на всю ширину */
+    .clients-table {
+        display: block;
+        width: 100%;
+    }
+    
+    .clients-table thead {
+        display: none;
+    }
+    
+    .clients-table tbody {
+        display: block;
+        width: 100%;
+    }
+    
+    .clients-table tr {
+        display: block;
+        width: 100%;
+        margin-bottom: 0.5rem;
+        padding: 1rem;
+        border: 1px solid #e3f2fd;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .client-modal-content {
+        margin: 10% auto;
+        width: 95%;
+        padding: 1.5rem;
+    }
+    
+    .appointments-table {
+        display: block;
+        overflow-x: auto;
+    }
+    
+    .appointments-table th,
+    .appointments-table td {
+        padding: 0.5rem;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .clients-management {
+        padding: 10px;
+    }
+    
+    .client-modal-content {
+        margin: 5% auto;
+
+    }
+    
+    .client-details-name {
+        font-size: 1.2rem;
+    }
+    
+    .client-details-phone {
+        font-size: 1rem;
+    }
+    
+    /* Еще более компактный вид для очень маленьких экранов */
+    .clients-table tr {
+        padding: 0.8rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .clients-table td {
+        padding: 0.6rem;
+        min-height: 50px;
+    }
+    
+    .client-name {
+        font-size: 15px;
+    }
+    
+    .client-phone {
+        font-size: 13px;
+    }
+}

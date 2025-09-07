@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель администратора</title>
+    <link rel="stylesheet" href="css/admin.css">
+    <link rel="stylesheet" href="css/master.css">
+    <link rel="stylesheet" href="css/master.css">
+    <link rel="stylesheet" href="css/uslugi.css">
+    <link rel="stylesheet" href="css/freetime.css">
+    <link rel="stylesheet" href="css/client.css">
+    <link rel="stylesheet" href="css/shedule.css">
+    <link rel="stylesheet" href="css/photo.css">
+    <link rel="stylesheet" href="css/secure.css">
+
+
+
+
+</head>
+<body>
+    <!-- Боковое меню -->
+    <div class="sidebar">
+        <div class="close-menu" id="closeMenu"></div>
+        
+        <nav class="main-menu" id="mainMenu">
+            <ul>
+                <li><a href="#" data-section="journal"> Журнал записей</a></li>
+                <li><a href="#" data-section="freetime"> Свободное время</a></li>
+                <li><a href="#" data-section="schedule"> Расписание</a></li>
+                <li><a href="#" data-section="specialists"> Мастера</a></li>
+                <li><a href="#" data-section="services"> Услуги</a></li>
+                <li><a href="#" data-section="clients"> Клиенты</a></li>
+                <li><a href="#" data-section="settings"> Настройки</a></li>
+                <li><a href="/" class="logout"> Выйти</a></li>
+            </ul>
+        </nav>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    
+    <!-- Основное содержимое -->
+    <div class="main-content">
+        <header class="content-header">
+            <div class="menu-toggle" id="menuToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+            <h1 id="currentSection">Журнал записей</h1>
+        </header>
+        
+        <div class="content-body">
+            <!-- Контейнер для динамического контента -->
+            <div id="contentContainer">
+                <!-- Здесь будет загружаться контент выбранного раздела -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Подключаем скрипты -->
+    <script src="js/admin.js"></script>
+    <script src="js/master.js"></script>
+    <script src="js/uslugi.js"></script>
+    <script src="js/freetime.js"></script>
+    <script src="js/client.js"></script>
+    <script src="js/shedule.js"></script>
+    <script src="js/photo.js"></script>
+    <script src="js/secure.js"></script>
+
+
+
+
+
+</body>
+</html>

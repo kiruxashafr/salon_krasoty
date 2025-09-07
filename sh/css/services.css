@@ -1,0 +1,330 @@
+/* services.css */
+.services-section {
+    padding: 4rem 2rem;
+    background-color: #f9f9f9;
+}
+
+.services-title {
+    font-size: clamp(28px, 5vw, 48px);
+    text-align: center;
+    margin-bottom: 3rem;
+    color: #1b1c1d;
+    font-family: 'soviet', Arial, sans-serif;
+}
+
+.services-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.category-title {
+    font-size: 32px;
+    color: #1b1c1d;
+    margin: 2rem 0 1rem;
+    text-align: left;
+    font-family: 'soviet', Arial, sans-serif;
+    text-transform: uppercase;
+}
+
+.category-services {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+    margin-bottom: 2rem;
+
+}
+
+.service-modal-content .submit-btn{
+    padding: 0.5rem 1rem;
+    font-family: 'acrobat', Arial, sans-serif;
+    position: relative;
+    float: right;
+}
+
+
+.service-card {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    height: 250px; /* Fixed height for consistency */
+}
+
+
+
+.service-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent overlay for readability */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1rem;
+    padding-bottom: 0;
+}
+
+.service-text {
+    color: white;
+}
+
+.service-name {
+    font-size: 24px;
+    margin: 0 0 1rem 0;
+    font-family: 'nasir', Arial, sans-serif;
+    color: white;
+
+}
+
+.service-description {
+    font-size: 16px;
+    color: #eee;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+    font-family: 'nasir', Arial, sans-serif;}
+
+.service-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.service-price {
+    font-size: 20px;
+    color: white;
+    font-family: 'unageo';
+}
+.back-btn {
+    background: none;
+    color: #333333;
+    border: 1px solid #333333;
+    padding: 0.5em 1em;
+    font-weight: bold;
+    border-radius: 33px;
+    font-family: 'acrobat', Arial, sans-serif;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-block;
+    top: -13px;
+    position: relative;
+}
+
+.back-btn:hover {
+    background-color: rgba(51, 51, 51, 0.1);
+    transform: scale(1.05);
+}
+
+.book-btn {
+    background: none;
+    color: #ffffff;
+    font-family: 'nasir', Arial, sans-serif;
+    border: 1px solid rgb(255, 255, 255);
+    padding: 0.7rem 1.5rem;
+    border-radius: 33px;
+    padding: 0.5em 1em;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.book-btn:hover {
+
+    background-color: rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
+}
+
+/* Модальное окно услуги */
+.service-modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9);
+}
+
+.service-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 10px;
+    width: 80%;
+    max-width: 600px;
+    position: relative;
+    max-height: 80vh;
+    overflow-y: auto;
+    font-family: 'acrobat', Arial, sans-serif;
+}
+
+.service-modal-price {
+    font-size: 20px;
+    color: #000000;
+    margin: 0.5rem 0;
+    font-family: 'unageo', Courier, monospace;
+}
+
+.service-modal-description {
+    margin-bottom: 1.5rem;
+    color: #666;
+}
+
+/* Стили для выбора мастера */
+.specialist-selection {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.modal-specialists-list {
+    margin: 1.5rem 0;
+}
+
+.modal-specialist-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    margin-bottom: 0.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.modal-specialist-item:hover {
+    background-color: #f5f5f5;
+    transform: translateX(5px);
+}
+
+.modal-specialist-item.selected-specialist {
+    background-color: #e6f7ff;
+    border-color: #91d5ff;
+}
+
+.specialist-image {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+.specialist-info h4 {
+    margin: 0;
+    font-size: 18px;
+}
+
+/* specialists.css - найти и изменить стиль для .specialist-info p */
+
+.specialist-info p {
+    margin: 0;
+    font-size: 14px;
+    color: #ffffff; /* Белый цвет для карточки специалиста */
+    opacity: 0.9;
+}
+.modal-specialist-item .specialist-info p {
+    color: #666 !important; /* Серый цвет для модального окна */
+    opacity: 1;
+}
+/* services.css - найти и обновить стиль для .service-card .specialist-info p */
+
+.service-card .specialist-info p {
+    color: #eee !important; /* Белый/светлый цвет для карточки услуги */
+}
+
+/* services.css - добавить в конец файла */
+
+/* Мобильная версия модального окна услуги */
+@media (max-width: 768px) {
+    .service-modal {
+        background-color: rgba(0, 0, 0, 0.95);
+    }
+    
+    .service-modal-content {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        box-sizing: border-box;
+        border-radius: 0;
+        max-width: none;
+        max-height: none;
+        padding: 1rem;
+    }
+    .back-btn{
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-block;
+        position: relative;
+        top: 8px;
+    }
+    
+    .close-modal-btn {
+        right: 1.5rem;
+        top: 1.5rem;
+        font-size: 36px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1001;
+    }
+    
+    .modal-specialist-item {
+        padding: 1.2rem;
+    }
+    
+    .specialist-info h4 {
+        font-size: 16px;
+    }
+    
+    .specialist-info p {
+        font-size: 14px;
+        color: #ffffff !important; /* Серый цвет для модального окна */
+    }
+}
+
+@media (max-width: 480px) {
+    .service-modal-content {
+        padding: 0.5rem;
+    }
+    
+    .close-modal-btn {
+        right: 1rem;
+        top: 1rem;
+        font-size: 30px;
+        width: 35px;
+        height: 35px;
+    }
+}
+
+@media (max-width: 768px) {
+    .services-section {
+        padding: 2rem 1rem;
+    }
+    
+    .category-services {
+        grid-template-columns: 1fr;
+    }
+    
+    .service-card {
+        height: 200px; /* Slightly smaller height for mobile */
+    }
+    
+    .category-title {
+        font-size: 28px;
+    }
+}
+
