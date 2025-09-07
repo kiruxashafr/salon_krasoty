@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from main import main
+from menu_handlers import *
 
 if __name__ == '__main__':
     # Загружаем переменные окружения

@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 from datetime import datetime, timedelta
+from menu_handlers import show_main_menu, handle_menu_callback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
@@ -32,16 +33,7 @@ WEEKDAY_MAP = {
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
-    keyboard = [
-        [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        "Добро пожаловать!\n\n"
-        "Выберите действие:",
-        reply_markup=reply_markup
-    )
+    await show_main_menu(update, context)
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback запросов"""
@@ -50,6 +42,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     user_id = query.from_user.id
     data = query.data
+    
+    # Обрабатываем callback запросы меню
+    if data in ['back_to_main', 'masters_menu', 'services_menu'] or \
+       data.startswith('master_detail_') or data.startswith('service_detail_') or \
+       data.startswith('book_master_') or data.startswith('book_service_'):
+        await handle_menu_callback(update, context)
+        return
     
     if data == 'book_appointment':
         await show_booking_options(query)
@@ -819,16 +818,7 @@ def validate_phone(phone):
 
 async def start_callback(query):
     """Обработчик возврата к началу"""
-    keyboard = [
-        [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await query.edit_message_text(
-        "Добро пожаловать!\n\n"
-        "Выберите действие:",
-        reply_markup=reply_markup
-    )
+    await show_main_menu(query, None)
 
 def main():
     """Запуск бота"""
