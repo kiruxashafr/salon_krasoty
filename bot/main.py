@@ -578,7 +578,7 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
                 message += f"📆 {formatted_date}:\n"
                 
                 for item in items:
-                    message += f"   ⏰ {item['время']} - {item['мастер_имя']}\n"
+                    message += f"    {item['время']} - {item['мастер_имя']}\n"
                     keyboard.append([
                         InlineKeyboardButton(
                             f"{formatted_date} {item['время']} - {item['мастер_имя']}",
@@ -803,7 +803,7 @@ async def show_time_slots(query, date_str):
             for slot in time_slots:
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"⏰ {slot['время']}",
+                        f" {slot['время']}",
                         callback_data=f'time_slot_{slot["id"]}'
                     )
                 ])
@@ -944,7 +944,7 @@ async def show_week_schedule(query, target_date_str=None):
                 message += f"📆 {formatted_date}:\n"
                 
                 for item in items:
-                    message += f"   ⏰ {item['время']} - {item['услуга_название']} ({item['мастер_имя']})\n"
+                    message += f"    {item['время']} - {item['услуга_название']} ({item['мастер_имя']})\n"
                     keyboard.append([
                         InlineKeyboardButton(
                             f"{formatted_date} {item['время']} - {item['услуга_название']}",

@@ -1,4 +1,4 @@
-# menu_handlers.py (updated)
+# menu_handlers.py (updated with edit instead of reply+delete for main menu)
 import os
 import logging
 import requests
@@ -34,27 +34,18 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo_response = requests.get(photo_url)
             if photo_response.status_code == 200:
                 photo_data = photo_response.content
-                # Отправляем новое сообщение с фото
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
+                media = InputMediaPhoto(media=photo_data, caption=message_text)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
             else:
-                # Если фото не загрузилось, отправляем текст
-                await query.message.reply_text(
-                    text=message_text,
-                    reply_markup=reply_markup
-                )
-            # Удаляем предыдущее сообщение (с фото или текстом)
-            await query.delete_message()
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         except Exception as e:
-            logger.error(f"Error in show_main_menu: {e}")
-            # В случае ошибки пробуем снова отправить сообщение
-            await query.message.reply_text(
-                text=message_text,
-                reply_markup=reply_markup
-            )
+            logger.error(f"Error editing main menu: {e}")
+            # Fallback: отправляем новое и удаляем старое
+            if photo_response.status_code == 200:
+                await query.message.reply_photo(photo=photo_data, caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.message.reply_text(text=message_text, reply_markup=reply_markup)
+            await query.delete_message()
     else:
         try:
             # Скачиваем фото
@@ -490,13 +481,8 @@ async def show_booking_options_with_master(query, master_id):
         await query.delete_message()
     except Exception as e:
         logger.error(f"Error in show_booking_options_with_master: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка при загрузке услуг мастера",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
+
+    
         await query.delete_message()
 
 async def show_booking_options_with_service(query, service_id):
