@@ -1,9 +1,9 @@
-
 import os
 import logging
 import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
+from telegram import InputMediaPhoto
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
@@ -33,7 +33,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
-        
 async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню мастеров"""
     try:
@@ -97,22 +96,57 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # Проверяем, было ли предыдущее сообщение с фото
+            has_photo = False
+            try:
+                if update.callback_query and update.callback_query.message.photo:
+                    has_photo = True
+            except:
+                pass
+            
             # Отправляем фото если есть
-            if 'фото' in master and master['фото']:
+            if 'фото' in master and master['фото'] and master['фото'] != 'photo/работники/default.jpg':
                 try:
-                    await update.callback_query.message.reply_photo(
-                        photo=master['фото'],
-                        caption=message,
-                        reply_markup=reply_markup
-                    )
-                    await update.callback_query.delete_message()
-                except:
+                    # Формируем полный URL к фото через API сервера
+                    photo_url = f"{API_BASE_URL}/{master['фото']}"
+                    logger.info(f"Trying to send photo from URL: {photo_url}")
+                    
+                    # Скачиваем фото и отправляем как файл
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        # Сохраняем временно файл
+                        photo_data = photo_response.content
+                        
+                        if has_photo:
+                            # Если предыдущее сообщение было с фото, редактируем его
+                            await update.callback_query.edit_message_media(
+                                media=InputMediaPhoto(media=photo_data, caption=message),
+                                reply_markup=reply_markup
+                            )
+                        else:
+                            # Если предыдущее сообщение было текстовым, отправляем новое фото
+                            await update.callback_query.message.reply_photo(
+                                photo=photo_data,
+                                caption=message,
+                                reply_markup=reply_markup
+                            )
+                            await update.callback_query.delete_message()
+                    else:
+                        logger.error(f"Failed to download photo: {photo_response.status_code}")
+                        # Если не удалось скачать фото, отправляем текст
+                        await update.callback_query.edit_message_text(
+                            message,
+                            reply_markup=reply_markup
+                        )
+                except Exception as photo_error:
+                    logger.error(f"Error sending photo: {photo_error}")
                     # Если не удалось отправить фото, отправляем текст
                     await update.callback_query.edit_message_text(
                         message,
                         reply_markup=reply_markup
                     )
             else:
+                # Если фото нет, просто редактируем текст
                 await update.callback_query.edit_message_text(
                     message,
                     reply_markup=reply_markup
@@ -124,6 +158,9 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
     except Exception as e:
         logger.error(f"Error fetching master detail: {e}")
         await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
+
+
+
 
 async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню услуг"""
@@ -185,17 +222,48 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
+            # Проверяем, было ли предыдущее сообщение с фото
+            has_photo = False
+            try:
+                if update.callback_query and update.callback_query.message.photo:
+                    has_photo = True
+            except:
+                pass
+            
             # Отправляем фото если есть
-            if 'фото' in service and service['фото']:
+            if 'фото' in service and service['фото'] and service['фото'] != 'photo/услуги/default.jpg':
                 try:
-                    await update.callback_query.message.reply_photo(
-                        photo=service['фото'],
-                        caption=message,
-                        reply_markup=reply_markup
-                    )
-                    await update.callback_query.delete_message()
-                except:
-                    # Если не удалось отправить фото, отправляем текст
+                    # Формируем полный URL к фото через API сервера
+                    photo_url = f"{API_BASE_URL}/{service['фото']}"
+                    logger.info(f"Trying to send service photo from URL: {photo_url}")
+                    
+                    # Скачиваем фото и отправляем как файл
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        
+                        if has_photo:
+                            # Если предыдущее сообщение было с фото, редактируем его
+                            await update.callback_query.edit_message_media(
+                                media=InputMediaPhoto(media=photo_data, caption=message),
+                                reply_markup=reply_markup
+                            )
+                        else:
+                            # Если предыдущее сообщение было текстовым, отправляем новое фото
+                            await update.callback_query.message.reply_photo(
+                                photo=photo_data,
+                                caption=message,
+                                reply_markup=reply_markup
+                            )
+                            await update.callback_query.delete_message()
+                    else:
+                        logger.error(f"Failed to download service photo: {photo_response.status_code}")
+                        await update.callback_query.edit_message_text(
+                            message,
+                            reply_markup=reply_markup
+                        )
+                except Exception as photo_error:
+                    logger.error(f"Error sending service photo: {photo_error}")
                     await update.callback_query.edit_message_text(
                         message,
                         reply_markup=reply_markup
@@ -213,6 +281,8 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         logger.error(f"Error fetching service detail: {e}")
         await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
 
+
+        
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback запросов меню"""
     query = update.callback_query
