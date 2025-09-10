@@ -4,7 +4,7 @@ import logging
 import requests
 from datetime import datetime, timedelta
 from menu_handlers import show_main_menu, handle_menu_callback
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 # Настройка логирования
@@ -132,23 +132,13 @@ async def show_booking_options(query):
         photo_response = requests.get(photo_url)
         if photo_response.status_code == 200:
             photo_data = photo_response.content
-            await query.message.reply_photo(
-                photo=photo_data,
-                caption=message_text,
-                reply_markup=reply_markup
-            )
+            media = InputMediaPhoto(media=photo_data, caption=message_text)
+            await query.edit_message_media(media=media, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                message_text,
-                reply_markup=reply_markup
-            )
-        await query.delete_message()
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"Error in show_booking_options: {e}")
-        await query.message.reply_text(
-            message_text,
-            reply_markup=reply_markup
-        )
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_services(query):
     """Показать список услуг с доступным временем (в будущем)"""
@@ -189,17 +179,28 @@ async def show_services(query):
                         ])
             
             if not keyboard:
-                await query.message.reply_text(
+                message_text = (
                     "❌ На данный момент нет доступных услуг со свободным временем\n\n"
-                    "Пожалуйста, попробуйте позже или выберите другую опцию:",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("👨‍💼 Выбрать мастера", callback_data='choose_specialist')],
-                        [InlineKeyboardButton("📋 Посмотреть свободное время", callback_data='view_week_schedule')],
-                        [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
+                    "Пожалуйста, попробуйте позже или выберите другую опцию:"
                 )
-                await query.delete_message()
+                keyboard = [
+                    [InlineKeyboardButton("👨‍💼 Выбрать мастера", callback_data='choose_specialist')],
+                    [InlineKeyboardButton("📋 Посмотреть свободное время", callback_data='view_week_schedule')],
+                    [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_services (no services): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='book_appointment')])
@@ -207,39 +208,33 @@ async def show_services(query):
             reply_markup = InlineKeyboardMarkup(keyboard)
             message_text = "Выберите услугу:"
             
-            # Скачиваем фото
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.message.reply_text(
-                    message_text,
-                    reply_markup=reply_markup
-                )
-            await query.delete_message()
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message_text)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in show_services: {e}")
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки услуг",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки услуг"
+            keyboard = [
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching services: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_specialists(query):
     """Показать список мастеров с доступным временем (в будущем)"""
@@ -280,17 +275,28 @@ async def show_specialists(query):
                         ])
             
             if not keyboard:
-                await query.message.reply_text(
+                message_text = (
                     "❌ На данный момент нет доступных мастеров со свободным временем\n\n"
-                    "Пожалуйста, попробуйте позже или выберите другую опцию:",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("🎯 Выбрать услугу", callback_data='choose_service')],
-                        [InlineKeyboardButton("📋 Посмотреть свободное время", callback_data='view_week_schedule')],
-                        [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
+                    "Пожалуйста, попробуйте позже или выберите другую опцию:"
                 )
-                await query.delete_message()
+                keyboard = [
+                    [InlineKeyboardButton("🎯 Выбрать услугу", callback_data='choose_service')],
+                    [InlineKeyboardButton("📋 Посмотреть свободное время", callback_data='view_week_schedule')],
+                    [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_specialists (no specialists): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
@@ -298,48 +304,39 @@ async def show_specialists(query):
             reply_markup = InlineKeyboardMarkup(keyboard)
             message_text = "Выберите мастера:"
             
-            # Скачиваем фото
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.message.reply_text(
-                    message_text,
-                    reply_markup=reply_markup
-                )
-            await query.delete_message()
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message_text)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in show_specialists: {e}")
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки мастеров",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки мастеров"
+            keyboard = [
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching specialists: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик кнопки 'Главное меню'"""
     query = update.callback_query
     await query.answer()
-    
-    # Создаем объект Update с callback_query для передачи в show_main_menu
-    fake_update = Update(update.update_id, callback_query=query)
-    await show_main_menu(fake_update, context)
+    await show_main_menu(update, context)
 
 async def show_specialists_for_service(query, service_id):
     """Показать мастеров для выбранной услуги (проверяя доступное время в будущем)"""
@@ -352,14 +349,13 @@ async def show_specialists_for_service(query, service_id):
             specialists = data['data']
             
             if not specialists:
-                await query.message.reply_text(
-                    "❌ Нет доступных мастеров для этой услуги",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
-                )
-                await query.delete_message()
+                message_text = "❌ Нет доступных мастеров для этой услуги"
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard = []
@@ -388,15 +384,26 @@ async def show_specialists_for_service(query, service_id):
             ])
             
             if not keyboard:
-                await query.message.reply_text(
+                message_text = (
                     "❌ Нет мастеров со свободным временем для этой услуги\n\n"
-                    "Попробуйте выбрать другую услугу или посмотреть позже.",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
+                    "Попробуйте выбрать другую услугу или посмотреть позже."
                 )
-                await query.delete_message()
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_specialists_for_service (no specialists): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_service')])
@@ -408,41 +415,35 @@ async def show_specialists_for_service(query, service_id):
             service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
             message_text = f"🎯 Услуга: {service_name}\n\n" "Выберите мастера или посмотрите расписание для всех мастеров:"
             
-            # Скачиваем фото
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.message.reply_text(
-                    message_text,
-                    reply_markup=reply_markup
-                )
-            await query.delete_message()
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message_text)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in show_specialists_for_service: {e}")
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки мастеров",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки мастеров"
+            keyboard = [
+                [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching specialists for service: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
@@ -455,14 +456,13 @@ async def show_services_for_specialist(query, specialist_id):
             services = data['data']
             
             if not services:
-                await query.message.reply_text(
-                    "❌ Нет доступных услуг для этого мастера",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
-                )
-                await query.delete_message()
+                message_text = "❌ Нет доступных услуг для этого мастера"
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard = []
@@ -483,163 +483,66 @@ async def show_services_for_specialist(query, specialist_id):
                     ])
             
             if not keyboard:
-                await query.message.reply_text(
+                message_text = (
                     "❌ Нет услуг со свободным временем для этого мастера\n\n"
-                    "Попробуйте выбрать другого мастера или посмотреть позже.",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
+                    "Попробуйте выбрать другого мастера или посмотреть позже."
                 )
-                await query.delete_message()
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_services_for_specialist (no services): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
-            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
+            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             # Получаем имя мастера
             specialist_response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}")
             specialist_name = specialist_response.json()['data']['имя'] if specialist_response.json()['message'] == 'success' else "Мастер"
-            message_text = f"👨‍💼 Мастер: {specialist_name}\n\n" "Выберите услугу:"
+            message_text = f"👨‍💼 Мастер: {specialist_name}\n\nВыберите услугу:"
             
-            # Скачиваем фото
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.message.reply_text(
-                    message_text,
-                    reply_markup=reply_markup
-                )
-            await query.delete_message()
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message_text)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in show_services_for_specialist: {e}")
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки услуг",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
-                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки услуг"
+            keyboard = [
+                [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching services for specialist: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
-
-async def show_all_specialists_schedule(query, service_id, target_date_str=None):
-    """Показать расписание для всех мастеров по услуге на неделю с навигацией"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
-    try:
-        if target_date_str:
-            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-        else:
-            target_date = datetime.now().date()
-        
-        start_of_week = target_date - timedelta(days=target_date.weekday())
-        end_of_week = start_of_week + timedelta(days=6)
-        
-        from_date_str = start_of_week.strftime('%Y-%m-%d')
-        to_date_str = end_of_week.strftime('%Y-%m-%d')
-        
-        response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={from_date_str}&toDate={to_date_str}")
-        data = response.json()
-        
-        message = (
-            f"📅 Расписание для всех мастеров по услуге на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
-        )
-        
-        keyboard = []
-        if data['message'] == 'success':
-            schedule = [item for item in data['data'] if str(item['услуга_id']) == str(service_id)]
-            
-            # Группируем по дате
-            schedule_by_date = {}
-            for item in schedule:
-                date = item['дата']
-                if date not in schedule_by_date:
-                    schedule_by_date[date] = []
-                schedule_by_date[date].append(item)
-            
-            for date, items in sorted(schedule_by_date.items()):
-                formatted_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m')
-                message += f"📆 {formatted_date}:\n"
-                
-                for item in items:
-                    message += f"    {item['время']} - {item['мастер_имя']}\n"
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"{formatted_date} {item['время']} - {item['мастер_имя']}",
-                            callback_data=f'time_slot_{item["id"]}'
-                        )
-                    ])
-                
-                message += "\n"
-            
-            if not schedule:
-                message += "❌ Нет свободного времени на этой неделе\n"
-        
-        else:
-            message += "❌ Ошибка загрузки расписания\n"
-        
-        # Добавляем кнопки навигации
-        prev_week_start = start_of_week - timedelta(days=7)
-        next_week_start = start_of_week + timedelta(days=7)
-        
-        nav_buttons = [
-            InlineKeyboardButton(
-                "⬅️ Пред. неделя",
-                callback_data=f'all_schedule_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}_{service_id}'
-            ),
-            InlineKeyboardButton(
-                "След. неделя ➡️",
-                callback_data=f'all_schedule_nav_next_{next_week_start.strftime("%Y-%m-%d")}_{service_id}'
-            )
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
-        keyboard.append(nav_buttons)
-        
-        keyboard.append([InlineKeyboardButton("↲ Назад", callback_data=f'service_{service_id}')])
-        keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Скачиваем фото
-        photo_response = requests.get(photo_url)
-        if photo_response.status_code == 200:
-            photo_data = photo_response.content
-            await query.message.reply_photo(
-                photo=photo_data,
-                caption=message,
-                reply_markup=reply_markup
-            )
-        else:
-            await query.message.reply_text(
-                message,
-                reply_markup=reply_markup
-            )
-        await query.delete_message()
-        
-    except Exception as e:
-        logger.error(f"Error fetching all specialists schedule: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data=f'service_{service_id}')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_date_selection(query, specialist_id, service_id, current_date_str=None):
     """Показать выбор даты для выбранной услуги и мастера с навигацией по неделям"""
@@ -734,32 +637,27 @@ async def show_date_selection(query, specialist_id, service_id, current_date_str
             "Выберите дату записи:"
         )
         
-        # Скачиваем фото
-        photo_response = requests.get(photo_url)
-        if photo_response.status_code == 200:
-            photo_data = photo_response.content
-            await query.message.reply_photo(
-                photo=photo_data,
-                caption=message_text,
-                reply_markup=reply_markup
-            )
-        else:
-            await query.message.reply_text(
-                message_text,
-                reply_markup=reply_markup
-            )
-        await query.delete_message()
-        
+        try:
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                media = InputMediaPhoto(media=photo_data, caption=message_text)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in show_date_selection: {e}")
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            
     except Exception as e:
         logger.error(f"Error showing date selection: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_time_slots(query, date_str):
     """Показать доступное время на выбранную дату"""
@@ -770,13 +668,12 @@ async def show_time_slots(query, date_str):
     service_id = user_data.get('service_id')
     
     if not specialist_id or not service_id:
-        await query.message.reply_text(
-            "❌ Ошибка: не выбраны мастер или услуга",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка: не выбраны мастер или услуга"
+        keyboard = [
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         return
     
     try:
@@ -789,14 +686,23 @@ async def show_time_slots(query, date_str):
             time_slots = data['data']
             
             if not time_slots:
-                await query.message.reply_text(
-                    "❌ Нет свободного времени на эту дату",
-                    reply_markup=InlineKeyboardMarkup([
-                        [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ])
-                )
-                await query.delete_message()
+                message_text = "❌ Нет свободного времени на эту дату"
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_time_slots (no slots): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard = []
@@ -813,41 +719,35 @@ async def show_time_slots(query, date_str):
             reply_markup = InlineKeyboardMarkup(keyboard)
             message_text = f"Доступное время на {datetime.strptime(date_str, '%Y-%m-%d').strftime('%d.%m.%Y')}:"
             
-            # Скачиваем фото
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                await query.message.reply_photo(
-                    photo=photo_data,
-                    caption=message_text,
-                    reply_markup=reply_markup
-                )
-            else:
-                await query.message.reply_text(
-                    message_text,
-                    reply_markup=reply_markup
-                )
-            await query.delete_message()
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message_text)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in show_time_slots: {e}")
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки времени",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
-                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки времени"
+            keyboard = [
+                [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching time slots: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def confirm_booking(query, schedule_id):
     """Подтверждение записи"""
@@ -874,34 +774,43 @@ async def confirm_booking(query, schedule_id):
                 'specialist_id': schedule['мастер_id'],
                 'date': schedule['дата'],
                 'time': schedule['время'],
-                'step': 'name'}
+                'step': 'name'
+            }
             
             keyboard = [
                 [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.message.reply_text(message, reply_markup=reply_markup)
-            await query.delete_message()
+            photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+            try:
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    media = InputMediaPhoto(media=photo_data, caption=message)
+                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message, reply_markup=reply_markup)
+            except Exception as e:
+                logger.error(f"Error in confirm_booking: {e}")
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
             
         else:
-            await query.message.reply_text(
-                "❌ Ошибка загрузки информации о записи",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                ])
-            )
-            await query.delete_message()
+            message_text = "❌ Ошибка загрузки информации о записи"
+            keyboard = [
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error confirming booking: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
-        )
-        await query.delete_message()
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_week_schedule(query, target_date_str=None):
     """Показать свободное время на неделю с навигацией"""
@@ -973,32 +882,131 @@ async def show_week_schedule(query, target_date_str=None):
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # Скачиваем фото
-        photo_response = requests.get(photo_url)
-        if photo_response.status_code == 200:
-            photo_data = photo_response.content
-            await query.message.reply_photo(
-                photo=photo_data,
-                caption=message,
-                reply_markup=reply_markup
-            )
-        else:
-            await query.message.reply_text(
-                message,
-                reply_markup=reply_markup
-            )
-        await query.delete_message()
-        
+        try:
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                media = InputMediaPhoto(media=photo_data, caption=message)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in show_week_schedule: {e}")
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
+            
     except Exception as e:
         logger.error(f"Error fetching week schedule: {e}")
-        await query.message.reply_text(
-            "❌ Ошибка подключения к серверу",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-            ])
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+
+async def show_all_specialists_schedule(query, service_id, target_date_str=None):
+    """Показать расписание всех мастеров для услуги на неделю"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    try:
+        today = datetime.now().date()
+        
+        if target_date_str:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        else:
+            target_date = today
+        
+        start_of_week = target_date - timedelta(days=target_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        from_date = max(start_of_week, today)
+        to_date = end_of_week
+        
+        from_date_str = from_date.strftime('%Y-%m-%d')
+        to_date_str = to_date.strftime('%Y-%m-%d')
+        
+        response = requests.get(
+            f"{API_BASE_URL}/api/service/{service_id}/freetime?fromDate={from_date_str}&toDate={to_date_str}"
         )
-        await query.delete_message()
+        data = response.json()
+        
+        # Получаем название услуги
+        service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
+        service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
+        
+        message = f"📅 Расписание для услуги '{service_name}' на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
+        keyboard = []
+        
+        if data['message'] == 'success':
+            schedule = data['data']
+            
+            schedule_by_date = {}
+            for item in schedule:
+                date = item['дата']
+                if date not in schedule_by_date:
+                    schedule_by_date[date] = []
+                schedule_by_date[date].append(item)
+            
+            for date, items in sorted(schedule_by_date.items()):
+                formatted_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m')
+                message += f"📆 {formatted_date}:\n"
+                
+                for item in items:
+                    message += f"    {item['время']} - {item['мастер_имя']}\n"
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{formatted_date} {item['время']} - {item['мастер_имя']}",
+                            callback_data=f'time_slot_{item["id"]}'
+                        )
+                    ])
+                
+                message += "\n"
+            
+            if not schedule:
+                message += "❌ Нет свободного времени на этой неделе\n"
+        
+        else:
+            message += "❌ Ошибка загрузки расписания\n"
+        
+        prev_week_start = start_of_week - timedelta(days=7)
+        next_week_start = start_of_week + timedelta(days=7)
+        
+        nav_buttons = [
+            InlineKeyboardButton(
+                "⬅️ Пред. неделя",
+                callback_data=f'all_schedule_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}_{service_id}'
+            ),
+            InlineKeyboardButton(
+                "След. неделя ➡️",
+                callback_data=f'all_schedule_nav_next_{next_week_start.strftime("%Y-%m-%d")}_{service_id}'
+            )
+        ]
+        keyboard.append(nav_buttons)
+        
+        keyboard.append([InlineKeyboardButton("↲ Назад", callback_data=f'service_{service_id}')])
+        keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                media = InputMediaPhoto(media=photo_data, caption=message)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in show_all_specialists_schedule: {e}")
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
+            
+    except Exception as e:
+        logger.error(f"Error fetching all specialists schedule: {e}")
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data=f'service_{service_id}')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""
@@ -1064,7 +1072,8 @@ def validate_phone(phone):
 
 async def start_callback(query):
     """Обработчик возврата к началу"""
-    await show_main_menu(query, None)
+    update = Update(0, callback_query=query)
+    await show_main_menu(update, None)
 
 def main():
     """Запуск бота"""
