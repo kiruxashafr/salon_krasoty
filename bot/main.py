@@ -53,7 +53,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == 'book_appointment':
         await show_booking_options(query)
     elif data == 'choose_service':
-        await show_services(query)  # Добавьте эту строку
+        await show_services(query)
     elif data == 'choose_specialist':
         await show_specialists(query)
     elif data.startswith('service_'):
@@ -123,10 +123,18 @@ async def show_booking_options(query):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    await query.edit_message_text(
-        "Как вы хотите записаться?",
-        reply_markup=reply_markup
-    )
+    try:
+        await query.message.reply_text(
+            "Как вы хотите записаться?",
+            reply_markup=reply_markup
+        )
+        await query.delete_message()
+    except Exception as e:
+        logger.error(f"Error in show_booking_options: {e}")
+        await query.message.reply_text(
+            "Как вы хотите записаться?",
+            reply_markup=reply_markup
+        )
 
 async def show_services(query):
     """Показать список услуг с доступным временем (в будущем)"""
@@ -166,7 +174,7 @@ async def show_services(query):
                         ])
             
             if not keyboard:
-                await query.edit_message_text(
+                await query.message.reply_text(
                     "❌ На данный момент нет доступных услуг со свободным временем\n\n"
                     "Пожалуйста, попробуйте позже или выберите другую опцию:",
                     reply_markup=InlineKeyboardMarkup([
@@ -176,23 +184,36 @@ async def show_services(query):
                         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                     ])
                 )
+                await query.delete_message()
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='book_appointment')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.edit_message_text(
+            await query.message.reply_text(
                 "Выберите услугу:",
                 reply_markup=reply_markup
             )
+            await query.delete_message()
         else:
-            await query.edit_message_text("❌ Ошибка загрузки услуг")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки услуг",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching services: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
-
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_specialists(query):
     """Показать список мастеров с доступным временем (в будущем)"""
@@ -232,7 +253,7 @@ async def show_specialists(query):
                         ])
             
             if not keyboard:
-                await query.edit_message_text(
+                await query.message.reply_text(
                     "❌ На данный момент нет доступных мастеров со свободным временем\n\n"
                     "Пожалуйста, попробуйте позже или выберите другую опцию:",
                     reply_markup=InlineKeyboardMarkup([
@@ -242,22 +263,36 @@ async def show_specialists(query):
                         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                     ])
                 )
+                await query.delete_message()
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.edit_message_text(
+            await query.message.reply_text(
                 "Выберите мастера:",
                 reply_markup=reply_markup
             )
+            await query.delete_message()
         else:
-            await query.edit_message_text("❌ Ошибка загрузки мастеров")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки мастеров",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching specialists: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик кнопки 'Главное меню'"""
@@ -267,8 +302,6 @@ async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TY
     # Создаем объект Update с callback_query для передачи в show_main_menu
     fake_update = Update(update.update_id, callback_query=query)
     await show_main_menu(fake_update, context)
-
-    
 
 async def show_specialists_for_service(query, service_id):
     """Показать мастеров для выбранной услуги (проверяя доступное время в будущем)"""
@@ -280,7 +313,14 @@ async def show_specialists_for_service(query, service_id):
             specialists = data['data']
             
             if not specialists:
-                await query.edit_message_text("❌ Нет доступных мастеров для этой услуги")
+                await query.message.reply_text(
+                    "❌ Нет доступных мастеров для этой услуги",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ])
+                )
+                await query.delete_message()
                 return
             
             keyboard = []
@@ -309,10 +349,15 @@ async def show_specialists_for_service(query, service_id):
             ])
             
             if not keyboard:
-                await query.edit_message_text(
+                await query.message.reply_text(
                     "❌ Нет мастеров со свободным временем для этой услуги\n\n"
-                    "Попробуйте выбрать другую услугу или посмотреть позже."
+                    "Попробуйте выбрать другую услугу или посмотреть позже.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ])
                 )
+                await query.delete_message()
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_service')])
@@ -323,19 +368,32 @@ async def show_specialists_for_service(query, service_id):
             service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
             service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
             
-            await query.edit_message_text(
+            await query.message.reply_text(
                 f"🎯 Услуга: {service_name}\n\n"
                 "Выберите мастера или посмотрите расписание для всех мастеров:",
                 reply_markup=reply_markup
             )
+            await query.delete_message()
         else:
-            await query.edit_message_text("❌ Ошибка загрузки мастеров")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки мастеров",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching specialists for service: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
-
-
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
@@ -347,7 +405,14 @@ async def show_services_for_specialist(query, specialist_id):
             services = data['data']
             
             if not services:
-                await query.edit_message_text("❌ Нет доступных услуг для этого мастера")
+                await query.message.reply_text(
+                    "❌ Нет доступных услуг для этого мастера",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ])
+                )
+                await query.delete_message()
                 return
             
             keyboard = []
@@ -368,30 +433,46 @@ async def show_services_for_specialist(query, specialist_id):
                     ])
             
             if not keyboard:
-                await query.edit_message_text(
+                await query.message.reply_text(
                     "❌ Нет услуг со свободным временем для этого мастера\n\n"
-                    "Попробуйте выбрать другого мастера или посмотреть позже."
+                    "Попробуйте выбрать другого мастера или посмотреть позже.",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ])
                 )
+                await query.delete_message()
                 return
             
-            # Добавьте эту строку для кнопки "Назад"
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.edit_message_text(
+            await query.message.reply_text(
                 "Выберите услугу для мастера:",
                 reply_markup=reply_markup
             )
+            await query.delete_message()
         else:
-            await query.edit_message_text("❌ Ошибка загрузки услуг")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки услуг",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching services for specialist: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
-
-
-
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_all_specialists_schedule(query, service_id, target_date_str=None):
     """Показать расписание для всех мастеров для выбранной услуги с навигацией по неделям"""
@@ -491,11 +572,19 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(message, reply_markup=reply_markup)
+        await query.message.reply_text(message, reply_markup=reply_markup)
+        await query.delete_message()
         
     except Exception as e:
         logger.error(f"Error fetching all specialists schedule: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data=f'service_{service_id}')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_date_selection(query, specialist_id, service_id, current_date_str=None):
     """Показать выбор даты для выбранной услуги и мастера с навигацией по неделям"""
@@ -583,17 +672,25 @@ async def show_date_selection(query, specialist_id, service_id, current_date_str
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(
+        await query.message.reply_text(
             f"🎯 Услуга: {service_name}\n"
             f"👨‍💼 Мастер: {specialist_name}\n\n"
             f"Неделя: {start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}\n"
             "Выберите дату записи:",
             reply_markup=reply_markup
         )
+        await query.delete_message()
         
     except Exception as e:
         logger.error(f"Error showing date selection: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_time_slots(query, date_str):
     """Показать доступное время на выбранную дату"""
@@ -603,7 +700,13 @@ async def show_time_slots(query, date_str):
     service_id = user_data.get('service_id')
     
     if not specialist_id or not service_id:
-        await query.edit_message_text("❌ Ошибка: не выбраны мастер или услуга")
+        await query.message.reply_text(
+            "❌ Ошибка: не выбраны мастер или услуга",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
         return
     
     try:
@@ -616,7 +719,14 @@ async def show_time_slots(query, date_str):
             time_slots = data['data']
             
             if not time_slots:
-                await query.edit_message_text("❌ Нет свободного времени на эту дату")
+                await query.message.reply_text(
+                    "❌ Нет свободного времени на эту дату",
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ])
+                )
+                await query.delete_message()
                 return
             
             keyboard = []
@@ -632,16 +742,31 @@ async def show_time_slots(query, date_str):
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.edit_message_text(
+            await query.message.reply_text(
                 f"Доступное время на {datetime.strptime(date_str, '%Y-%m-%d').strftime('%d.%m.%Y')}:",
                 reply_markup=reply_markup
             )
+            await query.delete_message()
         else:
-            await query.edit_message_text("❌ Ошибка загрузки времени")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки времени",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching time slots: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def confirm_booking(query, schedule_id):
     """Подтверждение записи"""
@@ -676,14 +801,27 @@ async def confirm_booking(query, schedule_id):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.edit_message_text(message, reply_markup=reply_markup)
+            await query.message.reply_text(message, reply_markup=reply_markup)
+            await query.delete_message()
             
         else:
-            await query.edit_message_text("❌ Ошибка загрузки информации о записи")
+            await query.message.reply_text(
+                "❌ Ошибка загрузки информации о записи",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ])
+            )
+            await query.delete_message()
             
     except Exception as e:
         logger.error(f"Error confirming booking: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_week_schedule(query, target_date_str=None):
     """Показать свободное время на неделю с навигацией"""
@@ -754,11 +892,19 @@ async def show_week_schedule(query, target_date_str=None):
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.edit_message_text(message, reply_markup=reply_markup)
+        await query.message.reply_text(message, reply_markup=reply_markup)
+        await query.delete_message()
         
     except Exception as e:
         logger.error(f"Error fetching week schedule: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
+        await query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""

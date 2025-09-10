@@ -19,52 +19,33 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    message_text = (
+        "🏠 Главное меню\n\n"
+        "Выберите раздел:"
+    )
     
     if hasattr(update, 'callback_query') and update.callback_query:
-        await update.callback_query.edit_message_text(
-            "🏠 Главное меню\n\n"
-            "Выберите раздел:",
-            reply_markup=reply_markup
-        )
-    else:
-        await update.message.reply_text(
-            "🏠 Главное меню\n\n"
-            "Выберите раздел:",
-            reply_markup=reply_markup
-        )
-
-async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Показать меню мастеров"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/api/specialists")
-        data = response.json()
-        
-        if data['message'] == 'success':
-            masters = data['data']
-            keyboard = []
-            
-            for master in masters:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"👨‍💼 {master['имя']}",
-                        callback_data=f'master_detail_{master["id"]}'
-                    )
-                ])
-            
-            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.callback_query.edit_message_text(
-                "👨‍💼 Наши мастера\n\n"
-                "Нажмите на мастера чтобы узнать больше:",
+        query = update.callback_query
+        try:
+            # Отправляем новое текстовое сообщение
+            await query.message.reply_text(
+                text=message_text,
                 reply_markup=reply_markup
             )
-        else:
-            await update.callback_query.edit_message_text("❌ Ошибка загрузки мастеров")
-            
-    except Exception as e:
-        logger.error(f"Error fetching masters: {e}")
-        await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
+            # Удаляем предыдущее сообщение (с фото или текстом)
+            await query.delete_message()
+        except Exception as e:
+            logger.error(f"Error in show_main_menu: {e}")
+            # В случае ошибки пробуем снова отправить сообщение
+            await query.message.reply_text(
+                text=message_text,
+                reply_markup=reply_markup
+            )
+    else:
+        await update.message.reply_text(
+            text=message_text,
+            reply_markup=reply_markup
+        )
 
 async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, master_id: str):
     """Показать детальную информацию о мастере"""
@@ -96,14 +77,6 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # Проверяем, было ли предыдущее сообщение с фото
-            has_photo = False
-            try:
-                if update.callback_query and update.callback_query.message.photo:
-                    has_photo = True
-            except:
-                pass
-            
             # Отправляем фото если есть
             if 'фото' in master and master['фото'] and master['фото'] != 'photo/работники/default.jpg':
                 try:
@@ -111,56 +84,145 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
                     photo_url = f"{API_BASE_URL}/{master['фото']}"
                     logger.info(f"Trying to send photo from URL: {photo_url}")
                     
-                    # Скачиваем фото и отправляем как файл
+                    # Скачиваем фото
                     photo_response = requests.get(photo_url)
                     if photo_response.status_code == 200:
-                        # Сохраняем временно файл
                         photo_data = photo_response.content
                         
-                        if has_photo:
-                            # Если предыдущее сообщение было с фото, редактируем его
-                            await update.callback_query.edit_message_media(
-                                media=InputMediaPhoto(media=photo_data, caption=message),
-                                reply_markup=reply_markup
-                            )
-                        else:
-                            # Если предыдущее сообщение было текстовым, отправляем новое фото
-                            await update.callback_query.message.reply_photo(
-                                photo=photo_data,
-                                caption=message,
-                                reply_markup=reply_markup
-                            )
-                            await update.callback_query.delete_message()
+                        # Отправляем новое сообщение с фото
+                        await update.callback_query.message.reply_photo(
+                            photo=photo_data,
+                            caption=message,
+                            reply_markup=reply_markup
+                        )
+                        # Удаляем предыдущее сообщение
+                        await update.callback_query.delete_message()
                     else:
                         logger.error(f"Failed to download photo: {photo_response.status_code}")
                         # Если не удалось скачать фото, отправляем текст
-                        await update.callback_query.edit_message_text(
+                        await update.callback_query.message.reply_text(
                             message,
                             reply_markup=reply_markup
                         )
+                        await update.callback_query.delete_message()
                 except Exception as photo_error:
                     logger.error(f"Error sending photo: {photo_error}")
                     # Если не удалось отправить фото, отправляем текст
-                    await update.callback_query.edit_message_text(
+                    await update.callback_query.message.reply_text(
                         message,
                         reply_markup=reply_markup
                     )
+                    await update.callback_query.delete_message()
             else:
-                # Если фото нет, просто редактируем текст
-                await update.callback_query.edit_message_text(
+                # Если фото нет, отправляем новое текстовое сообщение
+                await update.callback_query.message.reply_text(
                     message,
                     reply_markup=reply_markup
                 )
+                await update.callback_query.delete_message()
                 
         else:
-            await update.callback_query.edit_message_text("❌ Ошибка загрузки информации о мастере")
+            await update.callback_query.message.reply_text(
+                "❌ Ошибка загрузки информации о мастере",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
+            await update.callback_query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching master detail: {e}")
-        await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
+        await update.callback_query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+            ])
+        )
+        await update.callback_query.delete_message()
 
-
-
+async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать меню мастеров"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/specialists")
+        data = response.json()
+        
+        if data['message'] == 'success':
+            masters = data['data']
+            keyboard = []
+            
+            for master in masters:
+                keyboard.append([
+                    InlineKeyboardButton(
+                        f"👨‍💼 {master['имя']}",
+                        callback_data=f'master_detail_{master["id"]}'
+                    )
+                ])
+            
+            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            message_text = (
+                "👨‍💼 Наши мастера\n\n"
+                "Нажмите на мастера чтобы узнать больше:"
+            )
+            
+            query = update.callback_query
+            try:
+                # Отправляем новое текстовое сообщение
+                await query.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+                # Удаляем предыдущее сообщение
+                await query.delete_message()
+            except Exception as e:
+                logger.error(f"Error in show_masters_menu: {e}")
+                # В случае ошибки пробуем снова отправить сообщение
+                await query.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+        else:
+            error_message = "❌ Ошибка загрузки мастеров"
+            query = update.callback_query
+            try:
+                await query.message.reply_text(
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                    ])
+                )
+                await query.delete_message()
+            except Exception as e:
+                logger.error(f"Error handling error message in show_masters_menu: {e}")
+                await query.message.reply_text(
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                    ])
+                )
+                
+    except Exception as e:
+        logger.error(f"Error fetching masters: {e}")
+        error_message = "❌ Ошибка подключения к серверу"
+        query = update.callback_query
+        try:
+            await query.message.reply_text(
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
+            await query.delete_message()
+        except Exception as e:
+            logger.error(f"Error handling server error in show_masters_menu: {e}")
+            await query.message.reply_text(
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
 
 async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню услуг"""
@@ -182,18 +244,67 @@ async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await update.callback_query.edit_message_text(
+            message_text = (
                 "🎯 Наши услуги\n\n"
-                "Нажмите на услугу чтобы узнать больше:",
-                reply_markup=reply_markup
+                "Нажмите на услугу чтобы узнать больше:"
             )
-        else:
-            await update.callback_query.edit_message_text("❌ Ошибка загрузки услуг")
             
+            query = update.callback_query
+            try:
+                # Отправляем новое текстовое сообщение
+                await query.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+                # Удаляем предыдущее сообщение
+                await query.delete_message()
+            except Exception as e:
+                logger.error(f"Error in show_services_menu: {e}")
+                # В случае ошибки пробуем снова отправить сообщение
+                await query.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+        else:
+            error_message = "❌ Ошибка загрузки услуг"
+            query = update.callback_query
+            try:
+                await query.message.reply_text(
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                    ])
+                )
+                await query.delete_message()
+            except Exception as e:
+                logger.error(f"Error handling error message in show_services_menu: {e}")
+                await query.message.reply_text(
+                    text=error_message,
+                    reply_markup=InlineKeyboardMarkup([
+                        [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                    ])
+                )
+                
     except Exception as e:
         logger.error(f"Error fetching services: {e}")
-        await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
+        error_message = "❌ Ошибка подключения к серверу"
+        query = update.callback_query
+        try:
+            await query.message.reply_text(
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
+            await query.delete_message()
+        except Exception as e:
+            logger.error(f"Error handling server error in show_services_menu: {e}")
+            await query.message.reply_text(
+                text=error_message,
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
 
 async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, service_id: str):
     """Показать детальную информацию об услуге"""
@@ -222,14 +333,6 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            # Проверяем, было ли предыдущее сообщение с фото
-            has_photo = False
-            try:
-                if update.callback_query and update.callback_query.message.photo:
-                    has_photo = True
-            except:
-                pass
-            
             # Отправляем фото если есть
             if 'фото' in service and service['фото'] and service['фото'] != 'photo/услуги/default.jpg':
                 try:
@@ -237,52 +340,63 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
                     photo_url = f"{API_BASE_URL}/{service['фото']}"
                     logger.info(f"Trying to send service photo from URL: {photo_url}")
                     
-                    # Скачиваем фото и отправляем как файл
+                    # Скачиваем фото
                     photo_response = requests.get(photo_url)
                     if photo_response.status_code == 200:
                         photo_data = photo_response.content
                         
-                        if has_photo:
-                            # Если предыдущее сообщение было с фото, редактируем его
-                            await update.callback_query.edit_message_media(
-                                media=InputMediaPhoto(media=photo_data, caption=message),
-                                reply_markup=reply_markup
-                            )
-                        else:
-                            # Если предыдущее сообщение было текстовым, отправляем новое фото
-                            await update.callback_query.message.reply_photo(
-                                photo=photo_data,
-                                caption=message,
-                                reply_markup=reply_markup
-                            )
-                            await update.callback_query.delete_message()
+                        # Отправляем новое сообщение с фото
+                        await update.callback_query.message.reply_photo(
+                            photo=photo_data,
+                            caption=message,
+                            reply_markup=reply_markup
+                        )
+                        # Удаляем предыдущее сообщение
+                        await update.callback_query.delete_message()
                     else:
                         logger.error(f"Failed to download service photo: {photo_response.status_code}")
-                        await update.callback_query.edit_message_text(
+                        await update.callback_query.message.reply_text(
                             message,
                             reply_markup=reply_markup
                         )
+                        await update.callback_query.delete_message()
                 except Exception as photo_error:
                     logger.error(f"Error sending service photo: {photo_error}")
-                    await update.callback_query.edit_message_text(
+                    # Если не удалось отправить фото, отправляем текст
+                    await update.callback_query.message.reply_text(
                         message,
                         reply_markup=reply_markup
                     )
+                    await update.callback_query.delete_message()
             else:
-                await update.callback_query.edit_message_text(
+                # Если фото нет, отправляем новое текстовое сообщение
+                await update.callback_query.message.reply_text(
                     message,
                     reply_markup=reply_markup
                 )
+                await update.callback_query.delete_message()
                 
         else:
-            await update.callback_query.edit_message_text("❌ Ошибка загрузки информации об услуге")
+            await update.callback_query.message.reply_text(
+                "❌ Ошибка загрузки информации об услуге",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("↲ Назад", callback_data='services_menu')],
+                    [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                ])
+            )
+            await update.callback_query.delete_message()
             
     except Exception as e:
         logger.error(f"Error fetching service detail: {e}")
-        await update.callback_query.edit_message_text("❌ Ошибка подключения к серверу")
+        await update.callback_query.message.reply_text(
+            "❌ Ошибка подключения к серверу",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='services_menu')],
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+            ])
+        )
+        await update.callback_query.delete_message()
 
-
-        
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback запросов меню"""
     query = update.callback_query
@@ -316,9 +430,33 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def show_booking_options_with_master(query, master_id):
     """Показать варианты записи для выбранного мастера"""
     from main import show_services_for_specialist
-    await show_services_for_specialist(query, master_id)
+    try:
+        await show_services_for_specialist(query, master_id)
+        await query.delete_message()
+    except Exception as e:
+        logger.error(f"Error in show_booking_options_with_master: {e}")
+        await query.message.reply_text(
+            "❌ Ошибка при загрузке услуг мастера",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
 
 async def show_booking_options_with_service(query, service_id):
     """Показать варианты записи для выбранной услуги"""
     from main import show_specialists_for_service
-    await show_specialists_for_service(query, service_id)
+    try:
+        await show_specialists_for_service(query, service_id)
+        await query.delete_message()
+    except Exception as e:
+        logger.error(f"Error in show_booking_options_with_service: {e}")
+        await query.message.reply_text(
+            "❌ Ошибка при загрузке мастеров для услуги",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("↲ Назад", callback_data='services_menu')],
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            ])
+        )
+        await query.delete_message()
