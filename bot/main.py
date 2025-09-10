@@ -1,3 +1,4 @@
+# main.py (updated)
 import os
 import logging
 import requests
@@ -122,22 +123,36 @@ async def show_booking_options(query):
         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
+    message_text = "Как вы хотите записаться?"
+    
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     
     try:
-        await query.message.reply_text(
-            "Как вы хотите записаться?",
-            reply_markup=reply_markup
-        )
+        # Скачиваем фото
+        photo_response = requests.get(photo_url)
+        if photo_response.status_code == 200:
+            photo_data = photo_response.content
+            await query.message.reply_photo(
+                photo=photo_data,
+                caption=message_text,
+                reply_markup=reply_markup
+            )
+        else:
+            await query.message.reply_text(
+                message_text,
+                reply_markup=reply_markup
+            )
         await query.delete_message()
     except Exception as e:
         logger.error(f"Error in show_booking_options: {e}")
         await query.message.reply_text(
-            "Как вы хотите записаться?",
+            message_text,
             reply_markup=reply_markup
         )
 
 async def show_services(query):
     """Показать список услуг с доступным временем (в будущем)"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/services")
         data = response.json()
@@ -190,11 +205,22 @@ async def show_services(query):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='book_appointment')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
+            message_text = "Выберите услугу:"
             
-            await query.message.reply_text(
-                "Выберите услугу:",
-                reply_markup=reply_markup
-            )
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=reply_markup
+                )
             await query.delete_message()
         else:
             await query.message.reply_text(
@@ -217,6 +243,7 @@ async def show_services(query):
 
 async def show_specialists(query):
     """Показать список мастеров с доступным временем (в будущем)"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialists")
         data = response.json()
@@ -269,11 +296,22 @@ async def show_specialists(query):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
+            message_text = "Выберите мастера:"
             
-            await query.message.reply_text(
-                "Выберите мастера:",
-                reply_markup=reply_markup
-            )
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=reply_markup
+                )
             await query.delete_message()
         else:
             await query.message.reply_text(
@@ -305,6 +343,7 @@ async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def show_specialists_for_service(query, service_id):
     """Показать мастеров для выбранной услуги (проверяя доступное время в будущем)"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/service/{service_id}/specialists")
         data = response.json()
@@ -367,12 +406,22 @@ async def show_specialists_for_service(query, service_id):
             # Получаем название услуги
             service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
             service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
+            message_text = f"🎯 Услуга: {service_name}\n\n" "Выберите мастера или посмотрите расписание для всех мастеров:"
             
-            await query.message.reply_text(
-                f"🎯 Услуга: {service_name}\n\n"
-                "Выберите мастера или посмотрите расписание для всех мастеров:",
-                reply_markup=reply_markup
-            )
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=reply_markup
+                )
             await query.delete_message()
         else:
             await query.message.reply_text(
@@ -397,6 +446,7 @@ async def show_specialists_for_service(query, service_id):
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}/services")
         data = response.json()
@@ -448,10 +498,25 @@ async def show_services_for_specialist(query, specialist_id):
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
-            await query.message.reply_text(
-                "Выберите услугу для мастера:",
-                reply_markup=reply_markup
-            )
+            # Получаем имя мастера
+            specialist_response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}")
+            specialist_name = specialist_response.json()['data']['имя'] if specialist_response.json()['message'] == 'success' else "Мастер"
+            message_text = f"👨‍💼 Мастер: {specialist_name}\n\n" "Выберите услугу:"
+            
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=reply_markup
+                )
             await query.delete_message()
         else:
             await query.message.reply_text(
@@ -475,48 +540,25 @@ async def show_services_for_specialist(query, specialist_id):
         await query.delete_message()
 
 async def show_all_specialists_schedule(query, service_id, target_date_str=None):
-    """Показать расписание для всех мастеров для выбранной услуги с навигацией по неделям"""
+    """Показать расписание для всех мастеров по услуге на неделю с навигацией"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
-        # Сохраняем данные в состоянии пользователя
-        user_id = query.from_user.id
-        user_states[user_id] = {
-            'service_id': service_id
-        }
-        
-        # Определяем текущую дату для отображения
-        today = datetime.now().date()
         if target_date_str:
-            current_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
         else:
-            current_date = today
+            target_date = datetime.now().date()
         
-        # Находим понедельник текущей недели
-        start_of_week = current_date - timedelta(days=current_date.weekday())
+        start_of_week = target_date - timedelta(days=target_date.weekday())
         end_of_week = start_of_week + timedelta(days=6)
         
-        # Устанавливаем from_date не раньше сегодняшнего дня
-        from_date = max(start_of_week, today)
-        to_date = end_of_week
+        from_date_str = start_of_week.strftime('%Y-%m-%d')
+        to_date_str = end_of_week.strftime('%Y-%m-%d')
         
-        # Форматируем даты
-        from_date_str = from_date.strftime('%Y-%m-%d')
-        to_date_str = to_date.strftime('%Y-%m-%d')
-        
-        # Получаем свободное время для услуги
-        response = requests.get(
-            f"{API_BASE_URL}/api/freetime-available",
-            params={'fromDate': from_date_str, 'toDate': to_date_str}
-        )
+        response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={from_date_str}&toDate={to_date_str}")
         data = response.json()
         
-        # Получаем название услуги
-        service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
-        service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
-        
-        # Создаем сообщение
         message = (
-            f"🎯 Услуга: {service_name}\n\n"
-            f"📅 Свободное время на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
+            f"📅 Расписание для всех мастеров по услуге на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
         )
         
         keyboard = []
@@ -572,7 +614,20 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.message.reply_text(message, reply_markup=reply_markup)
+        # Скачиваем фото
+        photo_response = requests.get(photo_url)
+        if photo_response.status_code == 200:
+            photo_data = photo_response.content
+            await query.message.reply_photo(
+                photo=photo_data,
+                caption=message,
+                reply_markup=reply_markup
+            )
+        else:
+            await query.message.reply_text(
+                message,
+                reply_markup=reply_markup
+            )
         await query.delete_message()
         
     except Exception as e:
@@ -588,6 +643,7 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
 
 async def show_date_selection(query, specialist_id, service_id, current_date_str=None):
     """Показать выбор даты для выбранной услуги и мастера с навигацией по неделям"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         user_id = query.from_user.id
         user_states[user_id] = {
@@ -671,14 +727,27 @@ async def show_date_selection(query, specialist_id, service_id, current_date_str
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await query.message.reply_text(
+        message_text = (
             f"🎯 Услуга: {service_name}\n"
             f"👨‍💼 Мастер: {specialist_name}\n\n"
             f"Неделя: {start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}\n"
-            "Выберите дату записи:",
-            reply_markup=reply_markup
+            "Выберите дату записи:"
         )
+        
+        # Скачиваем фото
+        photo_response = requests.get(photo_url)
+        if photo_response.status_code == 200:
+            photo_data = photo_response.content
+            await query.message.reply_photo(
+                photo=photo_data,
+                caption=message_text,
+                reply_markup=reply_markup
+            )
+        else:
+            await query.message.reply_text(
+                message_text,
+                reply_markup=reply_markup
+            )
         await query.delete_message()
         
     except Exception as e:
@@ -694,6 +763,7 @@ async def show_date_selection(query, specialist_id, service_id, current_date_str
 
 async def show_time_slots(query, date_str):
     """Показать доступное время на выбранную дату"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     user_id = query.from_user.id
     user_data = user_states.get(user_id, {})
     specialist_id = user_data.get('specialist_id')
@@ -741,11 +811,22 @@ async def show_time_slots(query, date_str):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data=f'select_date_{date_str}')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
+            message_text = f"Доступное время на {datetime.strptime(date_str, '%Y-%m-%d').strftime('%d.%m.%Y')}:"
             
-            await query.message.reply_text(
-                f"Доступное время на {datetime.strptime(date_str, '%Y-%m-%d').strftime('%d.%m.%Y')}:",
-                reply_markup=reply_markup
-            )
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await query.message.reply_text(
+                    message_text,
+                    reply_markup=reply_markup
+                )
             await query.delete_message()
         else:
             await query.message.reply_text(
@@ -793,8 +874,7 @@ async def confirm_booking(query, schedule_id):
                 'specialist_id': schedule['мастер_id'],
                 'date': schedule['дата'],
                 'time': schedule['время'],
-                'step': 'name'
-            }
+                'step': 'name'}
             
             keyboard = [
                 [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
@@ -825,6 +905,7 @@ async def confirm_booking(query, schedule_id):
 
 async def show_week_schedule(query, target_date_str=None):
     """Показать свободное время на неделю с навигацией"""
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
         today = datetime.now().date()
         
@@ -892,7 +973,20 @@ async def show_week_schedule(query, target_date_str=None):
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.message.reply_text(message, reply_markup=reply_markup)
+        # Скачиваем фото
+        photo_response = requests.get(photo_url)
+        if photo_response.status_code == 200:
+            photo_data = photo_response.content
+            await query.message.reply_photo(
+                photo=photo_data,
+                caption=message,
+                reply_markup=reply_markup
+            )
+        else:
+            await query.message.reply_text(
+                message,
+                reply_markup=reply_markup
+            )
         await query.delete_message()
         
     except Exception as e:

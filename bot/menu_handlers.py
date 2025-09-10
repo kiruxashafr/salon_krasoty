@@ -1,3 +1,4 @@
+# menu_handlers.py (updated)
 import os
 import logging
 import requests
@@ -24,14 +25,27 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Выберите раздел:"
     )
     
+    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    
     if hasattr(update, 'callback_query') and update.callback_query:
         query = update.callback_query
         try:
-            # Отправляем новое текстовое сообщение
-            await query.message.reply_text(
-                text=message_text,
-                reply_markup=reply_markup
-            )
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                # Отправляем новое сообщение с фото
+                await query.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                # Если фото не загрузилось, отправляем текст
+                await query.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
             # Удаляем предыдущее сообщение (с фото или текстом)
             await query.delete_message()
         except Exception as e:
@@ -42,10 +56,27 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=reply_markup
             )
     else:
-        await update.message.reply_text(
-            text=message_text,
-            reply_markup=reply_markup
-        )
+        try:
+            # Скачиваем фото
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                await update.message.reply_photo(
+                    photo=photo_data,
+                    caption=message_text,
+                    reply_markup=reply_markup
+                )
+            else:
+                await update.message.reply_text(
+                    text=message_text,
+                    reply_markup=reply_markup
+                )
+        except Exception as e:
+            logger.error(f"Error in show_main_menu (no query): {e}")
+            await update.message.reply_text(
+                text=message_text,
+                reply_markup=reply_markup
+            )
 
 async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, master_id: str):
     """Показать детальную информацию о мастере"""
@@ -144,6 +175,7 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню мастеров"""
+    photo_url = f"{API_BASE_URL}/photo/images/master.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialists")
         data = response.json()
@@ -169,11 +201,22 @@ async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             query = update.callback_query
             try:
-                # Отправляем новое текстовое сообщение
-                await query.message.reply_text(
-                    text=message_text,
-                    reply_markup=reply_markup
-                )
+                # Скачиваем фото
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    # Отправляем новое сообщение с фото
+                    await query.message.reply_photo(
+                        photo=photo_data,
+                        caption=message_text,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    # Если фото не загрузилось, отправляем текст
+                    await query.message.reply_text(
+                        text=message_text,
+                        reply_markup=reply_markup
+                    )
                 # Удаляем предыдущее сообщение
                 await query.delete_message()
             except Exception as e:
@@ -226,6 +269,7 @@ async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню услуг"""
+    photo_url = f"{API_BASE_URL}/photo/images/services.jpg"  # Используем main.jpg для услуг, как не указано иное
     try:
         response = requests.get(f"{API_BASE_URL}/api/services")
         data = response.json()
@@ -251,11 +295,22 @@ async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
             query = update.callback_query
             try:
-                # Отправляем новое текстовое сообщение
-                await query.message.reply_text(
-                    text=message_text,
-                    reply_markup=reply_markup
-                )
+                # Скачиваем фото
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    # Отправляем новое сообщение с фото
+                    await query.message.reply_photo(
+                        photo=photo_data,
+                        caption=message_text,
+                        reply_markup=reply_markup
+                    )
+                else:
+                    # Если фото не загрузилось, отправляем текст
+                    await query.message.reply_text(
+                        text=message_text,
+                        reply_markup=reply_markup
+                    )
                 # Удаляем предыдущее сообщение
                 await query.delete_message()
             except Exception as e:
