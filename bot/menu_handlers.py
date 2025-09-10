@@ -1,3 +1,4 @@
+
 import os
 import logging
 import requests
@@ -19,7 +20,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    if update.callback_query:
+    if hasattr(update, 'callback_query') and update.callback_query:
         await update.callback_query.edit_message_text(
             "🏠 Главное меню\n\n"
             "Выберите раздел:",
@@ -32,6 +33,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup
         )
 
+        
 async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню мастеров"""
     try:
@@ -240,33 +242,6 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_booking_options_with_service(query, service_id)
     elif data == 'cancel_to_main':
         await show_main_menu(update, context)
-        
-        """Обработчик callback запросов меню"""
-    query = update.callback_query
-    await query.answer()
-    
-    data = query.data
-    
-    if data == 'back_to_main':
-        await show_main_menu(update, context)
-    elif data == 'masters_menu':
-        await show_masters_menu(update, context)
-    elif data == 'services_menu':
-        await show_services_menu(update, context)
-    elif data.startswith('master_detail_'):
-        master_id = data.split('_')[2]
-        await show_master_detail(update, context, master_id)
-    elif data.startswith('service_detail_'):
-        service_id = data.split('_')[2]
-        await show_service_detail(update, context, service_id)
-    elif data.startswith('book_master_'):
-        master_id = data.split('_')[2]
-        # Перенаправляем в запись с выбранным мастером
-        await show_booking_options_with_master(query, master_id)
-    elif data.startswith('book_service_'):
-        service_id = data.split('_')[2]
-        # Перенаправляем в запись с выбранной услугой
-        await show_booking_options_with_service(query, service_id)
 
 async def show_booking_options_with_master(query, master_id):
     """Показать варианты записи для выбранного мастера"""

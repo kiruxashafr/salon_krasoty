@@ -53,7 +53,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == 'book_appointment':
         await show_booking_options(query)
     elif data == 'choose_service':
-        await show_services(query)
+        await show_services(query)  # Добавьте эту строку
     elif data == 'choose_specialist':
         await show_specialists(query)
     elif data.startswith('service_'):
@@ -129,7 +129,7 @@ async def show_booking_options(query):
     )
 
 async def show_services(query):
-    """Показать список услуг с доступным временем"""
+    """Показать список услуг с доступным временем (в будущем)"""
     try:
         response = requests.get(f"{API_BASE_URL}/api/services")
         data = response.json()
@@ -146,13 +146,10 @@ async def show_services(query):
                     
                     has_available_time = False
                     for specialist in specialists:
-                        today = datetime.now()
-                        start_date = today.strftime('%Y-%m-%d')
-                        end_date = (today + timedelta(days=7)).strftime('%Y-%m-%d')
-                        
+                        # Проверяем доступное время в будущем (без ограничения по дате)
                         dates_response = requests.get(
                             f"{API_BASE_URL}/api/specialist/{specialist['id']}/service/{service['id']}/available-dates",
-                            params={'start': start_date, 'end': end_date}
+                            params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
                         )
                         
                         if (dates_response.json()['message'] == 'success' and 
@@ -196,8 +193,9 @@ async def show_services(query):
         logger.error(f"Error fetching services: {e}")
         await query.edit_message_text("❌ Ошибка подключения к серверу")
 
+
 async def show_specialists(query):
-    """Показать список мастеров с доступным временем"""
+    """Показать список мастеров с доступным временем (в будущем)"""
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialists")
         data = response.json()
@@ -214,13 +212,10 @@ async def show_specialists(query):
                     
                     has_available_time = False
                     for service in services:
-                        today = datetime.now()
-                        start_date = today.strftime('%Y-%m-%d')
-                        end_date = (today + timedelta(days=7)).strftime('%Y-%m-%d')
-                        
+                        # Проверяем доступное время в будущем (без ограничения по дате)
                         dates_response = requests.get(
                             f"{API_BASE_URL}/api/specialist/{specialist['id']}/service/{service['id']}/available-dates",
-                            params={'start': start_date, 'end': end_date}
+                            params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
                         )
                         
                         if (dates_response.json()['message'] == 'success' and 
@@ -249,7 +244,7 @@ async def show_specialists(query):
                 )
                 return
             
-            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')])
+            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -264,8 +259,19 @@ async def show_specialists(query):
         logger.error(f"Error fetching specialists: {e}")
         await query.edit_message_text("❌ Ошибка подключения к серверу")
 
+async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Обработчик кнопки 'Главное меню'"""
+    query = update.callback_query
+    await query.answer()
+    
+    # Создаем объект Update с callback_query для передачи в show_main_menu
+    fake_update = Update(update.update_id, callback_query=query)
+    await show_main_menu(fake_update, context)
+
+    
+
 async def show_specialists_for_service(query, service_id):
-    """Показать мастеров для выбранной услуги и расписание для всех мастеров"""
+    """Показать мастеров для выбранной услуги (проверяя доступное время в будущем)"""
     try:
         response = requests.get(f"{API_BASE_URL}/api/service/{service_id}/specialists")
         data = response.json()
@@ -279,13 +285,10 @@ async def show_specialists_for_service(query, service_id):
             
             keyboard = []
             for specialist in specialists:
-                today = datetime.now()
-                start_date = today.strftime('%Y-%m-%d')
-                end_date = (today + timedelta(days=7)).strftime('%Y-%m-%d')
-                
+                # Проверяем доступное время в будущем
                 dates_response = requests.get(
                     f"{API_BASE_URL}/api/specialist/{specialist['id']}/service/{service_id}/available-dates",
-                    params={'start': start_date, 'end': end_date}
+                    params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
                 )
                 
                 if (dates_response.json()['message'] == 'success' and 
@@ -331,6 +334,64 @@ async def show_specialists_for_service(query, service_id):
     except Exception as e:
         logger.error(f"Error fetching specialists for service: {e}")
         await query.edit_message_text("❌ Ошибка подключения к серверу")
+
+
+
+async def show_services_for_specialist(query, specialist_id):
+    """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}/services")
+        data = response.json()
+        
+        if data['message'] == 'success':
+            services = data['data']
+            
+            if not services:
+                await query.edit_message_text("❌ Нет доступных услуг для этого мастера")
+                return
+            
+            keyboard = []
+            for service in services:
+                # Проверяем доступное время в будущем
+                dates_response = requests.get(
+                    f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service['id']}/available-dates",
+                    params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
+                )
+                
+                if (dates_response.json()['message'] == 'success' and 
+                    dates_response.json()['availableDates']):
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{service['название']} - {service['цена']}₽",
+                            callback_data=f'select_service_{service["id"]}_{specialist_id}'
+                        )
+                    ])
+            
+            if not keyboard:
+                await query.edit_message_text(
+                    "❌ Нет услуг со свободным временем для этого мастера\n\n"
+                    "Попробуйте выбрать другого мастера или посмотреть позже."
+                )
+                return
+            
+            # Добавьте эту строку для кнопки "Назад"
+            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
+            keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            await query.edit_message_text(
+                "Выберите услугу для мастера:",
+                reply_markup=reply_markup
+            )
+        else:
+            await query.edit_message_text("❌ Ошибка загрузки услуг")
+            
+    except Exception as e:
+        logger.error(f"Error fetching services for specialist: {e}")
+        await query.edit_message_text("❌ Ошибка подключения к серверу")
+
+
+
 
 async def show_all_specialists_schedule(query, service_id, target_date_str=None):
     """Показать расписание для всех мастеров для выбранной услуги с навигацией по неделям"""
@@ -434,61 +495,6 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
         
     except Exception as e:
         logger.error(f"Error fetching all specialists schedule: {e}")
-        await query.edit_message_text("❌ Ошибка подключения к серверу")
-
-async def show_services_for_specialist(query, specialist_id):
-    """Показать услуги для выбранного мастера"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}/services")
-        data = response.json()
-        
-        if data['message'] == 'success':
-            services = data['data']
-            
-            if not services:
-                await query.edit_message_text("❌ Нет доступных услуг для этого мастера")
-                return
-            
-            keyboard = []
-            for service in services:
-                today = datetime.now()
-                start_date = today.strftime('%Y-%m-%d')
-                end_date = (today + timedelta(days=7)).strftime('%Y-%m-%d')
-                
-                dates_response = requests.get(
-                    f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service['id']}/available-dates",
-                    params={'start': start_date, 'end': end_date}
-                )
-                
-                if (dates_response.json()['message'] == 'success' and 
-                    dates_response.json()['availableDates']):
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"{service['название']} - {service['цена']}₽",
-                            callback_data=f'select_service_{service["id"]}_{specialist_id}'
-                        )
-                    ])
-            
-            if not keyboard:
-                await query.edit_message_text(
-                    "❌ Нет услуг со свободным временем для этого мастера\n\n"
-                    "Попробуйте выбрать другого мастера или посмотреть позже."
-                )
-                return
-            
-            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')])
-            keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            await query.edit_message_text(
-                "Выберите услугу для мастера:",
-                reply_markup=reply_markup
-            )
-        else:
-            await query.edit_message_text("❌ Ошибка загрузки услуг")
-            
-    except Exception as e:
-        logger.error(f"Error fetching services for specialist: {e}")
         await query.edit_message_text("❌ Ошибка подключения к серверу")
 
 async def show_date_selection(query, specialist_id, service_id, current_date_str=None):
