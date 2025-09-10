@@ -1,4 +1,4 @@
-# main.py (updated)
+# main.py
 import os
 import logging
 import requests
@@ -409,11 +409,7 @@ async def show_specialists_for_service(query, service_id):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_service')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            # Получаем название услуги
-            service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
-            service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
-            message_text = f"🎯 Услуга: {service_name}\n\n" "Выберите мастера или посмотрите расписание для всех мастеров:"
+            message_text = "Выберите мастера:"
             
             try:
                 photo_response = requests.get(photo_url)
@@ -429,8 +425,7 @@ async def show_specialists_for_service(query, service_id):
         else:
             message_text = "❌ Ошибка загрузки мастеров"
             keyboard = [
-                [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -439,8 +434,7 @@ async def show_specialists_for_service(query, service_id):
         logger.error(f"Error fetching specialists for service: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -508,11 +502,7 @@ async def show_services_for_specialist(query, specialist_id):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')])
             keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
-            # Получаем имя мастера
-            specialist_response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}")
-            specialist_name = specialist_response.json()['data']['имя'] if specialist_response.json()['message'] == 'success' else "Мастер"
-            message_text = f"👨‍💼 Мастер: {specialist_name}\n\nВыберите услугу:"
+            message_text = "Выберите услугу:"
             
             try:
                 photo_response = requests.get(photo_url)
@@ -528,8 +518,7 @@ async def show_services_for_specialist(query, specialist_id):
         else:
             message_text = "❌ Ошибка загрузки услуг"
             keyboard = [
-                [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -538,84 +527,57 @@ async def show_services_for_specialist(query, specialist_id):
         logger.error(f"Error fetching services for specialist: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')],
-            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
-async def show_date_selection(query, specialist_id, service_id, current_date_str=None):
-    """Показать выбор даты для выбранной услуги и мастера с навигацией по неделям"""
+async def show_date_selection(query, specialist_id, service_id, target_date_str=None):
+    """Показать выбор даты для записи"""
+    user_id = query.from_user.id
+    user_states[user_id] = {
+        'specialist_id': specialist_id,
+        'service_id': service_id
+    }
+    
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     try:
-        user_id = query.from_user.id
-        user_states[user_id] = {
-            'specialist_id': specialist_id,
-            'service_id': service_id
-        }
+        today = datetime.now().date()
         
-        if current_date_str:
-            current_date = datetime.strptime(current_date_str, '%Y-%m-%d')
+        if target_date_str:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
         else:
-            current_date = datetime.now()
+            target_date = today
         
-        start_of_week = current_date - timedelta(days=current_date.weekday())
+        start_of_week = target_date - timedelta(days=target_date.weekday())
         end_of_week = start_of_week + timedelta(days=6)
         
-        start_date = start_of_week.strftime('%Y-%m-%d')
-        end_date = end_of_week.strftime('%Y-%m-%d')
+        from_date = max(start_of_week, today)
+        to_date = end_of_week
+        
+        from_date_str = from_date.strftime('%Y-%m-%d')
+        to_date_str = to_date.strftime('%Y-%m-%d')
         
         response = requests.get(
             f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service_id}/available-dates",
-            params={'start': start_date, 'end': end_date}
+            params={'start': from_date_str, 'end': to_date_str}
         )
-        
-        service_response = requests.get(f"{API_BASE_URL}/api/service/{service_id}")
-        specialist_response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}")
-        
-        service_name = service_response.json()['data']['название'] if service_response.json()['message'] == 'success' else "Услуга"
-        specialist_name = specialist_response.json()['data']['имя'] if specialist_response.json()['message'] == 'success' else "Мастер"
+        data = response.json()
         
         keyboard = []
-        current_date_obj = start_of_week
-        
-        if response.json()['message'] == 'success':
-            available_dates = response.json()['availableDates'] or []
-            
-            for i in range(7):
-                date_str = current_date_obj.strftime('%Y-%m-%d')
-                date_display = current_date_obj.strftime('%d.%m')
-                day_name = WEEKDAY_MAP[current_date_obj.strftime('%a')]
-                
-                if date_str in available_dates:
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"📅 {date_display} ({day_name})",
-                            callback_data=f'select_date_{date_str}'
-                        )
-                    ])
-                else:
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"❌ {date_display} ({day_name})",
-                            callback_data='no_date_available'
-                        )
-                    ])
-                
-                current_date_obj += timedelta(days=1)
-        else:
-            for i in range(7):
-                date_str = current_date_obj.strftime('%Y-%m-%d')
-                date_display = current_date_obj.strftime('%d.%m')
-                day_name = WEEKDAY_MAP[current_date_obj.strftime('%a')]
-                
+        if data['message'] == 'success' and data['availableDates']:
+            for date in data['availableDates']:
+                date_obj = datetime.strptime(date, '%Y-%m-%d')
+                formatted_date = date_obj.strftime('%d.%m (%a)')
+                formatted_date = formatted_date.replace(date_obj.strftime('%a'), WEEKDAY_MAP[date_obj.strftime('%a')])
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"❌ {date_display} ({day_name})",
-                        callback_data='no_date_available'
+                        formatted_date,
+                        callback_data=f'select_date_{date}'
                     )
                 ])
-                current_date_obj += timedelta(days=1)
+        else:
+            keyboard.append([InlineKeyboardButton("Нет свободных дат", callback_data='no_date_available')])
         
         prev_week_start = start_of_week - timedelta(days=7)
         next_week_start = start_of_week + timedelta(days=7)
@@ -628,14 +590,9 @@ async def show_date_selection(query, specialist_id, service_id, current_date_str
         
         keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
-        
         reply_markup = InlineKeyboardMarkup(keyboard)
-        message_text = (
-            f"🎯 Услуга: {service_name}\n"
-            f"👨‍💼 Мастер: {specialist_name}\n\n"
-            f"Неделя: {start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}\n"
-            "Выберите дату записи:"
-        )
+        
+        message_text = f"Выберите дату ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):"
         
         try:
             photo_response = requests.get(photo_url)
@@ -1046,9 +1003,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 })
                 
                 if response.json().get('message') == 'success':
+                    keyboard = [
+                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                    ]
+                    reply_markup = InlineKeyboardMarkup(keyboard)
                     await update.message.reply_text(
                         "✅ Запись успешно создана!\n\n"
-                        "С вами свяжутся для подтверждения."
+                        "С вами свяжутся для подтверждения.",
+                        reply_markup=reply_markup
                     )
                     
                     requests.patch(f"{API_BASE_URL}/api/schedule/{user_data['schedule_id']}", json={
