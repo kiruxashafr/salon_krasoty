@@ -139,7 +139,7 @@ async def handle_personal_message(update: Update, context: ContextTypes.DEFAULT_
                 if data['message'] == 'success' and data['data']:
                     # Клиент существует, обновляем tg_id
                     client_id = data['data']['id']
-                    update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={'tg_id': user_id})
+                    update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={'tg_id': str(user_id)})
                     if update_response.json()['message'] == 'success':
                         await update.message.reply_text("✅ Регистрация успешна! Теперь вы можете использовать личный кабинет.")
                         del personal_states[user_id]
@@ -165,7 +165,7 @@ async def handle_personal_message(update: Update, context: ContextTypes.DEFAULT_
                 response = requests.post(f"{API_BASE_URL}/api/client", json={
                     'имя': text.strip(),
                     'телефон': state['phone'],
-                    'tg_id': user_id
+                    'tg_id': str(user_id)
                 })
                 if response.json()['message'] == 'success':
                     await update.message.reply_text("✅ Регистрация успешна! Теперь вы можете использовать личный кабинет.")

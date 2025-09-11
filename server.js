@@ -178,6 +178,7 @@ function initializeDatabase() {
                 дата TEXT NOT NULL,
                 время TEXT NOT NULL,
                 цена REAL NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (клиент_id) REFERENCES клиенты(id),
                 FOREIGN KEY (услуга_id) REFERENCES услуги(id),
                 FOREIGN KEY (мастер_id) REFERENCES мастера(id)
@@ -197,11 +198,12 @@ function initializeDatabase() {
         
         db.run(`
             CREATE TABLE IF NOT EXISTS мастера (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            имя TEXT,
-            описание TEXT,
-            фото TEXT,
-            доступен INTEGER DEFAULT 1
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                имя TEXT,
+                описание TEXT,
+                фото TEXT,
+                доступен INTEGER DEFAULT 1,
+                tg_id TEXT
             )
         `);
 
@@ -689,8 +691,8 @@ app.post('/api/appointment', (req, res) => {
                         
                         // 3. Create appointment record
                         const insertAppointmentSql = `
-                            INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена)
-                            VALUES (?, ?, ?, ?, ?, ?)
+                            INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
+                            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
                         `;
                         
                         db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
@@ -777,6 +779,7 @@ app.get('/api/appointments', (req, res) => {
     const specialistId = req.query.specialistId;
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
+    const createdSince = req.query.createdSince; // Новый параметр
     
     let sql = `
         SELECT 
@@ -784,6 +787,7 @@ app.get('/api/appointments', (req, res) => {
             з.дата,
             з.время,
             з.цена,
+            з.created_at,
             к.имя as клиент_имя,
             к.телефон as клиент_телефон,
             у.название as услуга_название,
@@ -813,11 +817,16 @@ app.get('/api/appointments', (req, res) => {
         params.push(endDate);
     }
     
+    if (createdSince) {
+        conditions.push('з.created_at >= ?');
+        params.push(createdSince);
+    }
+    
     if (conditions.length > 0) {
         sql += ' WHERE ' + conditions.join(' AND ');
     }
     
-    sql += ' ORDER BY з.дата DESC, з.время DESC';
+    sql += ' ORDER BY з.created_at DESC';
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -1078,8 +1087,8 @@ app.post('/api/admin/appointment', (req, res) => {
                     
                     // 3. Create appointment record
                     const insertAppointmentSql = `
-                        INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена)
-                        VALUES (?, ?, ?, ?, ?, ?)
+                        INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
                     `;
                     
                     db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
@@ -1121,8 +1130,7 @@ app.post('/api/admin/appointment', (req, res) => {
 
 // В API endpoint для получения всех мастеров изменим запрос
 app.get('/api/specialists-all', (req, res) => {
-    const sql = "SELECT id, имя, описание, фото, доступен FROM мастера WHERE доступен != 0 ORDER BY доступен DESC, имя";
-    db.all(sql, [], (err, rows) => {
+    const sql = "SELECT id, имя, описание, фото, доступен, tg_id FROM мастера WHERE доступен != 0 ORDER BY доступен DESC, имя";    db.all(sql, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
@@ -1136,7 +1144,7 @@ app.get('/api/specialists-all', (req, res) => {
 
 // Add new specialist
 app.post('/api/specialists', (req, res) => {
-    const { имя, описание, фото } = req.body;
+    const { имя, описание, фото, tg_id } = req.body;
     
     if (!имя) {
         return res.status(400).json({ error: 'Имя мастера обязательно' });
@@ -1166,7 +1174,7 @@ app.post('/api/specialists', (req, res) => {
 // Update specialist
 app.put('/api/specialist/:id', (req, res) => {
     const specialistId = req.params.id;
-    const { имя, описание, фото } = req.body;
+    const { имя, описание, фото, tg_id } = req.body;
     
     if (!имя) {
         return res.status(400).json({ error: 'Имя мастера обязательно' });
@@ -1433,20 +1441,21 @@ app.delete('/api/schedule/:id', (req, res) => {
 });
 
 
+// API endpoint to get clients with statistics
 app.get('/api/clients-with-stats', (req, res) => {
     const sql = `
         SELECT 
             к.id,
             к.имя,
             к.телефон,
+            к.tg_id,
             COUNT(з.id) as recordsCount,
-            SUM(з.цена) as totalPrice,
+            COALESCE(SUM(з.цена), 0) as totalPrice,
             MAX(з.дата) as lastDate
         FROM клиенты к
         LEFT JOIN записи з ON к.id = з.клиент_id
         GROUP BY к.id, к.телефон
-        HAVING COUNT(з.id) > 0
-        ORDER BY totalPrice DESC
+        ORDER BY totalPrice DESC, recordsCount DESC
     `;
     
     db.all(sql, [], (err, rows) => {
@@ -1462,10 +1471,11 @@ app.get('/api/clients-with-stats', (req, res) => {
 });
 
 // API endpoint to get client details with appointments
+// API endpoint to get client details with appointments
 app.get('/api/client/:id/appointments', (req, res) => {
     const clientId = req.params.id;
     
-    const clientSql = "SELECT * FROM клиенты WHERE id = ?";
+    const clientSql = "SELECT id, имя, телефон, tg_id FROM клиенты WHERE id = ?";
     const appointmentsSql = `
         SELECT 
             з.дата,
@@ -1797,6 +1807,29 @@ app.patch('/api/client/:id', (req, res) => {
             message: "success",
             data: {
                 id: clientId,
+                tg_id
+            }
+        });
+    });
+});
+
+// API endpoint для установки Telegram ID мастера
+app.patch('/api/specialist/:id/tg-id', (req, res) => {
+    const specialistId = req.params.id;
+    const { tg_id } = req.body;
+    
+    const sql = `UPDATE мастера SET tg_id = ? WHERE id = ?`;
+    
+    db.run(sql, [tg_id, specialistId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: specialistId,
                 tg_id
             }
         });

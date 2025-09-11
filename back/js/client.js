@@ -84,12 +84,13 @@ class ClientsManager {
 
     createClientRow(client, index) {
         const rowClass = index % 2 === 0 ? 'even' : 'odd';
+
         
         return `
             <tr class="client-row ${rowClass}" data-client-id="${client.id}" onclick="clientsManager.showClientDetails(${client.id})">
                 <td>
                     <div class="client-info">
-                        <span class="client-name">${client.имя || 'Не указано'}</span>
+                        <span class="client-name">${client.имя || 'Не указано'} </span>
                     </div>
                 </td>
                 <td>
@@ -187,7 +188,7 @@ class ClientsManager {
         try {
             this.showModalLoading();
             
-            // Получаем детальную информацию о клиенте и его записях
+            // Получаем детальную информацию о клиенте
             const response = await fetch(`/api/client/${clientId}/appointments`);
             
             if (!response.ok) {

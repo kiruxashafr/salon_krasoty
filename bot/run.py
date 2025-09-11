@@ -3,7 +3,9 @@ import os
 from dotenv import load_dotenv
 from main import main
 from menu_handlers import *
-from personal_cabinet import *  # Добавляем импорт
+from personal_cabinet import *
+from notification import initialize_notifications, shutdown_notifications  # Добавляем импорт
+import asyncio
 
 if __name__ == '__main__':
     # Загружаем переменные окружения
@@ -15,5 +17,14 @@ if __name__ == '__main__':
         print("Создайте файл .env и добавьте BOT_TOKEN=your_bot_token_here")
         exit(1)
     
-    # Запускаем бота
-    main()
+    # Инициализируем систему уведомлений
+    initialize_notifications()
+    
+    try:
+        # Запускаем бота
+        main()
+    except KeyboardInterrupt:
+        print("\n🛑 Остановка бота...")
+    finally:
+        # Останавливаем систему уведомлений
+        shutdown_notifications()

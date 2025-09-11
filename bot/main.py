@@ -1135,6 +1135,11 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
                     
                     message_text = (
                         "✅ Запись успешно создана!\n\n"
+                        f"📅 Дата: {schedule['дата']}\n"
+                        f"⏰ Время: {schedule['время']}\n"
+                        f"🎯 Услуга: {schedule['услуга_название']}\n"
+                        f"👨‍💼 Мастер: {schedule['мастер_имя']}\n"
+                        f"💵 Стоимость: {schedule['услуга_цена']}₽\n\n"
                         "С вами свяжутся для подтверждения."
                     )
                     
@@ -1169,7 +1174,6 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
         logger.error(f"Error in process_confirmed_appointment: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         await query.edit_message_text(text=message_text)
-
 
 def validate_phone(phone):
     """Валидация номера телефона в формате +7XXXXXXXXXX"""
