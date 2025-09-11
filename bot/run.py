@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from main import main
 from menu_handlers import *
+from personal_cabinet import *  # Добавляем импорт
 
 if __name__ == '__main__':
     # Загружаем переменные окружения

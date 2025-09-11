@@ -161,11 +161,12 @@ function initializeDatabase() {
     db.serialize(() => {
         // Create tables if they don't exist
         db.run(`
-            CREATE TABLE IF NOT EXISTS клиенты (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                имя TEXT NOT NULL,
-                телефон TEXT NOT NULL UNIQUE
-            )
+                    CREATE TABLE IF NOT EXISTS клиенты (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        имя TEXT NOT NULL,
+                        телефон TEXT NOT NULL UNIQUE,
+                        tg_id TEXT
+                    )
         `);
 
         db.run(`
@@ -1706,6 +1707,104 @@ app.patch('/api/schedule/:id', (req, res) => {
         });
     });
 });
+
+
+// API endpoint для поиска клиента по номеру телефона
+app.get('/api/client/by-phone/:phone', (req, res) => {
+    const phone = req.params.phone;
+    const sql = "SELECT * FROM клиенты WHERE телефон = ?";
+    
+    db.get(sql, [phone], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: row || null
+        });
+    });
+});
+
+// API endpoint для поиска клиента по tg_id
+app.get('/api/client/by-tg/:tg_id', (req, res) => {
+    const tg_id = req.params.tg_id;
+    const sql = "SELECT * FROM клиенты WHERE tg_id = ?";
+    
+    db.get(sql, [tg_id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: row || null
+        });
+    });
+});
+
+// API endpoint для создания нового клиента
+app.post('/api/client', (req, res) => {
+    const { имя, телефон, tg_id } = req.body;
+    
+    if (!имя || !телефон) {
+        return res.status(400).json({ error: 'Имя и телефон обязательны' });
+    }
+    
+    const sql = `INSERT INTO клиенты (имя, телефон, tg_id) VALUES (?, ?, ?)`;
+    
+    db.run(sql, [имя, телефон, tg_id], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                имя,
+                телефон,
+                tg_id
+            }
+        });
+    });
+});
+
+// API endpoint для обновления клиента
+app.patch('/api/client/:id', (req, res) => {
+    const clientId = req.params.id;
+    const { tg_id } = req.body;
+    
+    if (!tg_id) {
+        return res.status(400).json({ error: 'tg_id обязателен' });
+    }
+    
+    const sql = `UPDATE клиенты SET tg_id = ? WHERE id = ?`;
+    
+    db.run(sql, [tg_id, clientId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Клиент не найден' });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: clientId,
+                tg_id
+            }
+        });
+    });
+});
+
+
+
 // Error handling for undefined routes
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });

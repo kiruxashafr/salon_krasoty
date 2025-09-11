@@ -2,6 +2,7 @@
 import os
 import logging
 import requests
+from personal_cabinet import show_personal_cabinet, handle_personal_callback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram import InputMediaPhoto
@@ -17,7 +18,8 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("👨‍💼 Мастера", callback_data='masters_menu')],
         [InlineKeyboardButton("🎯 Услуги", callback_data='services_menu')],
-        [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')]
+        [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')],
+        [InlineKeyboardButton("🔑 Личный кабинет", callback_data='personal_cabinet')]  # Новая кнопка
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = (
@@ -25,7 +27,9 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Выберите раздел:"
     )
     
+    # Остальной код функции остаётся без изменений
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+
     
     if hasattr(update, 'callback_query') and update.callback_query:
         query = update.callback_query
@@ -336,6 +340,8 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_booking_options_with_service(query, service_id)
     elif data == 'cancel_to_main':
         await show_main_menu(update, context)
+    elif data == 'personal_cabinet':
+        await show_personal_cabinet(update, context)
 
 async def show_booking_options_with_master(query, master_id):
     """Показать варианты записи для выбранного мастера"""
