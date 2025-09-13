@@ -1,0 +1,196 @@
+/* settings.css */
+.settings-management {
+    padding: 20px;
+}
+
+.settings-header {
+    margin-bottom: 2rem;
+}
+
+.settings-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.setting-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.setting-card h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+}
+
+.setting-card p {
+    color: #7f8c8d;
+    margin: 0 0 1rem 0;
+}
+
+.setting-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.setting-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+}
+
+/* Модальное окно */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+.modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #7f8c8d;
+}
+
+.modal-body {
+    padding: 1.5rem;
+}
+
+/* Список мастеров для уведомлений */
+.masters-notifications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.master-notification-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e3e3e3;
+}
+
+.master-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.master-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.master-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.tg-id-input {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.tg-id-field {
+    padding: 0.5rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 4px;
+    min-width: 150px;
+}
+
+.save-tg-id-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.save-tg-id-btn:hover {
+    background: #229954;
+}
+
+.notifications-help {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #2196F3;
+}
+
+.notifications-help h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1976d2;
+}
+
+.notifications-help ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.notifications-help li {
+    margin-bottom: 0.3rem;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .master-notification-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+    
+    .tg-id-input {
+        justify-content: stretch;
+    }
+    
+    .tg-id-field {
+        flex: 1;
+    }
+}

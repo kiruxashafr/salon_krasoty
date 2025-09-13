@@ -1,0 +1,261 @@
+/* statistics.css - стили для раздела статистики */
+.statistics-controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.stats-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.stats-tab {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    background: #f8f9fa;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.stats-tab.active {
+    background: #3498db;
+    color: white;
+}
+
+.stats-tab:hover {
+    background: #e9ecef;
+}
+
+.stats-tab.active:hover {
+    background: #2980b9;
+}
+
+.stats-filters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    align-items: end;
+}
+
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 200px;
+}
+
+.filter-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    font-size: 0.9rem;
+}
+
+.filter-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.filter-group label {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 0.9rem;
+}
+
+.statistics-content {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.stats-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-card h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    /* Убираем десятичные дроби */
+    font-variant-numeric: tabular-nums;
+}
+
+.stats-details {
+    margin-bottom: 2rem;
+}
+
+.stats-details h3 {
+    color: #2c3e50;
+    margin-bottom: 1rem;
+}
+
+.stats-table {
+    overflow-x: auto;
+}
+
+.stats-table table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.stats-table th {
+    background: #f8f9fa;
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.stats-table td {
+    padding: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.stats-table tr:hover {
+    background: #f8f9fa;
+}
+
+.loading {
+    text-align: center;
+    padding: 3rem;
+}
+
+.spinner {
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.error {
+    text-align: center;
+    padding: 2rem;
+    color: #e74c3c;
+}
+
+.error h3 {
+    margin-bottom: 1rem;
+}
+
+.error button {
+    margin-top: 1rem;
+}
+
+@media (max-width: 768px) {
+    .stats-filters {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-overview {
+        grid-template-columns: 1fr;
+    }
+    
+    .stats-tabs {
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+    }
+    
+    .stats-tab {
+        white-space: nowrap;
+    }
+}
+
+
+/* Добавьте эти стили в statistic.css */
+.period-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.period-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.period-btn.active {
+    background: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.period-btn:hover {
+    background: #f8f9fa;
+}
+
+.period-btn.active:hover {
+    background: #2980b9;
+}
+
+.custom-range .date-inputs {
+    display: flex;
+    gap: 1rem;
+    align-items: end;
+    flex-wrap: wrap;
+}
+
+.date-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.date-input-group label {
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .period-buttons {
+        flex-direction: column;
+    }
+    
+    .custom-range .date-inputs {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

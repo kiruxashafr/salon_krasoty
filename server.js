@@ -1839,6 +1839,157 @@ app.patch('/api/specialist/:id/tg-id', (req, res) => {
 
 
 
+
+// server.js - добавить в существующие endpoints
+app.patch('/api/specialist/:id/tg-id', (req, res) => {
+    const specialistId = req.params.id;
+    const { tg_id } = req.body;
+    
+    const sql = `UPDATE мастера SET tg_id = ? WHERE id = ?`;
+    
+    db.run(sql, [tg_id, specialistId], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: specialistId,
+                tg_id
+            }
+        });
+    });
+});
+// server.js - исправленный endpoint статистики
+app.get('/api/statistics', (req, res) => {
+    const range = req.query.range || 'all';
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const masterId = req.query.masterId;
+    const serviceId = req.query.serviceId;
+
+    let dateCondition = '';
+    let params = [];
+
+    // Определяем условия для дат
+    if (range === 'today') {
+        dateCondition = ' AND з.дата = date("now")';
+    } else if (range === 'week') {
+        dateCondition = ' AND з.дата >= date("now", "-7 days") AND з.дата <= date("now")';
+    } else if (range === 'month') {
+        dateCondition = ' AND з.дата >= date("now", "start of month") AND з.дата <= date("now")';
+    } else if (range === 'custom' && startDate && endDate) {
+        dateCondition = ' AND з.дата BETWEEN ? AND ?';
+        params.push(startDate, endDate);
+    }
+
+    // Добавляем условия для мастера и услуги
+    if (masterId) {
+        dateCondition += ' AND з.мастер_id = ?';
+        params.push(masterId);
+    }
+
+    if (serviceId) {
+        dateCondition += ' AND з.услуга_id = ?';
+        params.push(serviceId);
+    }
+
+    // Запрос для общей статистики
+// В API endpoint статистики замените расчет dailyAverage
+    const revenueSql = `
+        SELECT 
+            COUNT(з.id) as totalAppointments,
+            COALESCE(SUM(з.цена), 0) as totalRevenue,
+            CASE 
+                WHEN COUNT(DISTINCT з.дата) > 0 THEN ROUND(COALESCE(SUM(з.цена), 0) / COUNT(DISTINCT з.дата))
+                ELSE 0 
+            END as dailyAverage
+        FROM записи з
+        WHERE 1=1 ${dateCondition}
+    `;
+
+    // Запрос для статистики по услугам
+    const servicesSql = `
+        SELECT 
+            у.id,
+            у.название,
+            COUNT(з.id) as count,
+            COALESCE(SUM(з.цена), 0) as revenue,
+            CASE 
+                WHEN (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/у\./g, 'з.')}) > 0 
+                THEN ROUND((COALESCE(SUM(з.цена), 0) * 100.0 / (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/у\./g, 'з.')})), 1)
+                ELSE 0 
+            END as percentage
+        FROM услуги у
+        LEFT JOIN записи з ON у.id = з.услуга_id AND 1=1 ${dateCondition.replace(/у\./g, 'з.')}
+        WHERE у.доступен = 1
+        GROUP BY у.id
+        HAVING count > 0
+        ORDER BY revenue DESC
+    `;
+
+    // Запрос для статистики по мастерам
+    const mastersSql = `
+        SELECT 
+            м.id,
+            м.имя,
+            COUNT(з.id) as count,
+            COALESCE(SUM(з.цена), 0) as revenue,
+            CASE 
+                WHEN (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/м\./g, 'з.')}) > 0 
+                THEN ROUND((COALESCE(SUM(з.цена), 0) * 100.0 / (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/м\./g, 'з.')})), 1)
+                ELSE 0 
+            END as percentage
+        FROM мастера м
+        LEFT JOIN записи з ON м.id = з.мастер_id AND 1=1 ${dateCondition.replace(/м\./g, 'з.')}
+        WHERE м.доступен = 1
+        GROUP BY м.id
+        HAVING count > 0
+        ORDER BY revenue DESC
+    `;
+
+    // Выполняем все запросы
+    Promise.all([
+        new Promise((resolve, reject) => {
+            db.get(revenueSql, params, (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        }),
+        new Promise((resolve, reject) => {
+            db.all(servicesSql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        }),
+        new Promise((resolve, reject) => {
+            db.all(mastersSql, params, (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            });
+        })
+    ])
+    .then(([revenueData, servicesData, mastersData]) => {
+        res.json({
+            message: "success",
+            data: {
+                totalRevenue: revenueData.totalRevenue || 0,
+                totalAppointments: revenueData.totalAppointments || 0,
+                dailyAverage: revenueData.dailyAverage || 0,
+                byService: servicesData || [],
+                byMaster: mastersData || []
+            }
+        });
+    })
+    .catch(err => {
+        console.error('Ошибка загрузки статистики:', err);
+        res.status(500).json({ error: 'Ошибка загрузки статистики' });
+    });
+});
+
+
 // Error handling for undefined routes
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });

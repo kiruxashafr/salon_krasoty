@@ -83,30 +83,31 @@ function loadSection(sectionName) {
         // Загружаем контент в зависимости от раздела
         switch(sectionName) {
             case 'journal':
-                loadJournalContent();
-                break;
+            loadJournalContent();
+            break;
             case 'freetime':
-                loadFreeTimeSection();
-                break;
+            loadFreeTimeSection();
+            break;
             case 'schedule':
-                loadScheduleSection();
-                break;
-            // admin.js - в функцию loadSection добавить:
+            loadScheduleSection();
+            break;
             case 'specialists':
-                loadMastersSection();
-                break;
-            // В функцию loadSection добавить:
+            loadMastersSection();
+            break;
             case 'services':
-                loadServicesSection();
-                break;
+            loadServicesSection();
+            break;
             case 'clients':
-                loadClientsSection(); // ← ЗДЕСЬ ИЗМЕНЕНИЕ
-                break;
+            loadClientsSection();
+            break;
             case 'settings':
-                contentContainer.innerHTML = '<p>Раздел "Настройки" в разработке</p>';
-                break;
+            loadSettingsSection();
+            break;
+            case 'statistics':
+            loadStatisticsSection();
+            break;
             default:
-                contentContainer.innerHTML = '<p>Раздел не найден</p>';
+            contentContainer.innerHTML = '<p>Раздел не найден</p>';
         }
     }
 
