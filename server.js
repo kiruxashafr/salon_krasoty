@@ -1,3 +1,5 @@
+
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
@@ -7,6 +9,7 @@ const fs = require('fs');
 
 const app = express();
 const PORT = 3000;
+
 
 // Middleware
 app.use(cors());
@@ -692,9 +695,8 @@ app.post('/api/appointment', (req, res) => {
                         // 3. Create appointment record
                         const insertAppointmentSql = `
                             INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-                        `;
-                        
+                            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                        `;                        
                         db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
                             if (err) {
                                 db.run("ROLLBACK");
@@ -1088,9 +1090,8 @@ app.post('/api/admin/appointment', (req, res) => {
                     // 3. Create appointment record
                     const insertAppointmentSql = `
                         INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-                    `;
-                    
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                    `;                    
                     db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
                         if (err) {
                             db.run("ROLLBACK");

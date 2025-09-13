@@ -22,7 +22,7 @@ TIMEZONE = pytz.timezone('Europe/Moscow')
 # Глобальные переменные
 bot = None
 scheduler = None
-last_check_time = datetime.now(TIMEZONE) - timedelta(hours=3)  # Начальное смещение на 3 часа назад
+last_check_time = datetime.now(TIMEZONE)  # Текущее время в MSK
 
 def initialize_notifications():
     """Инициализация системы уведомлений"""
@@ -32,7 +32,7 @@ def initialize_notifications():
         bot = Bot(token=BOT_TOKEN)
         scheduler = AsyncIOScheduler(timezone=TIMEZONE)
         
-        # Ежедневное уведомление в 18:00 (21:00 - 3 часа)
+        # Ежедневное уведомление в 18:00 по MSK
         scheduler.add_job(
             send_daily_notifications,
             CronTrigger(hour=18, minute=0, timezone=TIMEZONE),
@@ -43,7 +43,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_appointments,
             'interval',
-            seconds=10,
+            minutes=5,
             id='new_appointments_check'
         )
         
@@ -56,7 +56,7 @@ def initialize_notifications():
 async def send_daily_notifications():
     """Отправка ежедневных уведомлений мастерам о записях на завтра"""
     try:
-        now = datetime.now(TIMEZONE) - timedelta(hours=3)
+        now = datetime.now(TIMEZONE)
         tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
         
         response = requests.get(f"{API_BASE_URL}/api/specialists-all")
@@ -134,8 +134,8 @@ async def check_new_appointments():
         for master in masters_with_tg:
             await check_master_new_appointments(master['id'], master['tg_id'])
         
-        # Обновляем last_check_time только после успешной обработки
-        new_check_time = datetime.now(TIMEZONE) - timedelta(hours=3)
+        # Обновляем last_check_time после успешной обработки
+        new_check_time = datetime.now(TIMEZONE)
         logger.info(f"Обновление last_check_time с {last_check_time} на {new_check_time}")
         last_check_time = new_check_time
         
