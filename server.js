@@ -1862,7 +1862,11 @@ app.patch('/api/specialist/:id/tg-id', (req, res) => {
         });
     });
 });
+
+
+
 // server.js - исправленный endpoint статистики
+// API endpoint для статистики с фильтрацией
 app.get('/api/statistics', (req, res) => {
     const range = req.query.range || 'all';
     const startDate = req.query.startDate;
@@ -1877,7 +1881,7 @@ app.get('/api/statistics', (req, res) => {
     if (range === 'today') {
         dateCondition = ' AND з.дата = date("now")';
     } else if (range === 'week') {
-        dateCondition = ' AND з.дата >= date("now", "-7 days") AND з.дата <= date("now")';
+        dateCondition = ' AND з.дата >= date("now", "weekday 1", "-7 days") AND з.дата <= date("now")';
     } else if (range === 'month') {
         dateCondition = ' AND з.дата >= date("now", "start of month") AND з.дата <= date("now")';
     } else if (range === 'custom' && startDate && endDate) {
@@ -1885,19 +1889,7 @@ app.get('/api/statistics', (req, res) => {
         params.push(startDate, endDate);
     }
 
-    // Добавляем условия для мастера и услуги
-    if (masterId) {
-        dateCondition += ' AND з.мастер_id = ?';
-        params.push(masterId);
-    }
-
-    if (serviceId) {
-        dateCondition += ' AND з.услуга_id = ?';
-        params.push(serviceId);
-    }
-
     // Запрос для общей статистики
-// В API endpoint статистики замените расчет dailyAverage
     const revenueSql = `
         SELECT 
             COUNT(з.id) as totalAppointments,
@@ -1908,6 +1900,8 @@ app.get('/api/statistics', (req, res) => {
             END as dailyAverage
         FROM записи з
         WHERE 1=1 ${dateCondition}
+        ${masterId ? ' AND з.мастер_id = ?' : ''}
+        ${serviceId ? ' AND з.услуга_id = ?' : ''}
     `;
 
     // Запрос для статистики по услугам
@@ -1916,15 +1910,13 @@ app.get('/api/statistics', (req, res) => {
             у.id,
             у.название,
             COUNT(з.id) as count,
-            COALESCE(SUM(з.цена), 0) as revenue,
-            CASE 
-                WHEN (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/у\./g, 'з.')}) > 0 
-                THEN ROUND((COALESCE(SUM(з.цена), 0) * 100.0 / (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/у\./g, 'з.')})), 1)
-                ELSE 0 
-            END as percentage
+            COALESCE(SUM(з.цена), 0) as revenue
         FROM услуги у
-        LEFT JOIN записи з ON у.id = з.услуга_id AND 1=1 ${dateCondition.replace(/у\./g, 'з.')}
-        WHERE у.доступен = 1
+        LEFT JOIN записи з ON у.id = з.услуга_id
+        WHERE 1=1 ${dateCondition}
+        ${masterId ? ' AND з.мастер_id = ?' : ''}
+        ${serviceId ? ' AND у.id = ?' : ''}
+        AND у.доступен = 1
         GROUP BY у.id
         HAVING count > 0
         ORDER BY revenue DESC
@@ -1936,50 +1928,78 @@ app.get('/api/statistics', (req, res) => {
             м.id,
             м.имя,
             COUNT(з.id) as count,
-            COALESCE(SUM(з.цена), 0) as revenue,
-            CASE 
-                WHEN (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/м\./g, 'з.')}) > 0 
-                THEN ROUND((COALESCE(SUM(з.цена), 0) * 100.0 / (SELECT COALESCE(SUM(цена), 0) FROM записи WHERE 1=1 ${dateCondition.replace(/м\./g, 'з.')})), 1)
-                ELSE 0 
-            END as percentage
+            COALESCE(SUM(з.цена), 0) as revenue
         FROM мастера м
-        LEFT JOIN записи з ON м.id = з.мастер_id AND 1=1 ${dateCondition.replace(/м\./g, 'з.')}
-        WHERE м.доступен = 1
+        LEFT JOIN записи з ON м.id = з.мастер_id
+        WHERE 1=1 ${dateCondition}
+        ${masterId ? ' AND м.id = ?' : ''}
+        ${serviceId ? ' AND з.услуга_id = ?' : ''}
+        AND м.доступен = 1
         GROUP BY м.id
         HAVING count > 0
         ORDER BY revenue DESC
     `;
 
+    // Добавляем параметры фильтрации
+    const revenueParams = [...params];
+    const servicesParams = [...params];
+    const mastersParams = [...params];
+
+    if (masterId) {
+        revenueParams.push(masterId);
+        servicesParams.push(masterId);
+        mastersParams.push(masterId);
+    }
+
+    if (serviceId) {
+        revenueParams.push(serviceId);
+        servicesParams.push(serviceId);
+        mastersParams.push(serviceId);
+    }
+
     // Выполняем все запросы
     Promise.all([
         new Promise((resolve, reject) => {
-            db.get(revenueSql, params, (err, row) => {
+            db.get(revenueSql, revenueParams, (err, row) => {
                 if (err) reject(err);
                 else resolve(row);
             });
         }),
         new Promise((resolve, reject) => {
-            db.all(servicesSql, params, (err, rows) => {
+            db.all(servicesSql, servicesParams, (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
             });
         }),
         new Promise((resolve, reject) => {
-            db.all(mastersSql, params, (err, rows) => {
+            db.all(mastersSql, mastersParams, (err, rows) => {
                 if (err) reject(err);
                 else resolve(rows);
             });
         })
     ])
     .then(([revenueData, servicesData, mastersData]) => {
+        // Рассчитываем проценты
+        const totalRevenue = revenueData.totalRevenue || 0;
+        
+        const servicesWithPercentage = servicesData.map(service => ({
+            ...service,
+            percentage: totalRevenue > 0 ? Math.round((service.revenue / totalRevenue) * 100 * 10) / 10 : 0
+        }));
+
+        const mastersWithPercentage = mastersData.map(master => ({
+            ...master,
+            percentage: totalRevenue > 0 ? Math.round((master.revenue / totalRevenue) * 100 * 10) / 10 : 0
+        }));
+
         res.json({
             message: "success",
             data: {
-                totalRevenue: revenueData.totalRevenue || 0,
+                totalRevenue: totalRevenue,
                 totalAppointments: revenueData.totalAppointments || 0,
                 dailyAverage: revenueData.dailyAverage || 0,
-                byService: servicesData || [],
-                byMaster: mastersData || []
+                byService: servicesWithPercentage,
+                byMaster: mastersWithPercentage
             }
         });
     })

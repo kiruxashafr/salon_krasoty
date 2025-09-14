@@ -116,22 +116,52 @@ async loadStatistics() {
     }
 }
 
-    displayStatistics(data) {
-        const container = document.getElementById('statisticsContent');
-        if (!container) return;
+displayStatistics(data) {
+    const container = document.getElementById('statisticsContent');
+    if (!container) return;
 
-        let html = '';
-
-        if (this.currentView === 'revenue') {
-            html = this.renderRevenueStats(data);
-        } else if (this.currentView === 'masters') {
-            html = this.renderMastersStats(data);
-        } else if (this.currentView === 'services') {
-            html = this.renderServicesStats(data);
-        }
-
-        container.innerHTML = html;
+    let html = this.getPeriodInfoHTML();
+    
+    if (this.currentView === 'revenue') {
+        html += this.renderRevenueStats(data);
+    } else if (this.currentView === 'masters') {
+        html += this.renderMastersStats(data);
+    } else if (this.currentView === 'services') {
+        html += this.renderServicesStats(data);
     }
+
+    container.innerHTML = html;
+}
+
+getPeriodInfoHTML() {
+    let periodText = '';
+    
+    if (this.dateRange === 'today') {
+        const today = new Date().toLocaleDateString('ru-RU');
+        periodText = `За сегодня (${today})`;
+    } else if (this.dateRange === 'week') {
+        const today = new Date();
+        const monday = new Date(today);
+        monday.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
+        periodText = `За текущую неделю (с ${monday.toLocaleDateString('ru-RU')} по ${today.toLocaleDateString('ru-RU')})`;
+    } else if (this.dateRange === 'month') {
+        const today = new Date();
+        const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+        periodText = `За текущий месяц (с ${firstDay.toLocaleDateString('ru-RU')} по ${today.toLocaleDateString('ru-RU')})`;
+    } else if (this.dateRange === 'custom' && this.startDate && this.endDate) {
+        const start = new Date(this.startDate).toLocaleDateString('ru-RU');
+        const end = new Date(this.endDate).toLocaleDateString('ru-RU');
+        periodText = `За выбранный период (с ${start} по ${end})`;
+    } else {
+        periodText = 'За все время';
+    }
+    
+    return `
+        <div class="stats-info">
+            <p>Показывается статистика: <span class="stats-period-display">${periodText}</span></p>
+        </div>
+    `;
+}
 
     renderRevenueStats(data) {
         return `
@@ -300,9 +330,8 @@ async loadStatistics() {
         `;
     }
 
-// В StatisticsManager обновите setupEventListeners
 setupEventListeners() {
-    // Переключение вкладок
+    // Переключение вкладок статистики
     document.querySelectorAll('.stats-tab').forEach(tab => {
         tab.addEventListener('click', (e) => {
             this.currentView = e.target.dataset.view;
@@ -312,13 +341,24 @@ setupEventListeners() {
     });
 
     // Кнопки периода
-    document.querySelectorAll('.period-btn').forEach(btn => {
+    document.querySelectorAll('.period-btn[data-range]').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.period-btn[data-range]').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             
             this.dateRange = e.target.dataset.range;
             this.toggleCustomDateRange();
+            this.loadStatistics();
+        });
+    });
+
+    // Переключение типа статистики
+    document.querySelectorAll('.period-btn[data-view]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.period-btn[data-view]').forEach(b => b.classList.remove('active'));
+            e.target.classList.add('active');
+            
+            this.currentView = e.target.dataset.view;
             this.loadStatistics();
         });
     });
@@ -333,17 +373,6 @@ setupEventListeners() {
             alert('Пожалуйста, выберите обе даты');
         }
     });
-
-    document.getElementById('masterSelect')?.addEventListener('change', (e) => {
-            this.selectedMaster = e.target.value;
-            this.loadStatistics();
-        });
-
-        // Фильтр по услуге
-        document.getElementById('serviceSelect')?.addEventListener('change', (e) => {
-            this.selectedService = e.target.value;
-            this.loadStatistics();
-        });
 }
 
 toggleCustomDateRange() {
@@ -398,20 +427,19 @@ function loadStatisticsSection() {
         <div class="settings-management">
             <div class="settings-header">
                 <h2>📊 Статистика и аналитика</h2>
+                <p class="stats-subtitle">Статистика по всем мастерам и услугам</p>
             </div>
             
             <div class="statistics-controls">
-
-                
                 <div class="stats-filters">
                     <div class="filter-group">
                         <label>Период:</label>
                         <div class="period-buttons">
                             <button class="period-btn active" data-range="all">Все время</button>
                             <button class="period-btn" data-range="today">Сегодня</button>
-                            <button class="period-btn" data-range="week">Неделя</button>
-                            <button class="period-btn" data-range="month">Месяц</button>
-                            <button class="period-btn" data-range="custom">Произвольный</button>
+                            <button class="period-btn" data-range="week">Текущая неделя</button>
+                            <button class="period-btn" data-range="month">Текущий месяц</button>
+                            <button class="period-btn" data-range="custom">Произвольный период</button>
                         </div>
                     </div>
                     
@@ -429,19 +457,7 @@ function loadStatisticsSection() {
                         </div>
                     </div>
                     
-                    <div class="filter-group">
-                        <label>Мастер:</label>
-                        <select id="masterSelect" class="form-control">
-                            <option value="">Все мастера</option>
-                        </select>
-                    </div>
-                    
-                    <div class="filter-group">
-                        <label>Услуга:</label>
-                        <select id="serviceSelect" class="form-control">
-                            <option value="">Все услуги</option>
-                        </select>
-                    </div>
+
                 </div>
             </div>
             

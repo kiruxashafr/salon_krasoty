@@ -125,8 +125,8 @@ class ClientsManager {
         });
     }
 
-    sortClients() {
-        return [...this.clients].sort((a, b) => {
+sortClients(clients = this.clients) {
+    return [...clients].sort((a, b) => {
             let valueA, valueB;
             
             switch (this.sortField) {
@@ -330,18 +330,104 @@ class ClientsManager {
             }
         });
     }
+
+
+setupSearch() {
+    const searchInput = document.getElementById('clientSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            this.filterClients(e.target.value);
+        });
+    }
+}
+
+filterClients(searchTerm) {
+    if (!searchTerm.trim()) {
+        this.displayClients();
+        return;
+    }
+
+    const filteredClients = this.clients.filter(client => {
+        const nameMatch = client.имя && client.имя.toLowerCase().includes(searchTerm.toLowerCase());
+        const phoneMatch = client.телефон && client.телефон.includes(searchTerm);
+        return nameMatch || phoneMatch;
+    });
+
+    this.displayFilteredClients(filteredClients);
+}
+
+displayFilteredClients(filteredClients) {
+    const container = document.getElementById('clientsContainer');
+    
+    if (filteredClients.length === 0) {
+        container.innerHTML = `
+            <div class="no-clients">
+                <h3>Клиенты не найдены</h3>
+                <p>Попробуйте изменить поисковый запрос</p>
+            </div>
+        `;
+        return;
+    }
+
+    const sortedClients = this.sortClients(filteredClients); // ← передаем filteredClients
+
+    const tableHTML = `
+        <div class="clients-table-container">
+            <table class="clients-table">
+                <thead>
+                    <tr>
+                        <th onclick="clientsManager.sortBy('name')" class="${this.getSortClass('name')}">
+                            Клиент
+                        </th>
+                        <th onclick="clientsManager.sortBy('phone')" class="${this.getSortClass('phone')}">
+                            Телефон
+                        </th>
+                        <th onclick="clientsManager.sortBy('recordsCount')" class="${this.getSortClass('recordsCount')}">
+                            Записей
+                        </th>
+                        <th onclick="clientsManager.sortBy('totalPrice')" class="${this.getSortClass('totalPrice')}">
+                            Общая стоимость
+                        </th>
+                        <th onclick="clientsManager.sortBy('lastDate')" class="${this.getSortClass('lastDate')}">
+                            Последняя запись
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedClients.map((client, index) => this.createClientRow(client, index)).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = tableHTML;
+}
+
+// В методе init добавьте вызов setupSearch
+init() {
+    this.loadClients();
+    this.setupEventListeners();
+    this.setupSearch(); // ← добавьте эту строку
+}
 }
 
 // Инициализация менеджера клиентов
 let clientsManager;
 
 // Функция для загрузки раздела клиентов
+// В функции loadClientsSection обновите HTML для добавления поиска
 function loadClientsSection() {
     const contentContainer = document.getElementById('contentContainer');
     contentContainer.innerHTML = `
         <div class="clients-management">
             <div class="clients-header">
                 <h2>Управление клиентами</h2>
+                <div class="clients-search">
+                    <div class="search-group">
+                        <input type="text" id="clientSearch" placeholder="Поиск по имени или телефону..." class="search-input">
+                        <span class="search-icon">🔍</span>
+                    </div>
+                </div>
                 <div class="clients-filters">
                     <div class="filter-group">
                         <label>Сортировка по:</label>
@@ -415,6 +501,39 @@ function loadClientsSection() {
             
             .client-row.odd {
                 background-color: white;
+            }
+            
+            /* Стили для поиска */
+            .clients-search {
+                margin-bottom: 1rem;
+            }
+            
+            .search-group {
+                position: relative;
+                max-width: 400px;
+            }
+            
+            .search-input {
+                width: 100%;
+                padding: 0.75rem 1rem 0.75rem 3rem;
+                border: 2px solid #ddd;
+                border-radius: 8px;
+                font-size: 16px;
+                transition: border-color 0.3s ease;
+            }
+            
+            .search-input:focus {
+                outline: none;
+                border-color: #3498db;
+                box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            }
+            
+            .search-icon {
+                position: absolute;
+                left: 1rem;
+                top: 50%;
+                transform: translateY(-50%);
+                color: #7f8c8d;
             }
         </style>
     `;

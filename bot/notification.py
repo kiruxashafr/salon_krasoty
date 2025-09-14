@@ -43,7 +43,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_appointments,
             'interval',
-            minutes=5,
+            minutes=1,
             id='new_appointments_check'
         )
         
