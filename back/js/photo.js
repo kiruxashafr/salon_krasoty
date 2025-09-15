@@ -2,12 +2,12 @@ class PhotoScheduleGenerator {
     constructor() {
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d');
-        this.specialists = []; // Добавляем массив для хранения мастеров
+        this.specialists = [];
         this.init();
     }
 
     async init() {
-        await this.loadSpecialists(); // Load data into this.specialists
+        await this.loadSpecialists();
         this.createModal();
     }
 
@@ -72,7 +72,6 @@ class PhotoScheduleGenerator {
     }
 
     setupEventListeners() {
-        // Закрытие модального окна
         document.querySelector('.photo-modal-close').addEventListener('click', () => {
             this.hideModal();
         });
@@ -81,12 +80,10 @@ class PhotoScheduleGenerator {
             this.hideModal();
         });
 
-        // Генерация фото
         document.getElementById('photoGenerateBtn').addEventListener('click', () => {
             this.generatePhoto();
         });
 
-        // Клик вне модального окна
         document.getElementById('photoModal').addEventListener('click', (e) => {
             if (e.target.id === 'photoModal') {
                 this.hideModal();
@@ -102,9 +99,7 @@ class PhotoScheduleGenerator {
         document.getElementById('photoStartDate').value = today.toISOString().split('T')[0];
         document.getElementById('photoEndDate').value = endDate.toISOString().split('T')[0];
 
-        // Populate the select using pre-loaded data
         this.populateSpecialistSelect();
-
         document.getElementById('photoModal').style.display = 'block';
     }
 
@@ -114,7 +109,6 @@ class PhotoScheduleGenerator {
 
     populateSpecialistSelect() {
         const select = document.getElementById('photoSpecialist');
-        // Clear existing options except the first one
         while (select.options.length > 1) {
             select.remove(1);
         }
@@ -138,7 +132,6 @@ class PhotoScheduleGenerator {
         }
 
         try {
-            // Показываем индикатор загрузки
             const generateBtn = document.getElementById('photoGenerateBtn');
             const originalText = generateBtn.textContent;
             generateBtn.textContent = 'Загрузка...';
@@ -151,7 +144,6 @@ class PhotoScheduleGenerator {
                 data = await this.loadFreeTime(startDate, endDate, specialistId);
             }
 
-            // Генерируем изображение
             await this.createImage(data, type, startDate, endDate, specialistId);
 
             generateBtn.textContent = originalText;
@@ -202,7 +194,6 @@ class PhotoScheduleGenerator {
         this.drawBackground();
         this.drawHeader(type, startDate, endDate, specialistId);
 
-        // Рисуем данные с группировкой по дням
         if (type === 'appointments') {
             this.drawAppointmentsWithDays(data, specialistId);
         } else {
@@ -232,7 +223,6 @@ class PhotoScheduleGenerator {
         this.ctx.fillStyle = this.styles.background;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Добавляем легкий градиент
         const gradient = this.ctx.createLinearGradient(0, 0, this.canvas.width, 0);
         gradient.addColorStop(0, 'rgba(255,255,255,0.1)');
         gradient.addColorStop(1, 'rgba(255,255,255,0)');
@@ -245,18 +235,15 @@ class PhotoScheduleGenerator {
         const startDateObj = new Date(startDate);
         const endDateObj = new Date(endDate);
         
-        // Определяем, выбран ли один день
         const isSingleDay = startDate === endDate;
         
         let dateText;
         if (isSingleDay) {
-            // Для одного дня: только дата без года
             dateText = startDateObj.toLocaleDateString('ru-RU', {
                 day: 'numeric',
                 month: 'long'
             });
         } else {
-            // Для диапазона дат: период без года
             const formattedStartDate = startDateObj.toLocaleDateString('ru-RU', {
                 day: 'numeric',
                 month: 'long'
@@ -270,7 +257,6 @@ class PhotoScheduleGenerator {
             dateText = `С ${formattedStartDate} ПО ${formattedEndDate}`;
         }
 
-        // Получаем имя мастера, если выбран конкретный
         let masterName = 'ВСЕ МАСТЕРА';
         if (specialistId !== 'all') {
             const selectedMaster = this.specialists.find(m => m.id == specialistId);
@@ -279,7 +265,6 @@ class PhotoScheduleGenerator {
             }
         }
 
-        // Заголовок
         this.ctx.fillStyle = this.styles.primaryColor;
         this.ctx.font = 'bold 36px "Arial", sans-serif';
         this.ctx.textAlign = 'center';
@@ -287,17 +272,14 @@ class PhotoScheduleGenerator {
         const headerText = type === 'appointments' ? 'РАСПИСАНИЕ ЗАПИСЕЙ' : 'СВОБОДНОЕ ВРЕМЯ';
         this.ctx.fillText(headerText.toUpperCase(), this.canvas.width / 2, 60);
 
-        // Период дат
         this.ctx.fillStyle = this.styles.secondaryColor;
         this.ctx.font = 'bold 24px "Arial", sans-serif';
         this.ctx.fillText(dateText.toUpperCase(), this.canvas.width / 2, 100);
 
-        // Мастер
         this.ctx.fillStyle = this.styles.lightText;
         this.ctx.font = '20px "Arial", sans-serif';
         this.ctx.fillText(masterName, this.canvas.width / 2, 140);
 
-        // Разделительная линия
         this.ctx.strokeStyle = this.styles.borderColor;
         this.ctx.lineWidth = 2;
         this.ctx.beginPath();
@@ -312,10 +294,8 @@ class PhotoScheduleGenerator {
             return;
         }
 
-        // Определяем, нужно ли показывать колонку мастера
-        const showMasterColumn = specialistId === 'all';
+        const showMaster = specialistId === 'all';
 
-        // Группируем записи по датам
         const groupedByDate = {};
         appointments.forEach(appointment => {
             if (!groupedByDate[appointment.дата]) {
@@ -326,247 +306,278 @@ class PhotoScheduleGenerator {
 
         const dates = Object.keys(groupedByDate).sort();
         const startY = 200;
-        const rowHeight = 60;
         let currentY = startY;
+        const dateFontSize = 20;
+        const timeFontSize = 14;
+        const infoFontSize = 10;
+        const dateSpacing = 50;
+        const boxWidth = 220;
+        const boxHeight = showMaster ? 65 : 50;
+        const boxPadding = 4;
+        const boxSpacing = 8;
+        const dateWidth = 200;
+        const borderRadius = 6;
 
-        // Заголовки колонок
-        this.drawColumnHeaders(currentY, showMasterColumn);
-        currentY += 40;
+        this.ctx.textAlign = 'left';
 
         dates.forEach(date => {
-            // Рисуем заголовок дня
+            if (currentY > this.canvas.height - 100) return;
+
             const dateObj = new Date(date);
             const formattedDate = dateObj.toLocaleDateString('ru-RU', {
-                weekday: 'long',
+                weekday: 'short',
                 day: 'numeric',
-                month: 'long'
+                month: 'short'
             }).toUpperCase();
-            
+
+            const dateItems = groupedByDate[date].sort((a, b) => a.время.localeCompare(b.время));
+
+            let currentX = 50 + dateWidth;
+            let maxRowHeight = dateFontSize;
+
+            const rowCount = Math.ceil((dateItems.length * (boxWidth + boxSpacing)) / (this.canvas.width - 50 - dateWidth - 50));
+            const totalRowHeight = rowCount * (boxHeight + boxSpacing);
+            const dateCenterY = currentY + (totalRowHeight / 2);
+
             this.ctx.fillStyle = this.styles.secondaryColor;
-            this.ctx.font = 'bold 20px "Arial", sans-serif';
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(formattedDate, 50, currentY);
-            
-            currentY += 30;
+            this.ctx.font = `bold ${dateFontSize}px "Arial", sans-serif`;
+            this.ctx.fillText(formattedDate, 50, dateCenterY + (dateFontSize / 3));
 
-            // Рисуем записи для этого дня
-            const dayAppointments = groupedByDate[date];
-            dayAppointments.sort((a, b) => a.время.localeCompare(b.время));
-            
-            dayAppointments.forEach((appointment, index) => {
-                if (currentY > this.canvas.height - 100) return; // Не выходим за пределы canvas
-                
-                // Фон строки
-                this.ctx.fillStyle = index % 2 === 0 ? '#ffffff' : '#f8f9fa';
-                this.ctx.fillRect(40, currentY - 25, this.canvas.width - 80, rowHeight - 10);
+            dateItems.forEach(item => {
+                if (currentX + boxWidth > this.canvas.width - 50) {
+                    currentX = 50 + dateWidth;
+                    currentY += boxHeight + boxSpacing;
+                    maxRowHeight = Math.max(maxRowHeight, boxHeight);
+                }
 
-                // Данные записи
-                this.drawAppointmentRow(appointment, currentY, showMasterColumn);
-                currentY += rowHeight;
+                this.ctx.fillStyle = this.styles.chipBackground;
+                this.ctx.strokeStyle = this.styles.chipBorder;
+                this.ctx.lineWidth = 1;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(currentX + borderRadius, currentY);
+                this.ctx.lineTo(currentX + boxWidth - borderRadius, currentY);
+                this.ctx.quadraticCurveTo(currentX + boxWidth, currentY, currentX + boxWidth, currentY + borderRadius);
+                this.ctx.lineTo(currentX + boxWidth, currentY + boxHeight - borderRadius);
+                this.ctx.quadraticCurveTo(currentX + boxWidth, currentY + boxHeight, currentX + boxWidth - borderRadius, currentY + boxHeight);
+                this.ctx.lineTo(currentX + borderRadius, currentY + boxHeight);
+                this.ctx.quadraticCurveTo(currentX, currentY + boxHeight, currentX, currentY + borderRadius);
+                this.ctx.lineTo(currentX, currentY + borderRadius);
+                this.ctx.closePath();
+
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.drawAppointmentRow(item, currentX, currentY, boxPadding, timeFontSize, infoFontSize, showMaster);
+
+                currentX += boxWidth + boxSpacing;
             });
 
-            currentY += 20; // Отступ между днями
+            currentY += maxRowHeight + dateSpacing;
         });
     }
 
-    drawAppointmentRow(appointment, y, showMasterColumn = true) {
-        // Время
+    drawAppointmentRow(appointment, x, y, boxPadding, timeFontSize, infoFontSize, showMaster) {
         const time = appointment.время.split(':').slice(0, 2).join(':');
-        this.ctx.fillStyle = this.styles.primaryColor;
-        this.ctx.font = 'bold 16px "Arial", sans-serif';
-        this.ctx.fillText(time, 50, y);
+        this.ctx.fillStyle = this.styles.chipText;
+        this.ctx.font = `bold ${timeFontSize}px "Arial", sans-serif`;
+        this.ctx.fillText(time, x + boxPadding, y + timeFontSize + boxPadding);
 
-        // Клиент
-        this.ctx.fillStyle = this.styles.textColor;
-        this.ctx.font = '16px "Arial", sans-serif';
-        this.ctx.fillText(appointment.клиент_имя, 150, y);
+        let clientName = appointment.клиент_имя;
+        if (clientName.length > 20) {
+            clientName = clientName.substring(0, 18) + '...';
+        }
+        this.ctx.fillStyle = this.styles.chipText;
+        this.ctx.font = `${infoFontSize}px "Arial", sans-serif`;
+        this.ctx.fillText(clientName, x + boxPadding, y + timeFontSize + infoFontSize + boxPadding * 2);
+
+        const maxCharsPerLine = 25;
+        const lineHeight = infoFontSize - 2;
+        const serviceY = y + timeFontSize + infoFontSize * 2 + boxPadding * 3;
+
+        const serviceName = appointment.услуга_название;
         this.ctx.fillStyle = this.styles.lightText;
-        this.ctx.font = '14px "Arial", sans-serif';
-        this.ctx.fillText(appointment.клиент_телефон, 150, y + 20);
+        this.ctx.font = `${infoFontSize - 1}px "Arial", sans-serif`;
 
-        // Услуга
-        this.ctx.fillStyle = this.styles.textColor;
-        this.ctx.font = '16px "Arial", sans-serif';
-        
-        // Если не показываем колонку мастера, расширяем колонку услуги
-        if (!showMasterColumn) {
-            this.ctx.fillText(appointment.услуга_название, 500, y);
+        if (serviceName.length <= maxCharsPerLine) {
+            this.ctx.fillText(serviceName, x + boxPadding, serviceY);
         } else {
-            this.ctx.fillText(appointment.услуга_название, 500, y);
-            
-            // Мастер
-            this.ctx.fillStyle = this.styles.textColor;
-            this.ctx.font = '16px "Arial", sans-serif';
-            this.ctx.fillText(appointment.мастер_имя, 800, y);
-        }
+            const words = serviceName.split(' ');
+            let currentLine = '';
+            let lineCount = 0;
 
-        // Цена - выравниваем по правому краю колонки
-        this.ctx.fillStyle = this.styles.accentColor;
-        this.ctx.font = 'bold 16px "Arial", sans-serif';
-        this.ctx.textAlign = 'right';
-        
-        // Определяем позицию для цены в зависимости от того, показываем ли мастера
-        const priceX = showMasterColumn ? 1050 : 950;
-        this.ctx.fillText(`${appointment.цена} ₽`, priceX, y);
-        
-        this.ctx.textAlign = 'left';
-    }
-
-drawFreeTimeWithDays(freeTime, specialistId) {
-    if (freeTime.length === 0) {
-        this.drawNoData('СВОБОДНОГО ВРЕМЕНИ НА ВЫБРАННЫЙ ПЕРИОД НЕТ');
-        return;
-    }
-
-    // Определяем, нужно ли показывать имя мастера
-    const showMaster = specialistId === 'all';
-
-    // Группируем по датам
-    const groupedByDate = {};
-    freeTime.forEach(item => {
-        if (!groupedByDate[item.дата]) {
-            groupedByDate[item.дата] = [];
-        }
-        groupedByDate[item.дата].push({
-            время: item.время.split(':').slice(0, 2).join(':'),
-            мастер_имя: item.мастер_имя,
-            услуга_название: item.услуга_название
-        });
-    });
-
-    const dates = Object.keys(groupedByDate).sort();
-    const startY = 200;
-    let currentY = startY;
-    const dateFontSize = 20;
-    const timeFontSize = 14;
-    const infoFontSize = 10;
-    const dateSpacing = 50;
-    const boxWidth = 120;
-    const boxHeight = showMaster ? 50 : 35;
-    const boxPadding = 4;
-    const boxSpacing = 8;
-    const dateWidth = 200;
-    const borderRadius = 6;
-
-    this.ctx.textAlign = 'left';
-
-    dates.forEach(date => {
-        if (currentY > this.canvas.height - 100) return;
-
-        // Форматируем дату
-        const dateObj = new Date(date);
-        const formattedDate = dateObj.toLocaleDateString('ru-RU', {
-            weekday: 'short',
-            day: 'numeric',
-            month: 'short'
-        }).toUpperCase();
-
-        // Получаем все времена для этой даты
-        const dateItems = groupedByDate[date].sort((a, b) => a.время.localeCompare(b.время));
-
-        let currentX = 50 + dateWidth;
-        let maxRowHeight = dateFontSize;
-
-        // Вычисляем среднюю высоту для центрирования даты
-        const rowCount = Math.ceil((dateItems.length * (boxWidth + boxSpacing)) / (this.canvas.width - 50 - dateWidth - 50));
-        const totalRowHeight = rowCount * (boxHeight + boxSpacing);
-        const dateCenterY = currentY + (totalRowHeight / 2);
-
-        // Рисуем дату по центру относительно строк
-        this.ctx.fillStyle = this.styles.secondaryColor;
-        this.ctx.font = `bold ${dateFontSize}px "Arial", sans-serif`;
-        this.ctx.textAlign = 'left';
-        this.ctx.fillText(formattedDate, 50, dateCenterY + (dateFontSize / 3)); // + fontSize/3 для вертикального центрирования
-
-        dateItems.forEach(item => {
-            if (currentX + boxWidth > this.canvas.width - 50) {
-                currentX = 50 + dateWidth;
-                currentY += boxHeight + boxSpacing;
-                maxRowHeight = Math.max(maxRowHeight, boxHeight);
+            for (let i = 0; i < words.length; i++) {
+                const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
+                if (testLine.length > maxCharsPerLine && currentLine) {
+                    this.ctx.fillText(currentLine, x + boxPadding, serviceY + (lineCount * lineHeight));
+                    currentLine = words[i];
+                    lineCount++;
+                    if (lineCount >= 2) break;
+                } else {
+                    currentLine = testLine;
+                }
             }
 
-            // Рисуем прямоугольник со скругленными углами
-            this.ctx.fillStyle = this.styles.chipBackground;
-            this.ctx.strokeStyle = this.styles.chipBorder;
-            this.ctx.lineWidth = 1;
-            
-            // Создаем путь для скругленного прямоугольника
-            this.ctx.beginPath();
-            this.ctx.moveTo(currentX + borderRadius, currentY);
-            this.ctx.lineTo(currentX + boxWidth - borderRadius, currentY);
-            this.ctx.quadraticCurveTo(currentX + boxWidth, currentY, currentX + boxWidth, currentY + borderRadius);
-            this.ctx.lineTo(currentX + boxWidth, currentY + boxHeight - borderRadius);
-            this.ctx.quadraticCurveTo(currentX + boxWidth, currentY + boxHeight, currentX + boxWidth - borderRadius, currentY + boxHeight);
-            this.ctx.lineTo(currentX + borderRadius, currentY + boxHeight);
-            this.ctx.quadraticCurveTo(currentX, currentY + boxHeight, currentX, currentY + boxHeight - borderRadius);
-            this.ctx.lineTo(currentX, currentY + borderRadius);
-            this.ctx.quadraticCurveTo(currentX, currentY, currentX + borderRadius, currentY);
-            this.ctx.closePath();
-            
-            this.ctx.fill();
-            this.ctx.stroke();
+            if (currentLine && lineCount < 2) {
+                this.ctx.fillText(currentLine, x + boxPadding, serviceY + (lineCount * lineHeight));
+            }
+        }
 
-            // Рисуем время
+        this.ctx.fillStyle = this.styles.accentColor;
+        this.ctx.font = `bold ${infoFontSize}px "Arial", sans-serif`;
+        this.ctx.textAlign = 'right';
+        const priceX = x + 220 - boxPadding;
+        const priceY = y + timeFontSize + infoFontSize * (showMaster ? 3 : 2) + boxPadding * 4;
+        this.ctx.fillText(`${appointment.цена} ₽`, priceX, priceY);
+
+        if (showMaster) {
+            let masterName = appointment.мастер_имя;
+            if (masterName.length > 20) {
+                masterName = masterName.substring(0, 18) + '...';
+            }
             this.ctx.fillStyle = this.styles.chipText;
-            this.ctx.font = `bold ${timeFontSize}px "Arial", sans-serif`;
-            this.ctx.fillText(item.время, currentX + boxPadding, currentY + timeFontSize + boxPadding);
+            this.ctx.font = `${infoFontSize - 1}px "Arial", sans-serif`;
+            this.ctx.fillText(masterName, priceX, priceY + infoFontSize);
+        }
 
-            // Рисуем имя мастера и услугу, если нужно
-            if (showMaster) {
-                // Мастер (обрезаем если слишком длинный)
-                let masterName = item.мастер_имя;
-                if (masterName.length > 15) {
-                    masterName = masterName.substring(0, 13) + '...';
+        this.ctx.textAlign = 'left';
+    }
+
+    drawFreeTimeWithDays(freeTime, specialistId) {
+        if (freeTime.length === 0) {
+            this.drawNoData('СВОБОДНОГО ВРЕМЕНИ НА ВЫБРАННЫЙ ПЕРИОД НЕТ');
+            return;
+        }
+
+        const showMaster = specialistId === 'all';
+
+        const groupedByDate = {};
+        freeTime.forEach(item => {
+            if (!groupedByDate[item.дата]) {
+                groupedByDate[item.дата] = [];
+            }
+            groupedByDate[item.дата].push({
+                время: item.время.split(':').slice(0, 2).join(':'),
+                мастер_имя: item.мастер_имя,
+                услуга_название: item.услуга_название
+            });
+        });
+
+        const dates = Object.keys(groupedByDate).sort();
+        const startY = 200;
+        let currentY = startY;
+        const dateFontSize = 20;
+        const timeFontSize = 14;
+        const infoFontSize = 10;
+        const dateSpacing = 50;
+        const boxWidth = 120;
+        const boxHeight = showMaster ? 50 : 35;
+        const boxPadding = 4;
+        const boxSpacing = 8;
+        const dateWidth = 200;
+        const borderRadius = 6;
+
+        this.ctx.textAlign = 'left';
+
+        dates.forEach(date => {
+            if (currentY > this.canvas.height - 100) return;
+
+            const dateObj = new Date(date);
+            const formattedDate = dateObj.toLocaleDateString('ru-RU', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short'
+            }).toUpperCase();
+
+            const dateItems = groupedByDate[date].sort((a, b) => a.время.localeCompare(b.время));
+
+            let currentX = 50 + dateWidth;
+            let maxRowHeight = dateFontSize;
+
+            const rowCount = Math.ceil((dateItems.length * (boxWidth + boxSpacing)) / (this.canvas.width - 50 - dateWidth - 50));
+            const totalRowHeight = rowCount * (boxHeight + boxSpacing);
+            const dateCenterY = currentY + (totalRowHeight / 2);
+
+            this.ctx.fillStyle = this.styles.secondaryColor;
+            this.ctx.font = `bold ${dateFontSize}px "Arial", sans-serif`;
+            this.ctx.fillText(formattedDate, 50, dateCenterY + (dateFontSize / 3));
+
+            dateItems.forEach(item => {
+                if (currentX + boxWidth > this.canvas.width - 50) {
+                    currentX = 50 + dateWidth;
+                    currentY += boxHeight + boxSpacing;
+                    maxRowHeight = Math.max(maxRowHeight, boxHeight);
                 }
-                this.ctx.fillStyle = this.styles.chipText;
-                this.ctx.font = `${infoFontSize}px "Arial", sans-serif`;
-                this.ctx.fillText(masterName, currentX + boxPadding, currentY + timeFontSize + infoFontSize + boxPadding * 2 - 2);
 
-                // Услуга (полное название)
-                this.ctx.fillStyle = this.styles.lightText;
-                this.ctx.font = `${infoFontSize - 1}px "Arial", sans-serif`;
-                
-                // Разбиваем длинные названия услуг на несколько строк
-                const serviceName = item.услуга_название;
-                const maxCharsPerLine = 18;
-                
-                if (serviceName.length <= maxCharsPerLine) {
-                    // Однострочное название
-                    this.ctx.fillText(serviceName, currentX + boxPadding, currentY + timeFontSize + infoFontSize * 2 + boxPadding * 3 - 4);
-                } else {
-                    // Многострочное название
-                    const words = serviceName.split(' ');
-                    let currentLine = '';
-                    let lineCount = 0;
+                this.ctx.fillStyle = this.styles.chipBackground;
+                this.ctx.strokeStyle = this.styles.chipBorder;
+                this.ctx.lineWidth = 1;
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(currentX + borderRadius, currentY);
+                this.ctx.lineTo(currentX + boxWidth - borderRadius, currentY);
+                this.ctx.quadraticCurveTo(currentX + boxWidth, currentY, currentX + boxWidth, currentY + borderRadius);
+                this.ctx.lineTo(currentX + boxWidth, currentY + boxHeight - borderRadius);
+                this.ctx.quadraticCurveTo(currentX + boxWidth, currentY + boxHeight, currentX + boxWidth - borderRadius, currentY + boxHeight);
+                this.ctx.lineTo(currentX + borderRadius, currentY + boxHeight);
+                this.ctx.quadraticCurveTo(currentX, currentY + boxHeight, currentX, currentY + borderRadius);
+                this.ctx.lineTo(currentX, currentY + borderRadius);
+                this.ctx.closePath();
+
+                this.ctx.fill();
+                this.ctx.stroke();
+
+                this.ctx.fillStyle = this.styles.chipText;
+                this.ctx.font = `bold ${timeFontSize}px "Arial", sans-serif`;
+                this.ctx.fillText(item.время, currentX + boxPadding, currentY + timeFontSize + boxPadding);
+
+                if (showMaster) {
+                    let masterName = item.мастер_имя;
+                    if (masterName.length > 15) {
+                        masterName = masterName.substring(0, 13) + '...';
+                    }
+                    this.ctx.fillStyle = this.styles.chipText;
+                    this.ctx.font = `${infoFontSize}px "Arial", sans-serif`;
+                    this.ctx.fillText(masterName, currentX + boxPadding, currentY + timeFontSize + infoFontSize + boxPadding * 2 - 2);
+
+                    this.ctx.fillStyle = this.styles.lightText;
+                    this.ctx.font = `${infoFontSize - 1}px "Arial", sans-serif`;
+                    const serviceName = item.услуга_название;
+                    const maxCharsPerLine = 18;
                     const lineHeight = infoFontSize - 2;
-                    
-                    for (let i = 0; i < words.length; i++) {
-                        const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
-                        
-                        if (testLine.length > maxCharsPerLine && currentLine) {
-                            this.ctx.fillText(currentLine, currentX + boxPadding, currentY + timeFontSize + infoFontSize + boxPadding * 3 - 2 + (lineCount * lineHeight));
-                            currentLine = words[i];
-                            lineCount++;
-                            
-                            // Ограничиваем максимум 2 строки
-                            if (lineCount >= 2) break;
-                        } else {
-                            currentLine = testLine;
+                    const serviceY = currentY + timeFontSize + infoFontSize + boxPadding * 3 + 3.5;
+
+                    if (serviceName.length <= maxCharsPerLine) {
+                        this.ctx.fillText(serviceName, currentX + boxPadding, serviceY);
+                    } else {
+                        const words = serviceName.split(' ');
+                        let currentLine = '';
+                        let lineCount = 0;
+
+                        for (let i = 0; i < words.length; i++) {
+                            const testLine = currentLine + (currentLine ? ' ' : '') + words[i];
+                            if (testLine.length > maxCharsPerLine && currentLine) {
+                                this.ctx.fillText(currentLine, currentX + boxPadding, serviceY + (lineCount * lineHeight));
+                                currentLine = words[i];
+                                lineCount++;
+                                if (lineCount >= 2) break;
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+
+                        if (currentLine && lineCount < 2) {
+                            this.ctx.fillText(currentLine, currentX + boxPadding, serviceY + (lineCount * lineHeight));
                         }
                     }
-                    
-                    if (currentLine && lineCount < 2) {
-                        this.ctx.fillText(currentLine, currentX + boxPadding, currentY + timeFontSize + infoFontSize + boxPadding * 3 - 2 + (lineCount * lineHeight));
-                    }
                 }
-            }
 
-            currentX += boxWidth + boxSpacing;
+                currentX += boxWidth + boxSpacing;
+            });
+
+            currentY += maxRowHeight + dateSpacing;
         });
-
-        currentY += maxRowHeight + dateSpacing;
-    });
-}
+    }
 
     drawColumnHeaders(y, showMasterColumn = true) {
         this.ctx.fillStyle = this.styles.secondaryColor;
@@ -579,19 +590,16 @@ drawFreeTimeWithDays(freeTime, specialistId) {
         if (showMasterColumn) {
             this.ctx.fillText('УСЛУГА', 500, y);
             this.ctx.fillText('МАСТЕР', 800, y);
-            // Цена выравнивается по правому краю колонки
             this.ctx.textAlign = 'right';
             this.ctx.fillText('ЦЕНА', 1050, y);
             this.ctx.textAlign = 'left';
         } else {
             this.ctx.fillText('УСЛУГА', 500, y);
-            // Цена выравнивается по правому краю колонки
             this.ctx.textAlign = 'right';
             this.ctx.fillText('ЦЕНА', 950, y);
             this.ctx.textAlign = 'left';
         }
 
-        // Линия под заголовками
         this.ctx.strokeStyle = this.styles.borderColor;
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
@@ -610,7 +618,6 @@ drawFreeTimeWithDays(freeTime, specialistId) {
     drawFooter() {
         const footerY = this.canvas.height - 30;
         
-        // Разделительная линия
         this.ctx.strokeStyle = this.styles.borderColor;
         this.ctx.lineWidth = 1;
         this.ctx.beginPath();
@@ -618,7 +625,6 @@ drawFreeTimeWithDays(freeTime, specialistId) {
         this.ctx.lineTo(this.canvas.width - 50, footerY - 20);
         this.ctx.stroke();
 
-        // Текст футера (только копирайт, без даты генерации)
         this.ctx.fillStyle = this.styles.lightText;
         this.ctx.font = '12px "Arial", sans-serif';
         this.ctx.textAlign = 'center';
@@ -626,41 +632,32 @@ drawFreeTimeWithDays(freeTime, specialistId) {
     }
 
     downloadImage() {
-        // Создаем ссылку для скачивания
         const link = document.createElement('a');
         const startDate = document.getElementById('photoStartDate').value;
         const endDate = document.getElementById('photoEndDate').value;
         
         link.download = `расписание_${startDate}_по_${endDate}.png`;
         
-        // Конвертируем canvas в data URL
         this.canvas.toBlob((blob) => {
             link.href = URL.createObjectURL(blob);
-            
-            // Программно кликаем по ссылке для скачивания
             link.click();
-            
-            // Очищаем URL
             setTimeout(() => URL.revokeObjectURL(link.href), 100);
         });
     }
 }
 
-// Инициализация при загрузке страницы
 let photoGenerator;
 
 function initPhotoGenerator() {
     photoGenerator = new PhotoScheduleGenerator();
 }
 
-// Функция для вызова из других частей приложения
 function openPhotoGenerator() {
     if (photoGenerator) {
         photoGenerator.showModal();
     }
 }
 
-// Добавляем кнопку в интерфейс
 function addPhotoButtonToUI() {
     const photoBtn = document.createElement('button');
     photoBtn.id = 'photoScheduleBtn';
@@ -668,14 +665,12 @@ function addPhotoButtonToUI() {
     photoBtn.innerHTML = '📷 Создать фото';
     photoBtn.onclick = openPhotoGenerator;
     
-    // Добавляем кнопку в подходящее место (например, в заголовок расписания)
     const scheduleHeader = document.querySelector('.schedule-header');
     if (scheduleHeader) {
         scheduleHeader.appendChild(photoBtn);
     }
 }
 
-// Инициализируем при загрузке
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initPhotoGenerator);
 } else {
