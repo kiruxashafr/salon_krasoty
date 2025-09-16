@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, starting specialists fetch...');
-    fetchSpecialists();
+    fetchSpecialistsWithAvailability();
 });
 
 
@@ -37,8 +37,8 @@ function displaySpecialists(specialists) {
     }
 
     if (!specialists || specialists.length === 0) {
-        console.warn('No specialists data');
-        specialistsContainer.innerHTML = '<p class="no-specialists" style="color: white; text-align: center; font-family: forum;">Информация о специалистах временно недоступна</p>';
+        console.warn('No specialists with available appointments');
+        specialistsContainer.innerHTML = '<p class="no-specialists" style="color: white; text-align: center; font-family: forum;">В данный момент нет доступных специалистов</p>';
         return;
     }
 
@@ -48,11 +48,8 @@ function displaySpecialists(specialists) {
         const specialistCard = document.createElement('div');
         specialistCard.className = 'specialist-card';
 
-        // Используем фото из базы данных или дефолтное
         const imageUrl = specialist.фото || 'photo/работники/default.jpg';
-        console.log(`Setting background image for ${specialist.имя}: ${imageUrl}`);
         
-        // Устанавливаем фон как у service-card
         specialistCard.style.backgroundImage = `url('${imageUrl}')`;
         specialistCard.style.backgroundSize = 'cover';
         specialistCard.style.backgroundPosition = 'center';
@@ -71,7 +68,6 @@ function displaySpecialists(specialists) {
             </div>
         `;
 
-        // Добавляем обработчик клика на всю карточку
         specialistCard.onclick = (e) => {
             if (!e.target.classList.contains('specialist-btn')) {
                 openSpecialistModal(specialist.id);
@@ -80,21 +76,18 @@ function displaySpecialists(specialists) {
 
         specialistsContainer.appendChild(specialistCard);
 
-        // Проверяем загрузку изображения
         const img = new Image();
         img.onload = () => {
-            console.log(`Image loaded successfully: ${imageUrl}`);
-            // Обновляем фон после успешной загрузки
             specialistCard.style.backgroundImage = `url('${imageUrl}')`;
         };
         img.onerror = () => {
-            console.error(`Image failed to load: ${imageUrl}, using fallback`);
             specialistCard.style.backgroundImage = `url('photo/specialists/default.jpg')`;
         };
         img.src = imageUrl;
     });
 }
 
+// Остальные функции остаются без изменений...
 function showError(message) {
     const container = document.getElementById('specialists-container');
     if (container) {
@@ -179,7 +172,110 @@ function filterServicesWithAvailableTime(specialistId, services) {
         });
 }
 
+function filterSpecialistsWithAvailability(specialists) {
+    if (!specialists || specialists.length === 0) {
+        displaySpecialists([]);
+        return;
+    }
 
+    const today = new Date();
+    const startDate = today.toISOString().split('T')[0];
+    const endDate = new Date(today.setMonth(today.getMonth() + 1)).toISOString().split('T')[0];
+
+    const specialistPromises = specialists.map(specialist => {
+        return new Promise((resolve) => {
+            // Проверяем, есть ли у мастера доступные услуги в расписании
+            fetch(`/api/specialist/${specialist.id}/services`)
+                .then(response => {
+                    if (!response.ok) {
+                        resolve({ specialist, hasAvailability: false });
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.message === 'success' && data.data && data.data.length > 0) {
+                        // Проверяем доступное время для каждой услуги
+                        checkServiceAvailability(specialist.id, data.data, startDate, endDate)
+                            .then(hasAvailability => {
+                                resolve({ specialist, hasAvailability });
+                            })
+                            .catch(() => {
+                                resolve({ specialist, hasAvailability: false });
+                            });
+                    } else {
+                        resolve({ specialist, hasAvailability: false });
+                    }
+                })
+                .catch(() => {
+                    resolve({ specialist, hasAvailability: false });
+                });
+        });
+    });
+
+    Promise.all(specialistPromises)
+        .then(results => {
+            const availableSpecialists = results
+                .filter(result => result.hasAvailability)
+                .map(result => result.specialist);
+
+            console.log('Available specialists:', availableSpecialists);
+            displaySpecialists(availableSpecialists);
+        })
+        .catch(error => {
+            console.error('Error filtering specialists:', error);
+            displaySpecialists([]);
+        });
+}
+
+
+function checkServiceAvailability(specialistId, services, startDate, endDate) {
+    if (!services || services.length === 0) {
+        return Promise.resolve(false);
+    }
+
+    const servicePromises = services.map(service => {
+        return fetch(`/api/specialist/${specialistId}/service/${service.id}/available-dates?start=${startDate}&end=${endDate}`)
+            .then(response => {
+                if (!response.ok) return false;
+                return response.json().then(data => 
+                    data.availableDates && data.availableDates.length > 0
+                );
+            })
+            .catch(() => false);
+    });
+
+    return Promise.all(servicePromises)
+        .then(results => results.some(result => result === true));
+}
+
+
+
+function fetchSpecialistsWithAvailability() {
+    console.log('Fetching all specialists first...');
+    
+    // Сначала получаем всех специалистов
+    fetch('/api/specialists-all')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                // Фильтруем мастеров с доступными записями
+                filterSpecialistsWithAvailability(data.data);
+            } else {
+                console.error('Invalid response:', data);
+                showError('Ошибка загрузки данных');
+            }
+        })
+        .catch(error => {
+            console.error('Fetch error:', error);
+            showError('Не удалось загрузить данные специалистов');
+        });
+}
 // Обновляем функцию получения услуг мастера из расписания
 function fetchSpecialistServices(specialistId) {
     const sql = `

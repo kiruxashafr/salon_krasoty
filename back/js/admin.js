@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Функция загрузки контента раздела
+// Функция загрузки контента раздела
 function loadSection(sectionName) {
     if (window.innerWidth < 768) {
         showLoading();
@@ -70,56 +70,57 @@ function loadSection(sectionName) {
     updateActiveMenu(sectionName);
     currentActiveSection = sectionName;
 
-    // Закрываем меню на мобильных устройствах
+    // Закрываем меню на мобильных устройствах - ДОБАВЛЕНО УСЛОВИЕ
     if (window.innerWidth < 1024 && isMenuOpen) {
         toggleMenu();
     }
-        // Обновляем заголовок
-        const sectionTitle = Array.from(menuLinks).find(link => 
-            link.dataset.section === sectionName
-        ).textContent;
-        currentSection.textContent = sectionTitle;
+    
+    // Обновляем заголовок
+    const sectionTitle = Array.from(menuLinks).find(link => 
+        link.dataset.section === sectionName
+    ).textContent;
+    currentSection.textContent = sectionTitle;
 
-        // Загружаем контент в зависимости от раздела
-        switch(sectionName) {
-            case 'journal':
+    // Загружаем контент в зависимости от раздела
+    switch(sectionName) {
+        case 'journal':
             loadJournalContent();
             break;
-            case 'freetime':
+        case 'freetime':
             loadFreeTimeSection();
             break;
-            case 'schedule':
+        case 'schedule':
             loadScheduleSection();
             break;
-            case 'specialists':
+        case 'specialists':
             loadMastersSection();
             break;
-            case 'services':
+        case 'services':
             loadServicesSection();
             break;
-            case 'clients':
+        case 'clients':
             loadClientsSection();
             break;
-            case 'settings':
+        case 'settings':
             loadSettingsSection();
             break;
-            case 'statistics':
+        case 'statistics':
             loadStatisticsSection();
             break;
-            default:
+        default:
             contentContainer.innerHTML = '<p>Раздел не найден</p>';
-        }
     }
+}
 
-// В обработчиках кликов по меню добавим закрытие
+// В обработчиках кликов по меню добавим закрытие - ОБНОВЛЕННЫЙ КОД
 menuLinks.forEach(link => {
     link.addEventListener('click', function(e) {
         e.preventDefault();
         const section = this.dataset.section;
         if (section) {
             loadSection(section);
-            // Всегда закрываем меню после выбора раздела
-            if (isMenuOpen) {
+            // Всегда закрываем меню после выбора раздела на мобильных
+            if (window.innerWidth < 1024 && isMenuOpen) {
                 toggleMenu();
             }
         }
@@ -299,21 +300,7 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     }, 100);
 }
 
-    // Обработчики событий
-    menuToggle.addEventListener('click', toggleMenu);
 
-    menuLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            e.preventDefault();
-            const section = this.dataset.section;
-            if (section) {
-                loadSection(section);
-                if (window.innerWidth < 768) {
-                    toggleMenu(); // Закрываем меню на мобильных устройствах
-                }
-            }
-        });
-    });
 
     // Загружаем начальный раздел
     loadSection('journal');

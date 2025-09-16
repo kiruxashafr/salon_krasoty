@@ -345,7 +345,7 @@ ul li.draw::after {
     gap: 1em;
 }
 
-.contact-btn {
+.header .contact-btn {
     background: none;
     border: 1.5px solid rgb(250 250 250 / 20%);
     color: white;

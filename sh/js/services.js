@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    fetchServices();
+    fetchServicesWithAvailability();
 });
 
 
@@ -23,11 +23,115 @@ function fetchServices() {
         });
 }
 
+function fetchServicesWithAvailability() {
+    console.log('Fetching all services first...');
+    
+    // Сначала получаем все услуги
+    fetch('/api/services')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                // Фильтруем услуги с доступными мастерами
+                filterServicesWithAvailability(data.data);
+            } else {
+                console.error('Error fetching services:', data.error);
+                showError('Ошибка загрузки услуг');
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching services:', error);
+            showError('Не удалось загрузить услуги');
+        });
+}
+
+
+function filterServicesWithAvailability(services) {
+    if (!services || services.length === 0) {
+        displayServices([]);
+        return;
+    }
+
+    const today = new Date();
+    const startDate = today.toISOString().split('T')[0];
+    const endDate = new Date(today.setMonth(today.getMonth() + 1)).toISOString().split('T')[0];
+
+    const servicePromises = services.map(service => {
+        return new Promise((resolve) => {
+            // Проверяем, есть ли мастера для этой услуги
+            fetch(`/api/service/${service.id}/specialists`)
+                .then(response => {
+                    if (!response.ok) {
+                        resolve({ service, hasAvailability: false });
+                        return;
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.message === 'success' && data.data && data.data.length > 0) {
+                        // Проверяем доступное время для каждого мастера
+                        checkSpecialistsAvailability(service.id, data.data, startDate, endDate)
+                            .then(hasAvailability => {
+                                resolve({ service, hasAvailability });
+                            })
+                            .catch(() => {
+                                resolve({ service, hasAvailability: false });
+                            });
+                    } else {
+                        resolve({ service, hasAvailability: false });
+                    }
+                })
+                .catch(() => {
+                    resolve({ service, hasAvailability: false });
+                });
+        });
+    });
+
+    Promise.all(servicePromises)
+        .then(results => {
+            const availableServices = results
+                .filter(result => result.hasAvailability)
+                .map(result => result.service);
+
+            console.log('Available services:', availableServices);
+            displayServices(availableServices);
+        })
+        .catch(error => {
+            console.error('Error filtering services:', error);
+            displayServices([]);
+        });
+}
+
+function checkSpecialistsAvailability(serviceId, specialists, startDate, endDate) {
+    if (!specialists || specialists.length === 0) {
+        return Promise.resolve(false);
+    }
+
+    const specialistPromises = specialists.map(specialist => {
+        return fetch(`/api/specialist/${specialist.id}/service/${serviceId}/available-dates?start=${startDate}&end=${endDate}`)
+            .then(response => {
+                if (!response.ok) return false;
+                return response.json().then(data => 
+                    data.availableDates && data.availableDates.length > 0
+                );
+            })
+            .catch(() => false);
+    });
+
+    return Promise.all(specialistPromises)
+        .then(results => results.some(result => result === true));
+}
+
+// Остальной код остается без изменений
 function displayServices(services) {
     const servicesContainer = document.getElementById('services-container');
     
     if (!services || services.length === 0) {
-        servicesContainer.innerHTML = '<p class="no-services" style="color: white; text-align: center; font-family: forum;">Услуги временно недоступны</p>';
+        servicesContainer.innerHTML = '<p class="no-services" style="color: white; text-align: center; font-family: forum;">Нет доступных услуг на данный момент</p>';
         return;
     }
     
@@ -81,6 +185,13 @@ function displayServices(services) {
         
         servicesContainer.appendChild(categoryContainer);
     });
+}
+
+function showError(message) {
+    const container = document.getElementById('services-container');
+    if (container) {
+        container.innerHTML = `<p style="color: white; text-align: center; font-family: forum;">${message}</p>`;
+    }
 }
 
 function openServiceModal(serviceId) {
