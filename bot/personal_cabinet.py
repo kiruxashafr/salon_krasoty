@@ -68,14 +68,13 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
 
     keyboard = [
-        [InlineKeyboardButton("📜 История записей", callback_data='cabinet_history')],
-        [InlineKeyboardButton("📅 Актуальные записи", callback_data='cabinet_current')],
+        [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
+        [InlineKeyboardButton("○ Актуальные записи", callback_data='cabinet_current')],
         [InlineKeyboardButton("↲ Выйти", callback_data='back_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = (
-        "🔑 Личный кабинет\n\n"
-        "Выберите раздел:"
+        "🔑 Личный кабинет\n"
     )
 
     try:
@@ -168,7 +167,7 @@ async def handle_personal_message(update: Update, context: ContextTypes.DEFAULT_
                     'tg_id': str(user_id)
                 })
                 if response.json()['message'] == 'success':
-                    await update.message.reply_text("✅ Регистрация успешна! Теперь вы можете использовать личный кабинет.")
+                    await update.message.reply_text("✓ Регистрация успешна! Теперь вы можете использовать личный кабинет.")
                     del personal_states[user_id]
                     await show_cabinet_menu(update, context, user_id)
                 else:
@@ -223,18 +222,18 @@ async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             if not filtered_appointments:
                 message_text = "❌ Нет записей в этом разделе."
             else:
-                message_text = f"{'📜 История записей' if is_history else '📅 Актуальные записи'}\n\n"
+                message_text = f"{'≣ История записей' if is_history else '≣ Актуальные записи'}\n\n"
                 for app in sorted(filtered_appointments, key=lambda x: x['дата'], reverse=not is_history):
                     message_text += (
-                        f"📆 {app['дата']} {app['время']}\n"
-                        f"🎯 {app['услуга_название']}\n"
-                        f"👨‍💼 {app['мастер_имя']}\n"
-                        f"💵 {app['цена']}₽\n\n"
+                        f"≣ {app['дата']} {app['время']}\n"
+                        f"✮ {app['услуга_название']}\n"
+                        f"♢ {app['мастер_имя']}\n"
+                        f"₽ {app['цена']}₽\n\n"
                     )
 
             keyboard = [
                 [InlineKeyboardButton("↲ Назад в кабинет", callback_data='personal_cabinet')],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -257,7 +256,7 @@ async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         message_text = "❌ Ошибка загрузки записей"
         keyboard = [
             [InlineKeyboardButton("↲ Назад в кабинет", callback_data='personal_cabinet')],
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)

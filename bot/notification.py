@@ -92,9 +92,9 @@ async def send_master_daily_notification(master_id, tg_id, date):
         appointments = response.json()['data']
         
         if not appointments:
-            message = f"📅 На {datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')} у вас нет записей"
+            message = f"≣ На {datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')} у вас нет записей"
         else:
-            message = f"📅 Ваши записи на {datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')}:\n\n"
+            message = f"≣ Ваши записи на {datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')}:\n\n"
             
             for app in sorted(appointments, key=lambda x: x['время']):
                 message += (
@@ -179,7 +179,7 @@ async def check_master_new_appointments(master_id, tg_id):
                 "🔔 Новая запись!\n\n"
                 f"👤 Клиент: {app['клиент_имя']} ({app['клиент_телефон']})\n"
                 f"🎯 Услуга: {app['услуга_название']}\n"
-                f"📅 Дата: {app['дата']}\n"
+                f"≣ Дата: {app['дата']}\n"
                 f"⏰ Время: {app['время']}\n"
                 f"💵 Стоимость: {app['цена']}₽\n"
                 f"🕐 Создано: {app['created_at']}"
@@ -211,7 +211,7 @@ async def send_immediate_notification(master_id, appointment_data):
             "🔔 Новая запись!\n\n"
             f"👤 Клиент: {appointment_data['clientName']} ({appointment_data['clientPhone']})\n"
             f"🎯 Услуга: {appointment_data['serviceName']}\n"
-            f"📅 Дата: {appointment_data['date']}\n"
+            f"≣ Дата: {appointment_data['date']}\n"
             f"⏰ Время: {appointment_data['time']}\n"
             f"💵 Стоимость: {appointment_data['price']}₽"
         )

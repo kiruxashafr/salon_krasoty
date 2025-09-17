@@ -16,15 +16,17 @@ API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000')
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать главное меню с мастерами и услугами"""
     keyboard = [
-        [InlineKeyboardButton("👨‍💼 Мастера", callback_data='masters_menu')],
-        [InlineKeyboardButton("🎯 Услуги", callback_data='services_menu')],
-        [InlineKeyboardButton("📅 Записаться", callback_data='book_appointment')],
-        [InlineKeyboardButton("🔑 Личный кабинет", callback_data='personal_cabinet')]  # Новая кнопка
+        [
+            InlineKeyboardButton("✮ Мастера", callback_data='masters_menu'),
+            InlineKeyboardButton("⌘ Услуги", callback_data='services_menu')
+        ],
+        [InlineKeyboardButton("✎ Записаться", callback_data='book_appointment')],
+        [InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = (
-        "🏠 Главное меню\n\n"
-        "Выберите раздел:"
+        "☰ Главное меню\n"
+
     )
     
     # Остальной код функции остаётся без изменений
@@ -80,22 +82,22 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
             
             # Формируем сообщение
             message = (
-                f"👨‍💼 {master['имя']}\n\n"
+                f"♢ {master['имя']}\n\n"
                 f"{master.get('описание', 'Опытный специалист.')}\n\n"
             )
             
             # Добавляем специализацию если есть
             if 'специализация' in master and master['специализация']:
-                message += f"🎯 Специализация: {master['специализация']}\n\n"
+                message += f"✮ Специализация: {master['специализация']}\n\n"
             
             # Добавляем опыт если есть
             if 'опыт' in master and master['опыт']:
-                message += f"📅 Опыт работы: {master['опыт']}\n\n"
+                message += f"≣ Опыт работы: {master['опыт']}\n\n"
             
             keyboard = [
-                [InlineKeyboardButton("📅 Записаться к мастеру", callback_data=f'book_master_{master_id}')],
+                [InlineKeyboardButton("≣ Записаться к мастеру", callback_data=f'book_master_{master_id}')],
                 [InlineKeyboardButton("↲ Назад к мастерам", callback_data='masters_menu')],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -125,7 +127,7 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
             message = "❌ Ошибка загрузки информации о мастере"
             keyboard = [
                 [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message, reply_markup=reply_markup)
@@ -135,7 +137,7 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
         message = "❌ Ошибка подключения к серверу"
         keyboard = [
             [InlineKeyboardButton("↲ Назад", callback_data='masters_menu')],
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message, reply_markup=reply_markup)
@@ -155,7 +157,7 @@ async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for master in masters:
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"👨‍💼 {master['имя']}",
+                        f"♢ {master['имя']}",
                         callback_data=f'master_detail_{master["id"]}'
                     )
                 ])
@@ -163,7 +165,7 @@ async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             message_text = (
-                "👨‍💼 Наши мастера\n\n"
+                "♢ Наши мастера\n\n"
                 "Нажмите на мастера чтобы узнать больше:"
             )
             
@@ -181,14 +183,14 @@ async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
             message_text = "❌ Ошибка загрузки мастеров"
-            keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]]
+            keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 
     except Exception as e:
         logger.error(f"Error fetching masters: {e}")
         message_text = "❌ Ошибка подключения к серверу"
-        keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]]
+        keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
@@ -207,7 +209,7 @@ async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             for service in services:
                 keyboard.append([
                     InlineKeyboardButton(
-                        f"🎯 {service['название']} - {service['цена']}₽",
+                        f"✮ {service['название']} - {service['цена']}₽",
                         callback_data=f'service_detail_{service["id"]}'
                     )
                 ])
@@ -215,7 +217,7 @@ async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
             reply_markup = InlineKeyboardMarkup(keyboard)
             message_text = (
-                "🎯 Наши услуги\n\n"
+                "✮ Наши услуги\n\n"
                 "Нажмите на услугу чтобы узнать больше:"
             )
             
@@ -233,14 +235,14 @@ async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
             message_text = "❌ Ошибка загрузки услуг"
-            keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]]
+            keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 
     except Exception as e:
         logger.error(f"Error fetching services: {e}")
         message_text = "❌ Ошибка подключения к серверу"
-        keyboard = [[InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]]
+        keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
@@ -256,19 +258,19 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             
             # Формируем сообщение
             message = (
-                f"🎯 {service['название']}\n\n"
-                f"💵 Цена: {service['цена']}₽\n\n"
+                f"✮ {service['название']}\n\n"
+                f"₽ Цена: {service['цена']}₽\n\n"
                 f"{service.get('описание', 'Качественное выполнение услуги.')}\n\n"
             )
             
             # Добавляем длительность если есть
             if 'длительность' in service and service['длительность']:
-                message += f"⏱ Длительность: {service['длительность']} минут\n\n"
+                message += f"○ Длительность: {service['длительность']} минут\n\n"
             
             keyboard = [
-                [InlineKeyboardButton("📅 Записаться на услугу", callback_data=f'book_service_{service_id}')],
+                [InlineKeyboardButton("≣ Записаться на услугу", callback_data=f'book_service_{service_id}')],
                 [InlineKeyboardButton("↲ Назад к услугам", callback_data='services_menu')],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
@@ -298,7 +300,7 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
             message = "❌ Ошибка загрузки информации об услуге"
             keyboard = [
                 [InlineKeyboardButton("↲ Назад", callback_data='services_menu')],
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message, reply_markup=reply_markup)
@@ -308,7 +310,7 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         message = "❌ Ошибка подключения к серверу"
         keyboard = [
             [InlineKeyboardButton("↲ Назад", callback_data='services_menu')],
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='back_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message, reply_markup=reply_markup)

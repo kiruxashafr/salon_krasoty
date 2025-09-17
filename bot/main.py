@@ -196,8 +196,8 @@ async def show_services(query):
                     "Пожалуйста, попробуйте позже или выберите другую опцию:"
                 )
                 keyboard = [
-                    [InlineKeyboardButton("👨‍💼 Выбрать мастера", callback_data='choose_specialist')],
-                    [InlineKeyboardButton("📋 Посмотреть свободное время", callback_data='view_week_schedule')],
+                    [InlineKeyboardButton("♢ Выбрать мастера", callback_data='choose_specialist')],
+                    [InlineKeyboardButton("≣ Посмотреть свободное время", callback_data='view_week_schedule')],
                     [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
                     [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                 ]
@@ -234,7 +234,7 @@ async def show_services(query):
         else:
             message_text = "❌ Ошибка загрузки услуг"
             keyboard = [
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -243,7 +243,7 @@ async def show_services(query):
         logger.error(f"Error fetching services: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -330,7 +330,7 @@ async def show_specialists(query):
         else:
             message_text = "❌ Ошибка загрузки мастеров"
             keyboard = [
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -339,7 +339,7 @@ async def show_specialists(query):
         logger.error(f"Error fetching specialists: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -390,7 +390,7 @@ async def show_specialists_for_service(query, service_id):
             # Добавляем кнопку "Расписание для всех мастеров"
             keyboard.append([
                 InlineKeyboardButton(
-                    "📅 Расписание для всех мастеров",
+                    "≣ Расписание для всех мастеров",
                     callback_data=f'all_specialists_schedule_{service_id}'
                 )
             ])
@@ -437,7 +437,7 @@ async def show_specialists_for_service(query, service_id):
         else:
             message_text = "❌ Ошибка загрузки мастеров"
             keyboard = [
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -446,7 +446,7 @@ async def show_specialists_for_service(query, service_id):
         logger.error(f"Error fetching specialists for service: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -530,7 +530,7 @@ async def show_services_for_specialist(query, specialist_id):
         else:
             message_text = "❌ Ошибка загрузки услуг"
             keyboard = [
-                [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+                [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -539,7 +539,7 @@ async def show_services_for_specialist(query, specialist_id):
         logger.error(f"Error fetching services for specialist: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
-            [InlineKeyboardButton("🏠 Главное меню", callback_data='cancel_to_main')]
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
@@ -752,10 +752,10 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 message_text = (
                     f"{name} ({phone}) записываю вас на услугу:\n\n"
-                    f"🎯 {service_name}\n"
-                    f"👨‍💼 {master_name}\n"
-                    f"📆 {formatted_date} {time}\n"
-                    f"💵 {price}₽\n\n"
+                    f"✮ {service_name}\n"
+                    f"♢ {master_name}\n"
+                    f"≣ {formatted_date} {time}\n"
+                    f"₽ {price}₽\n\n"
                     f"Подтвердить?"
                 )
                 
@@ -791,11 +791,11 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 message_text = (
                     f"Вы выбрали:\n\n"
-                    f"🎯 {service_name}\n"
-                    f"👨‍💼 {master_name}\n"
-                    f"📆 {formatted_date} {time}\n"
-                    f"💵 {price}₽\n\n"
-                    f"📝 Введите ваше имя:"
+                    f"✮ {service_name}\n"
+                    f"♢ {master_name}\n"
+                    f"≣ {formatted_date} {time}\n"
+                    f"₽ {price}₽\n\n"
+                    f"✎ Введите ваше имя:"
                 )
                 
                 keyboard = [
@@ -860,7 +860,7 @@ async def show_week_schedule(query, target_date_str=None):
         response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={from_date_str}&toDate={to_date_str}")
         data = response.json()
         
-        message = f"📅 Свободное время на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
+        message = f"≣ Свободное время на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
         keyboard = []
         
         if data['message'] == 'success':
@@ -1005,7 +1005,7 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
             service_name = "Услуга"
         
         # Формирование сообщения
-        message = f"📅 Расписание для услуги '{service_name}' на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
+        message = f"≣ Расписание для услуги '{service_name}' на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
         keyboard = []
         
         # Проверка ответа API
@@ -1134,12 +1134,12 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
                     requests.patch(f"{API_BASE_URL}/api/schedule/{schedule_id}", json={'доступно': 0})
                     
                     message_text = (
-                        "✅ Запись успешно создана!\n\n"
-                        f"📅 Дата: {schedule['дата']}\n"
-                        f"⏰ Время: {schedule['время']}\n"
-                        f"🎯 Услуга: {schedule['услуга_название']}\n"
-                        f"👨‍💼 Мастер: {schedule['мастер_имя']}\n"
-                        f"💵 Стоимость: {schedule['услуга_цена']}₽\n\n"
+                        "✓ Запись успешно создана!\n\n"
+                        f"≣ Дата: {schedule['дата']}\n"
+                        f"○ Время: {schedule['время']}\n"
+                        f"✮ Услуга: {schedule['услуга_название']}\n"
+                        f"♢ Мастер: {schedule['мастер_имя']}\n"
+                        f"₽ Стоимость: {schedule['услуга_цена']}₽\n\n"
                         "С вами свяжутся для подтверждения."
                     )
                     
