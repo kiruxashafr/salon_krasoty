@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация
 BOT_TOKEN = os.getenv('BOT_TOKEN', '8456369002:AAFaxelo1bXHy2hzv5vUwwt8pMAUVu5SHlM')
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3000')
+API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
 
 # Состояния пользователей
 user_states = {}
