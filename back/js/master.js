@@ -1,10 +1,11 @@
 // master.js
 class MastersManager {
-    constructor() {
-        this.currentMasterId = null;
-        this.isEditMode = false;
-        this.init();
-    }
+constructor() {
+    this.currentMasterId = null;
+    this.isEditMode = false;
+    this.noPhoto = false; // Добавляем флаг
+    this.init();
+}
 
     init() {
         this.loadMasters();
@@ -126,60 +127,92 @@ class MastersManager {
     }
 
 renderMasterForm(masterData = null) {
-        const formHTML = `
-            <div class="master-form-container">
-                <div class="form-header">
-                    <h3 class="form-title">${this.isEditMode ? 'Редактировать мастера' : 'Добавить мастера'}</h3>
-                    <button class="close-form-btn" onclick="mastersManager.closeForm()">
-                        ✕ Закрыть
-                    </button>
-                </div>
-                
-                <form class="master-form" id="masterForm" onsubmit="mastersManager.handleSubmit(event)" enctype="multipart/form-data">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="masterName">Имя мастера *</label>
-                            <input type="text" id="masterName" name="name" class="form-control" 
-                                   value="${masterData?.имя || ''}" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="masterPhoto">Фото мастера</label>
-                            <input type="file" id="masterPhoto" name="photo" class="form-control" 
-                                   accept="image/*" onchange="mastersManager.handleFileSelect(event)">
-                            <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
-                        </div>
+    const hasPhoto = masterData?.фото && masterData.фото !== 'photo/работники/default.jpg';
+    
+    const formHTML = `
+        <div class="master-form-container">
+            <div class="form-header">
+                <h3 class="form-title">${this.isEditMode ? 'Редактировать мастера' : 'Добавить мастера'}</h3>
+                <button class="close-form-btn" onclick="mastersManager.closeForm()">
+                    ✕ Закрыть
+                </button>
+            </div>
+            
+            <form class="master-form" id="masterForm" onsubmit="mastersManager.handleSubmit(event)" enctype="multipart/form-data">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="masterName">Имя мастера *</label>
+                        <input type="text" id="masterName" name="name" class="form-control" 
+                               value="${masterData?.имя || ''}" required>
                     </div>
                     
                     <div class="form-group">
-                        <label for="masterDescription">Описание</label>
-                        <textarea id="masterDescription" name="description" class="form-control" 
-                                  rows="4" placeholder="Опишите специализацию мастера...">${masterData?.описание || ''}</textarea>
+                        <label for="masterPhoto">Фото мастера</label>
+                        <input type="file" id="masterPhoto" name="photo" class="form-control" 
+                               accept="image/*" onchange="mastersManager.handleFileSelect(event)">
+                        <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
+                        <button type="button" class="btn-no-photo" onclick="mastersManager.setNoPhoto()">
+                            🚫 Без фото
+                        </button>
                     </div>
-                    
-                    ${masterData?.фото ? `
-                        <div class="form-group">
-                            <label>Текущее фото:</label>
-                            <img src="${masterData.фото}" class="image-preview" 
-                                 onerror="this.style.display='none'">
-                        </div>
-                    ` : ''}
-                    
-                    <button type="submit" class="submit-btn">
-                        ${this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера'}
-                    </button>
-                </form>
-            </div>
-        `;
+                </div>
+                
+                ${hasPhoto ? `
+                    <div class="form-group">
+                        <label>Текущее фото:</label>
+                        <img src="${masterData.фото}" class="image-preview" 
+                             onerror="this.style.display='none'">
+                        <button type="button" class="btn-remove-photo" onclick="mastersManager.removePhoto()">
+                            ❌ Удалить фото
+                        </button>
+                    </div>
+                ` : ''}
+                
+                <div class="form-group">
+                    <label for="masterDescription">Описание</label>
+                    <textarea id="masterDescription" name="description" class="form-control" 
+                              rows="4" placeholder="Опишите специализацию мастера...">${masterData?.описание || ''}</textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">
+                    ${this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера'}
+                </button>
+            </form>
+        </div>
+    `;
 
-        document.getElementById('mastersContainer').insertAdjacentHTML('beforeend', formHTML);
-        
-        // Прокрутка к форме
-        document.querySelector('.master-form-container').scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-        });
+    document.getElementById('mastersContainer').insertAdjacentHTML('beforeend', formHTML);
+    
+    // Прокрутка к форме
+    document.querySelector('.master-form-container').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+    });
+}
+
+
+setNoPhoto() {
+    this.noPhoto = true;
+    const fileInput = document.getElementById('masterPhoto');
+    if (fileInput) {
+        fileInput.value = '';
     }
+    alert('Фото не будет добавлено');
+}
+
+// Метод для удаления существующего фото
+removePhoto() {
+    this.noPhoto = true;
+    const preview = document.querySelector('.image-preview');
+    if (preview) {
+        preview.style.display = 'none';
+    }
+    const removeBtn = document.querySelector('.btn-remove-photo');
+    if (removeBtn) {
+        removeBtn.style.display = 'none';
+    }
+    alert('Текущее фото будет удалено');
+}
 
     handleFileSelect(event) {
         const file = event.target.files[0];
@@ -219,28 +252,31 @@ async handleSubmit(event) {
     try {
         this.showFormLoading();
         
-        // Если выбран файл, загружаем его
-// master.js - исправленная часть handleSubmit
-let photoPath = '';
-if (photoFile && photoFile.size > 0) {
-    photoPath = await this.uploadPhoto(photoFile);
-} else if (this.isEditMode) {
-    // В режиме редактирования сохраняем старое фото, если новое не выбрано
-    const currentPreview = document.querySelector('.image-preview');
-    if (currentPreview && !currentPreview.src.startsWith('data:')) {
-        photoPath = currentPreview.src;
-    } else {
-        photoPath = 'photo/работники/default.jpg';
-    }
-} else {
-    photoPath = 'photo/работники/default.jpg';
-}
+        let photoPath = null;
+        
+        // Если выбрано "без фото"
+        if (this.noPhoto) {
+            photoPath = null;
+        } 
+        // Если выбран файл
+        else if (photoFile && photoFile.size > 0) {
+            photoPath = await this.uploadPhoto(photoFile);
+        } 
+        // В режиме редактирования сохраняем старое фото
+        else if (this.isEditMode) {
+            const currentPreview = document.querySelector('.image-preview');
+            if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                photoPath = currentPreview.src;
+            } else {
+                photoPath = null;
+            }
+        }
 
-            const masterData = {
-                имя: name,
-                описание: description,
-                фото: photoPath
-            };
+        const masterData = {
+            имя: name,
+            описание: description,
+            фото: photoPath
+        };
 
             const url = this.isEditMode 
                 ? `/api/specialist/${this.currentMasterId}` 
@@ -268,13 +304,14 @@ if (photoFile && photoFile.size > 0) {
                 this.closeForm();
                 this.loadMasters();
             }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
-        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
+        this.noPhoto = false; // Сбрасываем флаг
     }
+}
 
 // master.js - исправленная функция uploadPhoto
 async uploadPhoto(file) {

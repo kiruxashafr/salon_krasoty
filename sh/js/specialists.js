@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM loaded, starting specialists fetch...');
-    fetchSpecialistsWithAvailability();
+    console.log('DOM loaded, checking specialists visibility...');
+    checkSpecialistsVisibility();
 });
-
 
 function fetchSpecialists() {
     console.log('Fetching specialists from /api/specialists');
@@ -881,6 +880,34 @@ function formatDateSpecialist(dateString) {
         month: '2-digit',
         year: 'numeric'
     });
+}
+async function checkSpecialistsVisibility() {
+    try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success' && data.data.show_specialists === '1') {
+                console.log('Specialists section is enabled, fetching specialists...');
+                fetchSpecialistsWithAvailability();
+            } else {
+                console.log('Specialists section is disabled, hiding section...');
+                hideSpecialistsSection();
+            }
+        } else {
+            console.error('Failed to fetch settings');
+            fetchSpecialistsWithAvailability(); // Fallback: show by default
+        }
+    } catch (error) {
+        console.error('Error checking specialists visibility:', error);
+        fetchSpecialistsWithAvailability(); // Fallback: show by default
+    }
+}
+
+function hideSpecialistsSection() {
+    const specialistsSection = document.getElementById('specialists-section');
+    if (specialistsSection) {
+        specialistsSection.style.display = 'none';
+    }
 }
 
 // Обновляем функцию bookAppointment

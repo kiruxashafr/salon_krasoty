@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    fetchServicesWithAvailability();
+    checkServicesVisibility();
 });
 
 
@@ -158,8 +158,7 @@ function displayServices(services) {
         servicesByCategory[category].forEach(service => {
             const serviceCard = document.createElement('div');
             serviceCard.className = 'service-card';
-            serviceCard.style.backgroundImage = `url(${service.фото || 'photo/services/default.jpg'})`;
-            
+serviceCard.style.backgroundImage = `url(${service.фото || 'photo/услуги/default.jpg'})`;            
             serviceCard.innerHTML = `
                 <div class="service-content">
                     <div class="service-text">
@@ -296,15 +295,15 @@ function showServiceModal(serviceId, service, specialists) {
     let specialistsHTML = '';
     if (specialists && specialists.length > 0) {
         specialists.forEach(specialist => {
-            specialistsHTML += `
-                <div class="modal-specialist-item" data-specialist-id="${specialist.id}" onclick="selectSpecialist(${specialist.id}, this)">
-                    <div class="specialist-image" style="background-image: url('${specialist.фото || 'photo/specialists/default.jpg'}')"></div>
-                    <div class="specialist-info">
-                        <h4>${specialist.имя}</h4>
-                        <p>${specialist.описание || 'Профессиональный мастер'}</p>
-                    </div>
-                </div>
-            `;
+    specialistsHTML += `
+        <div class="modal-specialist-item" data-specialist-id="${specialist.id}" onclick="selectSpecialist(${specialist.id}, this)">
+            <div class="specialist-image" style="background-image: url('${specialist.фото || 'photo/услуги/default.jpg'}')"></div>
+            <div class="specialist-info">
+                <h4>${specialist.имя}</h4>
+                <p>${specialist.описание || 'Профессиональный мастер'}</p>
+            </div>
+        </div>
+    `;
         });
     } else {
         specialistsHTML = '<p>Нет доступных мастеров для этой услуги</p>';
@@ -873,6 +872,34 @@ function formatDate(dateString) {
         month: '2-digit',
         year: 'numeric'
     });
+}
+async function checkServicesVisibility() {
+    try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success' && data.data.show_services === '1') {
+                console.log('Services section is enabled, fetching services with availability...');
+                fetchServicesWithAvailability(); // ← ИЗМЕНИТЕ ЭТУ СТРОКУ
+            } else {
+                console.log('Services section is disabled, hiding section...');
+                hideServicesSection();
+            }
+        } else {
+            console.error('Failed to fetch settings');
+            fetchServicesWithAvailability(); // ← И ЭТУ СТРОКУ
+        }
+    } catch (error) {
+        console.error('Error checking services visibility:', error);
+        fetchServicesWithAvailability(); // ← И ЭТУ СТРОКУ
+    }
+}
+
+function hideServicesSection() {
+    const servicesSection = document.getElementById('services-section');
+    if (servicesSection) {
+        servicesSection.style.display = 'none';
+    }
 }
 
 // Обновляем функцию bookAppointmentService

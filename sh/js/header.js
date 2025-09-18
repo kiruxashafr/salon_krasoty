@@ -101,4 +101,37 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     }
+
+async function checkContactsVisibility() {
+    try {
+        const response = await fetch('/api/settings');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                const showContacts = data.data.show_contacts === '1';
+                
+                // Находим секцию контактов
+                const contactsSection = document.getElementById('contacts-section');
+                if (contactsSection) {
+                    if (showContacts) {
+                        contactsSection.classList.remove('hidden');
+                    } else {
+                        contactsSection.classList.add('hidden');
+                    }
+                }
+                
+                // Также скрываем/показываем пункт меню "Контакты"
+                const contactsMenuItem = document.querySelector('.modal-content ul li:nth-child(4)');
+                if (contactsMenuItem) {
+                    contactsMenuItem.style.display = showContacts ? 'block' : 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки настроек видимости:', error);
+    }
+}
+    
+    // Вызываем при загрузке
+    checkContactsVisibility();
 });

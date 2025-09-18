@@ -169,6 +169,14 @@ function initializeDatabase() {
                         tg_id TEXT
                     )
         `);
+        db.run(`
+    CREATE TABLE IF NOT EXISTS настройки (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ключ TEXT UNIQUE NOT NULL,
+        значение TEXT NOT NULL,
+        описание TEXT
+    )
+`);
 
         db.run(`
             CREATE TABLE IF NOT EXISTS записи (
@@ -1861,7 +1869,76 @@ app.patch('/api/specialist/:id/tg-id', (req, res) => {
     });
 });
 
+db.get("SELECT COUNT(*) as count FROM настройки", [], (err, row) => {
+    if (err) {
+        console.error('Error checking settings table:', err.message);
+    } else if (row.count === 0) {
+        console.log('Adding default settings...');
+        const defaultSettings = [
+            ['show_specialists', '1', 'Показывать блок специалистов на сайте'],
+            ['show_services', '1', 'Показывать блок услуг на сайте'],
+            ['show_contacts', '1', 'Показывать блок контактов на сайте']
+        ];
+        
+        const insertSql = "INSERT INTO настройки (ключ, значение, описание) VALUES (?, ?, ?)";
+        defaultSettings.forEach(setting => {
+            db.run(insertSql, setting);
+        });
+    }
+});
 
+// API endpoint to get settings
+app.get('/api/settings', (req, res) => {
+    const sql = "SELECT ключ, значение, описание FROM настройки";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const settings = {};
+        rows.forEach(row => {
+            settings[row.ключ] = row.значение;
+        });
+        
+        res.json({
+            message: "success",
+            data: settings
+        });
+    });
+});
+
+// API endpoint to update setting
+app.put('/api/settings/:key', (req, res) => {
+    const key = req.params.key;
+    const { значение } = req.body;
+    
+    if (значение === undefined) {
+        return res.status(400).json({ error: 'Значение обязательно' });
+    }
+    
+    const sql = `
+        INSERT INTO настройки (ключ, значение) 
+        VALUES (?, ?) 
+        ON CONFLICT(ключ) 
+        DO UPDATE SET значение = excluded.значение
+    `;
+    
+    db.run(sql, [key, значение], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                ключ: key,
+                значение: значение
+            }
+        });
+    });
+});
 
 // server.js - исправленный endpoint статистики
 // API endpoint для статистики с фильтрацией
@@ -2005,6 +2082,32 @@ app.get('/api/statistics', (req, res) => {
         console.error('Ошибка загрузки статистики:', err);
         res.status(500).json({ error: 'Ошибка загрузки статистики' });
     });
+});
+
+
+
+// server.js - добавьте этот endpoint
+app.post('/api/upload-default-photo', upload.single('photo'), (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+        
+        const type = req.body.type; // 'Master' или 'Service'
+        const destinationDir = type === 'Master' ? 'работники' : 'услуги';
+        const defaultPath = path.join(__dirname, 'photo', destinationDir, 'default.jpg');
+        
+        // Переименовываем загруженный файл в default.jpg
+        fs.renameSync(req.file.path, defaultPath);
+        
+        res.json({
+            message: "success",
+            filePath: `photo/${destinationDir}/default.jpg`
+        });
+    } catch (error) {
+        console.error('Ошибка загрузки фото по умолчанию:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
+    }
 });
 
 

@@ -1,11 +1,12 @@
 // uslugi.js
 class ServicesManager {
-    constructor() {
-        this.currentServiceId = null;
-        this.isEditMode = false;
-        this.existingCategories = [];
-        this.init();
-    }
+constructor() {
+    this.currentServiceId = null;
+    this.isEditMode = false;
+    this.existingCategories = [];
+    this.noPhoto = false; // Добавляем флаг
+    this.init();
+}
 
     init() {
         this.loadServices();
@@ -169,91 +170,122 @@ class ServicesManager {
         }
     }
 
-    renderServiceForm(serviceData = null) {
-        const formHTML = `
-            <div class="service-form-container">
-                <div class="form-header">
-                    <h3 class="form-title">${this.isEditMode ? 'Редактировать услугу' : 'Добавить услугу'}</h3>
-                    <button class="close-form-btn" onclick="servicesManager.closeForm()">
-                        ✕ Закрыть
-                    </button>
-                </div>
-                
-                <form class="service-form" id="serviceForm" onsubmit="servicesManager.handleSubmit(event)" enctype="multipart/form-data">
-                    <div class="form-row">
-                        <div class="form-group category-group">
-                            <label for="serviceCategory">Категория *</label>
-                            <div class="category-input-container">
-                                <input type="text" id="serviceCategory" name="category" class="form-control" 
-                                       value="${serviceData?.категория || ''}" 
-                                       placeholder="Введите категорию или выберите из списка"
-                                       required
-                                       onfocus="servicesManager.showCategoryDropdown()"
-                                       onblur="setTimeout(() => servicesManager.hideCategoryDropdown(), 150)"
-                                       oninput="servicesManager.filterCategories(this.value)">
-                                <div id="categoryDropdown" class="category-dropdown"></div>
-                                <button type="button" class="category-dropdown-toggle" onclick="servicesManager.toggleCategoryDropdown()">
-                                    ▼
-                                </button>
-                            </div>
-                            <small>Существующие категории: ${this.existingCategories.join(', ') || 'пока нет'}</small>
+renderServiceForm(serviceData = null) {
+    const hasPhoto = serviceData?.фото && serviceData.фото !== 'photo/услуги/default.jpg' && !serviceData.фoto.startsWith('data:');
+    
+    const formHTML = `
+        <div class="service-form-container">
+            <div class="form-header">
+                <h3 class="form-title">${this.isEditMode ? 'Редактировать услугу' : 'Добавить услугу'}</h3>
+                <button type="button" class="close-form-btn" onclick="servicesManager.closeForm()">
+                    ✕ Закрыть
+                </button>
+            </div>
+            
+            <form class="service-form" id="serviceForm" onsubmit="servicesManager.handleSubmit(event)" enctype="multipart/form-data">
+                <div class="form-row">
+                    <div class="form-group category-group">
+                        <label for="serviceCategory">Категория *</label>
+                        <div class="category-input-container">
+                            <input type="text" id="serviceCategory" name="category" class="form-control" 
+                                   value="${serviceData?.категория || ''}" 
+                                   placeholder="Введите категорию или выберите из списка"
+                                   required
+                                   onfocus="servicesManager.showCategoryDropdown()"
+                                   onblur="setTimeout(() => servicesManager.hideCategoryDropdown(), 150)"
+                                   oninput="servicesManager.filterCategories(this.value)">
+                            <div id="categoryDropdown" class="category-dropdown"></div>
+                            <button type="button" class="category-dropdown-toggle" onclick="servicesManager.toggleCategoryDropdown()">
+                                ▼
+                            </button>
                         </div>
-                        
-                        <div class="form-group">
-                            <label for="serviceName">Название услуги *</label>
-                            <input type="text" id="serviceName" name="name" class="form-control" 
-                                   value="${serviceData?.название || ''}" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="servicePrice">Цена (руб) *</label>
-                            <input type="number" id="servicePrice" name="price" class="form-control" 
-                                   value="${serviceData?.цена || ''}" min="0" step="0.01" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="servicePhoto">Фото услуги</label>
-                            <input type="file" id="servicePhoto" name="photo" class="form-control" 
-                                   accept="image/*" onchange="servicesManager.handleFileSelect(event)">
-                            <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
-                        </div>
+                        <small>Существующие категории: ${this.existingCategories.join(', ') || 'пока нет'}</small>
                     </div>
                     
                     <div class="form-group">
-                        <label for="serviceDescription">Описание</label>
-                        <textarea id="serviceDescription" name="description" class="form-control" 
-                                  rows="4" placeholder="Опишите услугу...">${serviceData?.описание || ''}</textarea>
+                        <label for="serviceName">Название услуги *</label>
+                        <input type="text" id="serviceName" name="name" class="form-control" 
+                               value="${serviceData?.название || ''}" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="servicePrice">Цена (руб) *</label>
+                        <input type="number" id="servicePrice" name="price" class="form-control" 
+                               value="${serviceData?.цена || ''}" min="0" step="0.01" required>
                     </div>
                     
-                    ${serviceData?.фото ? `
-                        <div class="form-group">
-                            <label>Текущее фото:</label>
-                            <img src="${serviceData.фото}" class="image-preview" 
-                                 onerror="this.style.display='none'">
-                        </div>
-                    ` : ''}
-                    
-                    <button type="submit" class="submit-btn">
-                        ${this.isEditMode ? 'Сохранить изменения' : 'Добавить услугу'}
-                    </button>
-                </form>
-            </div>
-        `;
+                    <div class="form-group">
+                        <label for="servicePhoto">Фото услуги</label>
+                        <input type="file" id="servicePhoto" name="photo" class="form-control" 
+                               accept="image/*" onchange="servicesManager.handleFileSelect(event)">
+                        <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
+                        <button type="button" class="btn-no-photo" onclick="servicesManager.setNoPhoto()">
+                            🚫 Без фото
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="serviceDescription">Описание</label>
+                    <textarea id="serviceDescription" name="description" class="form-control" 
+                              rows="4" placeholder="Опишите услугу...">${serviceData?.описание || ''}</textarea>
+                </div>
+                
+                ${hasPhoto ? `
+                    <div class="form-group">
+                        <label>Текущее фото:</label>
+                        <img src="${serviceData.фото}" class="image-preview" 
+                             onerror="this.style.display='none'">
+                        <button type="button" class="btn-remove-photo" onclick="servicesManager.removePhoto()">
+                            ❌ Удалить фото
+                        </button>
+                    </div>
+                ` : ''}
+                
+                <button type="submit" class="submit-btn">
+                    ${this.isEditMode ? 'Сохранить изменения' : 'Добавить услугу'}
+                </button>
+            </form>
+        </div>
+    `;
 
-        document.getElementById('servicesContainer').insertAdjacentHTML('beforeend', formHTML);
-        
-        // Обновляем выпадающий список
-        this.updateCategoryDropdown();
-        
-        // Прокрутка к форме
-        document.querySelector('.service-form-container').scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
-        });
+    document.getElementById('servicesContainer').insertAdjacentHTML('beforeend', formHTML);
+    
+    // Обновляем выпадающий список категорий
+    this.updateCategoryDropdown();
+    
+    // Прокрутка к форме
+    document.querySelector('.service-form-container').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start' 
+    });
+}
+
+
+    setNoPhoto() {
+    this.noPhoto = true;
+    const fileInput = document.getElementById('servicePhoto');
+    if (fileInput) {
+        fileInput.value = '';
     }
+    alert('Фото не будет добавлено');
+}
 
+// Метод для удаления существующего фото
+removePhoto() {
+    this.noPhoto = true;
+    const preview = document.querySelector('.image-preview');
+    if (preview) {
+        preview.style.display = 'none';
+    }
+    const removeBtn = document.querySelector('.btn-remove-photo');
+    if (removeBtn) {
+        removeBtn.style.display = 'none';
+    }
+    alert('Текущее фото будет удалено');
+}
     showCategoryDropdown() {
         const dropdown = document.getElementById('categoryDropdown');
         if (dropdown && this.existingCategories.length > 0) {
@@ -314,54 +346,60 @@ class ServicesManager {
         }
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
-        
-        const formData = new FormData(event.target);
-        const category = formData.get('category').trim();
-        const name = formData.get('name').trim();
-        const price = parseFloat(formData.get('price'));
-        const description = formData.get('description').trim();
-        const photoFile = formData.get('photo');
+async handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const category = formData.get('category').trim();
+    const name = formData.get('name').trim();
+    const price = parseFloat(formData.get('price'));
+    const description = formData.get('description').trim();
+    const photoFile = formData.get('photo');
 
-        if (!category || !name || isNaN(price)) {
-            alert('Пожалуйста, заполните все обязательные поля');
-            return;
+    if (!category || !name || isNaN(price)) {
+        alert('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+
+    try {
+        this.showFormLoading();
+        
+        let photoPath = null;
+        
+        // Если выбрано "без фото"
+        if (this.noPhoto) {
+            photoPath = null;
+        } 
+        // Если выбран файл
+        else if (photoFile && photoFile.size > 0) {
+            photoPath = await this.uploadPhoto(photoFile);
+        } 
+        // В режиме редактирования сохраняем старое фото
+        else if (this.isEditMode) {
+            const currentPreview = document.querySelector('.image-preview');
+            if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                photoPath = currentPreview.src;
+            } else {
+                photoPath = null;
+            }
         }
 
-        try {
-            this.showFormLoading();
-            
-            let photoPath = '';
-            if (photoFile && photoFile.size > 0) {
-                photoPath = await this.uploadPhoto(photoFile);
-            } else if (this.isEditMode) {
-                const currentPreview = document.querySelector('.image-preview');
-                if (currentPreview && !currentPreview.src.startsWith('data:')) {
-                    photoPath = currentPreview.src;
-                } else {
-                    photoPath = 'photo/услуги/default.jpg';
-                }
-            } else {
-                photoPath = 'photo/услуги/default.jpg';
+        let доступен = 1;
+        if (this.isEditMode) {
+            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+            if (serviceCard) {
+                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
             }
+        }
 
-            let доступен = 1;
-            if (this.isEditMode) {
-                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-                if (serviceCard) {
-                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
-                }
-            }
-
-            const serviceData = {
-                категория: category,
-                название: name,
-                цена: price,
-                описание: description,
-                фото: photoPath,
-                доступен: доступен
-            };
+        const serviceData = {
+            категория: category,
+            название: name,
+            цена: price,
+            описание: description,
+            фото: photoPath, // Может быть null
+            доступен: доступен
+        };
 
             const url = this.isEditMode 
                 ? `/api/service/${this.currentServiceId}` 
@@ -393,13 +431,14 @@ class ServicesManager {
                 this.closeForm();
                 this.loadServices();
             }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
-        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
+        this.noPhoto = false; // Сбрасываем флаг
     }
+}
 
     async uploadPhoto(file) {
         const formData = new FormData();

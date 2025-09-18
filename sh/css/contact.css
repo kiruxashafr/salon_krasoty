@@ -17,6 +17,19 @@
 .contactwin {
     background-color: #f9f9f9;}
 
+    .contactwin.hidden {
+    display: none;
+}
+
+.contactwin:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 4%;
+    box-sizing: border-box;
+    width: 100%;
+}
+
 .profile-photo {
     width: 150px;
     height: 150px;

@@ -60,13 +60,17 @@
     z-index: 1000;
 }
 
-.modal-content {
+.modaal-content {
     background: white;
     border-radius: 12px;
     width: 90%;
     max-width: 800px;
     max-height: 80vh;
     overflow-y: auto;
+        position: relative;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
 }
 
 .modal-header {
@@ -192,5 +196,242 @@
     
     .tg-id-field {
         flex: 1;
+    }
+}
+
+
+
+
+/* setting.css - добавьте эти стили */
+
+/* Стили для модальных окон только в настройках */
+.settings-management .modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    backdrop-filter: blur(5px);
+}
+
+.settings-management .modaal-content {
+    background: white;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: modalSlideIn 0.3s ease;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.settings-management .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem;
+    border-bottom: 2px solid #f8f9fa;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 16px 16px 0 0;
+}
+
+.settings-management .modal-header h3 {
+    margin: 0;
+    font-weight: 600;
+}
+
+.settings-management .close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.3s ease;
+}
+
+.settings-management .close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.settings-management .modal-body {
+    padding: 2rem;
+}
+
+/* Анимация закрытия */
+.settings-management .modal.closing {
+    animation: modalSlideOut 0.3s ease forwards;
+}
+
+@keyframes modalSlideOut {
+    from {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+}
+
+/* Адаптивность для модальных окон */
+@media (max-width: 768px) {
+    .settings-management .modaal-content {
+        width: 95%;
+        margin: 1rem;
+        max-height: 90vh;
+    }
+    
+    .settings-management .modal-header {
+        padding: 1rem;
+    }
+    
+    .settings-management .modal-body {
+        padding: 1.5rem;
+    }
+}
+
+/* Специфические стили для фото настроек */
+.photo-settings .modaal-content {
+    max-width: 800px;
+}
+
+.photo-settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.photo-setting-item {
+    text-align: center;
+}
+
+.photo-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 2rem;
+    transition: all 0.3s ease;
+}
+
+.photo-upload-area:hover {
+    border-color: #3498db;
+    transform: translateY(-2px);
+}
+
+.default-photo-preview {
+    max-width: 200px;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: cover;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.photo-upload-btn {
+    display: inline-block;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.photo-upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(52, 152, 219, 0.3);
+}
+
+@media (max-width: 768px) {
+    .photo-settings-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .photo-upload-area {
+        padding: 1.5rem;
+    }
+}
+
+/* Простые стили для управления видимостью */
+.visibility-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem 0;
+}
+
+.visibility-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}
+
+.visibility-item label {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    font-weight: 500;
+    color: #2c3e50;
+}
+
+.visibility-item input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.visibility-item .description {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.3rem;
+    margin-left: 2.5rem;
+}
+
+/* Состояние при изменении */
+.visibility-item.changed {
+    background: #e3f2fd;
+    border-color: #2196F3;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .visibility-item {
+        padding: 0.8rem;
+    }
+    
+    .visibility-item label {
+        font-size: 0.9rem;
+    }
+    
+    .visibility-item .description {
+        font-size: 0.8rem;
     }
 }
