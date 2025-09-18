@@ -81,7 +81,8 @@ displaySettings() {
     const checkboxes = container.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', (e) => {
-            const key = e.target.id.replace('Toggle', '');
+            let key = e.target.id.replace('Toggle', '');
+            key = this.camelToSnake(key);  // Convert to snake_case for DB
             this.updateSetting(key, e.target.checked ? '1' : '0');
             
             // Визуальный эффект изменения
@@ -90,6 +91,11 @@ displaySettings() {
             setTimeout(() => item.classList.remove('changed'), 1000);
         });
     });
+}
+
+// Add this helper method to the NotificationSettingsManager class
+camelToSnake(camelCase) {
+    return camelCase.replace(/([A-Z])/g, '_$1').toLowerCase();
 }
 
     displayMasters() {
