@@ -156,7 +156,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'cancel_to_main':
         await start_callback(query)
 
-репчик я люблю
+репчик я люблюпросто обожа.
         
 async def show_booking_options(query):
     """Показать варианты записи"""
