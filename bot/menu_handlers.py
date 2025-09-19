@@ -15,6 +15,18 @@ API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать главное меню с мастерами и услугами"""
+    user_id = update.effective_user.id
+    
+    # Проверяем, является ли пользователь мастером
+    is_master = False
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/specialists-all")
+        if response.json()['message'] == 'success':
+            masters = response.json()['data']
+            is_master = any(m.get('tg_id') == str(user_id) for m in masters)
+    except:
+        pass
+    
     keyboard = [
         [
             InlineKeyboardButton("✮ Мастера", callback_data='masters_menu'),
@@ -23,11 +35,13 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("✎ Записаться", callback_data='book_appointment')],
         [InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet')]
     ]
+    
+    # Добавляем кнопку админ-панели если пользователь мастер
+    if is_master:
+        keyboard.append([InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')])
+    
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message_text = (
-        "☰ Главное меню\n"
-
-    )
+    message_text = "☰ Главное меню"
     
     # Остальной код функции остаётся без изменений
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"

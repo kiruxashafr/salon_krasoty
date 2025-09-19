@@ -2,11 +2,15 @@
 import os
 import logging
 import requests
+from admin import show_admin_panel, handle_admin_callback, handle_admin_message
 from datetime import datetime, timedelta
 from personal_cabinet import handle_personal_callback, handle_personal_message
 from menu_handlers import show_main_menu, handle_menu_callback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from admin import handle_admin_message, admin_states
+from personal_cabinet import handle_personal_message, personal_states
+
 
 # Настройка логирования
 logging.basicConfig(
@@ -45,6 +49,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
     
+    # Обрабатываем callback запросы админ-панели
+    admin_prefixes = [
+        'admin_panel', 'admin_add_freetime', 'admin_my_records', 
+        'admin_my_appointments', 'admin_my_freetime', 'admin_back_to_records',
+        'admin_back_to_services'
+    ]
+    
+    admin_starts_with = [
+        'admin_select_service_', 'admin_select_date_'
+    ]
+    
+    # Проверяем, является ли callback админским
+    is_admin_callback = False
+    
+    if data in admin_prefixes:
+        is_admin_callback = True
+    else:
+        for prefix in admin_starts_with:
+            if data.startswith(prefix):
+                is_admin_callback = True
+                break
+    
+    if is_admin_callback:
+        await handle_admin_callback(update, context)
+        return
+
     # Обрабатываем callback запросы меню
     if data in ['back_to_main', 'masters_menu', 'services_menu'] or \
        data.startswith('master_detail_') or data.startswith('service_detail_') or \
@@ -126,6 +156,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == 'cancel_to_main':
         await start_callback(query)
 
+
+        
 async def show_booking_options(query):
     """Показать варианты записи"""
     keyboard = [
@@ -1187,7 +1219,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.message.from_user.id
     text = update.message.text
     
-    # Проверяем, находится ли пользователь в процессе бронирования
+    # Проверяем для бронирования
     if user_id in user_states:
         user_data = user_states[user_id]
         
@@ -1248,9 +1280,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             del user_states[user_id]
     
-    # Проверяем, находится ли пользователь в процессе регистрации в личном кабинете
-    else:
+    # Проверяем для личного кабинета
+    elif user_id in personal_states:
         await handle_personal_message(update, context)
+    
+    # Проверяем для админ панели
+    elif user_id in admin_states:
+        await handle_admin_message(update, context)
 
 
 

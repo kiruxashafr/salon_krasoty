@@ -2,6 +2,7 @@
 import os
 from dotenv import load_dotenv
 from main import main
+from admin import handle_admin_message
 from menu_handlers import *
 from personal_cabinet import *
 from notification import initialize_notifications, shutdown_notifications  # Добавляем импорт
