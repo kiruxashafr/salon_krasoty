@@ -216,6 +216,20 @@ function initializeDatabase() {
             )
         `);
 
+        // server.js - исправленная схема таблицы уведомлений
+        // server.js - исправленная схема таблицы уведомлений
+        db.run(`
+            CREATE TABLE IF NOT EXISTS уведомления (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                запись_id INTEGER NOT NULL,
+                тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew')), -- Добавьте 'masternew'
+                отправлено INTEGER DEFAULT 0,
+                время_отправки DATETIME DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (запись_id) REFERENCES записи(id),
+                UNIQUE(запись_id, тип)
+            )
+        `);
+
 
         db.run(`
             CREATE TABLE IF NOT EXISTS расписание (
@@ -783,11 +797,12 @@ app.post('/api/services', (req, res) => {
 
 
 // API endpoint to get appointments with date range
+// API endpoint to get appointments with date range
 app.get('/api/appointments', (req, res) => {
     const specialistId = req.query.specialistId;
     const startDate = req.query.startDate;
     const endDate = req.query.endDate;
-    const createdSince = req.query.createdSince; // Новый параметр
+    const createdSince = req.query.createdSince;
     
     let sql = `
         SELECT 
@@ -798,8 +813,10 @@ app.get('/api/appointments', (req, res) => {
             з.created_at,
             к.имя as клиент_имя,
             к.телефон as клиент_телефон,
+            к.tg_id as клиент_tg_id,
             у.название as услуга_название,
-            м.имя as мастер_имя
+            м.имя as мастер_имя,
+            м.tg_id as мастер_tg_id
         FROM записи з
         JOIN клиенты к ON з.клиент_id = к.id
         JOIN услуги у ON з.услуга_id = у.id
@@ -838,6 +855,9 @@ app.get('/api/appointments', (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
+            console.error('SQL Error:', err.message);
+            console.error('SQL Query:', sql);
+            console.error('SQL Params:', params);
             res.status(500).json({ error: err.message });
             return;
         }
@@ -2110,6 +2130,212 @@ app.post('/api/upload-default-photo', upload.single('photo'), (req, res) => {
     }
 });
 
+
+app.get('/api/appointments-for-notifications', (req, res) => {
+    const currentDate = new Date().toISOString().split('T')[0];
+    const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    
+    // Запись на завтра для daily уведомлений
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowDate = tomorrow.toISOString().split('T')[0];
+    
+    // Запись через час для hourly уведомлений
+    const oneHourLater = new Date();
+    oneHourLater.setHours(oneHourLater.getHours() + 1);
+    const oneHourLaterDateTime = oneHourLater.toISOString().replace('T', ' ').substring(0, 19);
+    
+    const sql = `
+        SELECT 
+            з.id,
+            з.дата,
+            з.время,
+            з.created_at,
+            к.имя as клиент_имя,
+            к.телефон as клиент_телефон,
+            к.tg_id as клиент_tg_id,
+            у.название as услуга_название,
+            у.цена as услуга_цена,
+            м.имя as мастер_имя,
+            м.tg_id as мастер_tg_id,
+            -- Проверяем, нужно ли отправлять daily уведомление
+            CASE 
+                WHEN з.дата = ? AND з.время >= '00:00' 
+                AND NOT EXISTS (
+                    SELECT 1 FROM уведомления 
+                    WHERE запись_id = з.id AND тип = 'daily' AND отправлено = 1
+                ) THEN 1
+                ELSE 0
+            END as needs_daily_notification,
+            -- Проверяем, нужно ли отправлять hourly уведомление
+            CASE 
+                WHEN CONCAT(з.дата, ' ', з.время) <= ? 
+                AND NOT EXISTS (
+                    SELECT 1 FROM уведомления 
+                    WHERE запись_id = з.id AND тип = 'hourly' AND отправлено = 1
+                ) THEN 1
+                ELSE 0
+            END as needs_hourly_notification
+        FROM записи з
+        JOIN клиенты к ON з.клиент_id = к.id
+        JOIN услуги у ON з.услуга_id = у.id
+        JOIN мастера м ON з.мастер_id = м.id
+        WHERE з.дата >= ?
+        AND (к.tg_id IS NOT NULL OR м.tg_id IS NOT NULL)
+        ORDER BY з.дата, з.время
+    `;
+    
+    db.all(sql, [tomorrowDate, oneHourLaterDateTime, currentDate], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+
+
+// API endpoint для отметки уведомления как отправленного
+app.post('/api/notification-sent', (req, res) => {
+    const { запись_id, тип } = req.body;
+    
+    if (!запись_id || !тип) {
+        return res.status(400).json({ error: 'Запись ID и тип обязательны' });
+    }
+    
+    const sql = `
+        INSERT INTO уведомления (запись_id, тип, отправлено) 
+        VALUES (?, ?, 1)
+        ON CONFLICT(запись_id, тип) 
+        DO UPDATE SET отправлено = 1, время_отправки = CURRENT_TIMESTAMP
+    `;
+    
+    db.run(sql, [запись_id, тип], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                запись_id,
+                тип
+            }
+        });
+    });
+});
+
+
+
+app.get('/api/check-notification', (req, res) => {
+    const запись_id = req.query.запись_id;
+    const тип = req.query.тип;
+    
+    const sql = "SELECT отправлено FROM уведомления WHERE запись_id = ? AND тип = ?";
+    
+    db.get(sql, [запись_id, тип], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            sent: row ? row.отправлено === 1 : false
+        });
+    });
+});
+
+// API endpoint для получения записей для hourly уведомлений
+app.get('/api/appointments-for-hourly', (req, res) => {
+    const startTime = req.query.startTime;
+    const endTime = req.query.endTime;
+    
+    if (!startTime || !endTime) {
+        return res.status(400).json({ error: 'Start and end times are required' });
+    }
+    
+    const sql = `
+        SELECT 
+            з.id,
+            з.дата,
+            з.время,
+            з.цена,
+            к.имя as клиент_имя,
+            к.телефон as клиент_телефон,
+            к.tg_id as клиент_tg_id,
+            у.название as услуга_название,
+            м.имя as мастер_имя,
+            м.tg_id as мастер_tg_id
+        FROM записи з
+        JOIN клиенты к ON з.клиент_id = к.id
+        JOIN услуги у ON з.услуга_id = у.id
+        JOIN мастера м ON з.мастер_id = м.id
+        WHERE CONCAT(з.дата, ' ', з.время) BETWEEN ? AND ?
+        AND (к.tg_id IS NOT NULL OR м.tg_id IS NOT NULL)
+        ORDER BY з.дата, з.время
+    `;
+    
+    db.all(sql, [startTime, endTime], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// server.js - добавить этот endpoint
+app.get('/api/appointments-with-notifications', (req, res) => {
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    
+    let sql = `
+        SELECT 
+            з.id,
+            з.дата,
+            з.время,
+            з.цена,
+            к.имя as клиент_имя,
+            к.телефон as клиент_телефон,
+            к.tg_id as клиент_tg_id,
+            у.название as услуга_название,
+            м.имя as мастер_имя,
+            м.tg_id as мастер_tg_id,
+            увед_daily.отправлено as daily_sent
+        FROM записи з
+        JOIN клиенты к ON з.клиент_id = к.id
+        JOIN услуги у ON з.услуга_id = у.id
+        JOIN мастера м ON з.мастер_id = м.id
+        LEFT JOIN уведомления увед_daily ON з.id = увед_daily.запись_id AND увед_daily.тип = 'daily'
+        WHERE з.дата BETWEEN ? AND ?
+        AND к.tg_id IS NOT NULL
+    `;
+    
+    const params = [startDate, endDate];
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
 
 // Error handling for undefined routes
 app.use((req, res) => {
