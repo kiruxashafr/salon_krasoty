@@ -523,32 +523,32 @@ function displayAppointments(appointments, selectedDate = null) {
                         appointment.время.split(':').slice(0, 2).join(':') : 
                         appointment.время;
             
-appointmentsHTML += `
-    <div class="appointment-card" data-appointment-id="${appointment.id}">
-        <div class="appointment-content">
-            <div class="appointment-details">
-
-                <div class="client-service-container">
-                    <div class="client-info">
-                                    <div class="appointment-time">${time}</div>
-                        <div class="client-name">${appointment.клиент_имя}</div>
-                        <div class="client-phone">${formattedPhone}</div>
-                    </div>
-                    <div class="service-info">
-                        <div class="service-name">${appointment.услуга_название}</div>
-                        <div class="service-price">${appointment.цена}₽</div>
+  appointmentsHTML += `
+            <div class="appointment-card" data-appointment-id="${appointment.id}">
+                <div class="appointment-content">
+                    <div class="appointment-time">${time}</div>
+                    <div class="appointment-details">
+                        <div class="client-info">
+                            <div class="client-name">${appointment.клиент_имя}</div>
+                            <div class="client-phone">${formattedPhone}</div>
+                        </div>
+                        <div class="service-info">
+                            <div class="service-name">${appointment.услуга_название}</div>
+                            <div class="service-price">${appointment.цена}₽</div>
+                        </div>
                     </div>
                 </div>
+                <div class="appointment-actions">
+                    <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
+                        ✏️ Изменить
+                    </button>
+                    <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
+                        ✕ Отменить
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="appointment-actions">
-            <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
-                ✕ Отменить
-            </button>
-        </div>
-    </div>
-`;
-        });
+        `;
+    });
         
         appointmentsHTML += '</div>'; // закрываем .appointments-grid
     }
@@ -902,4 +902,298 @@ function selectDate(date, day) {
             block: 'start' 
         });
     }, 300);
+}
+
+
+
+function showEditAppointmentForm(appointment) {
+    if (isAddFormOpen) return;
+    isAddFormOpen = true;
+    
+    const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
+                          appointment.клиент_телеfono?.replace('+7', '') || '';
+    
+    const [hours, minutes] = appointment.время.split(':');
+    
+    const formHTML = `
+        <div class="edit-appointment-form" id="editAppointmentFormContainer">
+            <h3>Редактировать запись</h3>
+            <button class="btn btn-danger btn-sm" onclick="cancelEditAppointment()" style="margin-bottom: 1rem;">
+                ✖ Отменить
+            </button>
+            <form id="editAppointmentForm" data-appointment-id="${appointment.id}">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Дата:</label>
+                        <input type="date" class="form-control" name="date" value="${appointment.дата}" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Время (часы:минуты):</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="number" class="form-control" name="hours" min="0" max="23" 
+                                   placeholder="Час" style="width: 80px;" value="${hours}" required>
+                            <span>:</span>
+                            <input type="number" class="form-control" name="minutes" min="0" max="59" 
+                                   placeholder="Минуты" style="width: 80px;" value="${minutes}" required>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Имя клиента:</label>
+                    <input type="text" class="form-control" name="clientName" value="${appointment.клиент_имя}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Текущая услуга:</label>
+                    <div class="current-service-display" style="padding: 10px; background: #f0f8ff; border-radius: 5px; margin-bottom: 10px;">
+                        <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
+                    </div>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
+                        ✏️ Изменить услугу
+                    </button>
+                </div>
+                
+                <div class="form-group service-selection" id="serviceSelection" style="display: none;">
+                    <label>Выберите новую услугу:</label>
+                    <select class="form-control" name="serviceId">
+                        <option value="">Выберите услугу</option>
+                        <!-- Услуги будут загружены динамически -->
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Телефон клиента:</label>
+                    <div class="phone-input-container">
+                        <span class="phone-prefix">+7</span>
+                        <input type="tel" class="form-control phone-input" name="clientPhone" 
+                               placeholder="9255355278" pattern="[0-9]{10}" 
+                               maxlength="10" value="${formattedPhone}" required>
+                    </div>
+                    <div class="error-message">Введите 10 цифр номера телефона</div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    <button type="button" class="btn btn-danger" onclick="deleteAppointment(${appointment.id})">
+                        Удалить запись
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+    
+    document.getElementById('appointmentsList').insertAdjacentHTML('beforeend', formHTML);
+    
+    // Загружаем услуги для выбора
+    loadServicesForEditForm(appointment.услуга_id);
+    
+    // Прокручиваем к форме
+    setTimeout(() => {
+        const formContainer = document.getElementById('editAppointmentFormContainer');
+        if (formContainer) {
+            formContainer.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }
+    }, 100);
+    
+    // Добавляем валидацию
+    const phoneInput = document.querySelector('#editAppointmentForm input[name="clientPhone"]');
+    phoneInput.addEventListener('input', function(e) {
+        this.value = this.value.replace(/\D/g, '');
+        if (this.value.length > 10) {
+            this.value = this.value.slice(0, 10);
+        }
+    });
+    
+    // Валидация часов и минут
+    const hoursInput = document.querySelector('#editAppointmentForm input[name="hours"]');
+    const minutesInput = document.querySelector('#editAppointmentForm input[name="minutes"]');
+    
+    hoursInput.addEventListener('change', function() {
+        if (this.value < 0) this.value = 0;
+        if (this.value > 23) this.value = 23;
+    });
+    
+    minutesInput.addEventListener('change', function() {
+        if (this.value < 0) this.value = 0;
+        if (this.value > 59) this.value = 59;
+    });
+    
+    // Обработчик отправки формы
+    document.getElementById('editAppointmentForm').addEventListener('submit', handleEditAppointment);
+}
+
+// Функция для переключения отображения выбора услуги
+function toggleServiceSelection() {
+    const serviceSelection = document.getElementById('serviceSelection');
+    const toggleBtn = document.getElementById('toggleServiceBtn');
+    
+    if (serviceSelection.style.display === 'none') {
+        serviceSelection.style.display = 'block';
+        toggleBtn.textContent = '✖ Отменить изменение услуги';
+        toggleBtn.classList.remove('btn-outline-primary');
+        toggleBtn.classList.add('btn-outline-secondary');
+    } else {
+        serviceSelection.style.display = 'none';
+        toggleBtn.textContent = '✏️ Изменить услугу';
+        toggleBtn.classList.remove('btn-outline-secondary');
+        toggleBtn.classList.add('btn-outline-primary');
+    }
+}
+
+// Исправленная функция для загрузки услуг в форму редактирования
+async function loadServicesForEditForm(selectedServiceId) {
+    try {
+        const response = await fetch('/api/services');
+        if (!response.ok) throw new Error('Ошибка загрузки услуг');
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            const select = document.querySelector('#editAppointmentForm select[name="serviceId"]');
+            select.innerHTML = '<option value="">Выберите услугу</option>';
+            
+            data.data.forEach(service => {
+                const option = document.createElement('option');
+                option.value = service.id;
+                option.textContent = `${service.название} - ${service.цена} ₽`;
+                
+                // Правильное сравнение ID (оба как числа)
+                if (parseInt(service.id) === parseInt(selectedServiceId)) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+    }
+}
+
+// Исправленная функция для загрузки услуг в форму редактирования
+async function loadServicesForEditForm(selectedServiceId) {
+    try {
+        const response = await fetch('/api/services');
+        if (!response.ok) throw new Error('Ошибка загрузки услуг');
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            const select = document.querySelector('#editAppointmentForm select[name="serviceId"]');
+            select.innerHTML = '<option value="">Выберите услугу</option>';
+            
+            data.data.forEach(service => {
+                const option = document.createElement('option');
+                option.value = service.id;
+                option.textContent = `${service.название} - ${service.цена} ₽`;
+                
+                // Правильное сравнение ID (оба как числа)
+                if (parseInt(service.id) === parseInt(selectedServiceId)) {
+                    option.selected = true;
+                }
+                
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+    }
+}
+
+// Обработчик редактирования записи
+async function handleEditAppointment(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const appointmentId = e.target.dataset.appointmentId;
+    const phoneDigits = formData.get('clientPhone');
+    const hours = parseInt(formData.get('hours'));
+    const minutes = parseInt(formData.get('minutes'));
+    const serviceId = formData.get('serviceId') || window.currentServiceId; // Используем текущую услугу если не выбрана новая
+    
+    // Валидация
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        alert('Пожалуйста, введите корректное время');
+        return;
+    }
+    
+    if (phoneDigits.length !== 10 || !/^\d+$/.test(phoneDigits)) {
+        alert('Пожалуйста, введите корректный номер телефона (10 цифр)');
+        return;
+    }
+    
+    const appointmentData = {
+        date: formData.get('date'),
+        time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+        clientName: formData.get('clientName'),
+        clientPhone: '+7' + phoneDigits,
+        serviceId: serviceId
+    };
+    
+    try {
+        const response = await fetch(`/api/appointments/${appointmentId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(appointmentData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка обновления записи');
+        }
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            alert('Запись успешно обновлена!');
+            cancelEditAppointment();
+            loadAppointmentsForDate(window.selectedDate);
+            generateCalendar();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Не удалось обновить запись: ' + error.message);
+    }
+}
+
+// Функция отмены редактирования
+function cancelEditAppointment() {
+    const formContainer = document.getElementById('editAppointmentFormContainer');
+    if (formContainer) {
+        formContainer.remove();
+    }
+    isAddFormOpen = false;
+}
+
+
+
+// Добавьте в admin.js если ещё нет
+function deleteAppointment(appointmentId) {
+    if (confirm('Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.')) {
+        fetch(`/api/appointments/${appointmentId}`, {
+            method: 'DELETE'
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка удаления записи');
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                alert('Запись успешно удалена!');
+                cancelEditAppointment();
+                loadAppointmentsForDate(window.selectedDate);
+                generateCalendar();
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка:', error);
+            alert('Не удалось удалить запись');
+        });
+    }
 }
