@@ -120,16 +120,16 @@ class PhotoScheduleGenerator {
         });
     }
 
-    async generatePhoto() {
-        const type = document.getElementById('photoScheduleType').value;
-        const startDate = document.getElementById('photoStartDate').value;
-        const endDate = document.getElementById('photoEndDate').value;
-        const specialistId = document.getElementById('photoSpecialist').value;
+async generatePhoto() {
+    const type = document.getElementById('photoScheduleType').value;
+    const startDate = document.getElementById('photoStartDate').value;
+    const endDate = document.getElementById('photoEndDate').value;
+    const specialistId = document.getElementById('photoSpecialist').value;
 
-        if (!startDate || !endDate) {
-            alert('Пожалуйста, выберите диапазон дат');
-            return;
-        }
+    if (!startDate || !endDate) {
+        showError('Пожалуйста, выберите диапазон дат');
+        return;
+    }
 
         try {
             const generateBtn = document.getElementById('photoGenerateBtn');

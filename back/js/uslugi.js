@@ -266,16 +266,168 @@ renderServiceForm(serviceData = null) {
 }
 
 
-    setNoPhoto() {
+// В методе handleSubmit
+async handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const category = formData.get('category').trim();
+    const name = formData.get('name').trim();
+    const price = parseFloat(formData.get('price'));
+    const description = formData.get('description').trim();
+    const photoFile = formData.get('photo');
+
+    if (!category || !name || isNaN(price)) {
+        showError('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+
+    try {
+        this.showFormLoading();
+        
+        let photoPath = null;
+        
+        if (this.noPhoto) {
+            photoPath = null;
+        } else if (photoFile && photoFile.size > 0) {
+            photoPath = await this.uploadPhoto(photoFile);
+        } else if (this.isEditMode && this.originalServiceData) {
+            photoPath = this.originalServiceData.фото;
+        }
+
+        let доступен = 1;
+        if (this.isEditMode) {
+            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+            if (serviceCard) {
+                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+            }
+        }
+
+        const serviceData = {
+            категория: category,
+            название: name,
+            цена: price,
+            описание: description,
+            фото: photoPath,
+            доступен: доступен
+        };
+
+        const url = this.isEditMode 
+            ? `/api/service/${this.currentServiceId}` 
+            : '/api/services-new';
+            
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(serviceData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
+            await this.loadCategories();
+            this.closeForm();
+            this.loadServices();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
+        this.noPhoto = false;
+    }
+}
+
+// В методе toggleServiceVisibility
+async toggleServiceVisibility(serviceId, status) {
+    const action = status === 1 ? 'показать' : 'скрыть';
+    
+    showConfirm(`Вы уверены, что хотите ${action} эту услугу?`, (confirmed) => {
+        if (confirmed) {
+            this.performToggleVisibility(serviceId, status, action);
+        }
+    });
+}
+
+async performToggleVisibility(serviceId, status, action) {
+    try {
+        const response = await fetch(`/api/service/${serviceId}/visibility`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ доступен: status })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка изменения видимости');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
+            this.loadServices();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось изменить видимость услуги: ' + error.message);
+    }
+}
+
+// В методе deleteService
+async deleteService(serviceId) {
+    showConfirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить!', (confirmed) => {
+        if (confirmed) {
+            this.performDelete(serviceId);
+        }
+    });
+}
+
+async performDelete(serviceId) {
+    try {
+        const response = await fetch(`/api/service/${serviceId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка удаления услуги');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess('Услуга успешно удалена!');
+            this.loadServices();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось удалить услугу');
+    }
+}
+
+// В методе setNoPhoto
+setNoPhoto() {
     this.noPhoto = true;
     const fileInput = document.getElementById('servicePhoto');
     if (fileInput) {
         fileInput.value = '';
     }
-    alert('Фото не будет добавлено');
+    showInfo('Фото не будет добавлено');
 }
 
-// Метод для удаления существующего фото
+// В методе removePhoto
 removePhoto() {
     this.noPhoto = true;
     const preview = document.querySelector('.image-preview');
@@ -286,8 +438,11 @@ removePhoto() {
     if (removeBtn) {
         removeBtn.style.display = 'none';
     }
-    alert('Текущее фото будет удалено');
+    showInfo('Текущее фото будет удалено');
 }
+
+// Метод для удаления существующего фото
+
     showCategoryDropdown() {
         const dropdown = document.getElementById('categoryDropdown');
         if (dropdown && this.existingCategories.length > 0) {
@@ -348,94 +503,7 @@ removePhoto() {
         }
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
-        
-        const formData = new FormData(event.target);
-        const category = formData.get('category').trim();
-        const name = formData.get('name').trim();
-        const price = parseFloat(formData.get('price'));
-        const description = formData.get('description').trim();
-        const photoFile = formData.get('photo');
 
-        if (!category || !name || isNaN(price)) {
-            alert('Пожалуйста, заполните все обязательные поля');
-            return;
-        }
-
-        try {
-            this.showFormLoading();
-            
-            let photoPath = null;
-            
-            // Обработка фото - ИСПРАВЛЕННАЯ ЛОГИКА
-            if (this.noPhoto) {
-                // Пользователь явно выбрал "без фото"
-                photoPath = null;
-            } else if (photoFile && photoFile.size > 0) {
-                // Загружаем новое фото
-                photoPath = await this.uploadPhoto(photoFile);
-            } else if (this.isEditMode && this.originalServiceData) {
-                // В режиме редактирования сохраняем существующее фото (если не было изменений)
-                photoPath = this.originalServiceData.фото;
-            }
-
-            // Получаем текущий статус видимости
-            let доступен = 1;
-            if (this.isEditMode) {
-                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-                if (serviceCard) {
-                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
-                }
-            }
-
-            const serviceData = {
-                категория: category,
-                название: name,
-                цена: price,
-                описание: description,
-                фото: photoPath,
-                доступен: доступен
-            };
-
-            const url = this.isEditMode 
-                ? `/api/service/${this.currentServiceId}` 
-                : '/api/services-new';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(serviceData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
-
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                alert(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
-                
-                // Обновляем список категорий после добавления/редактирования
-                await this.loadCategories();
-                
-                this.closeForm();
-                this.loadServices();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
-            this.noPhoto = false;
-        }
-    }
 
     async uploadPhoto(file) {
         const formData = new FormData();
@@ -461,60 +529,9 @@ removePhoto() {
         }
     }
 
-    async toggleServiceVisibility(serviceId, status) {
-        const action = status === 1 ? 'показать' : 'скрыть';
-        
-        if (confirm(`Вы уверены, что хотите ${action} эту услугу?`)) {
-            try {
-                const response = await fetch(`/api/service/${serviceId}/visibility`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ доступен: status })
-                });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'Ошибка изменения видимости');
-                }
 
-                const data = await response.json();
-                
-                if (data.message === 'success') {
-                    alert(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
-                    this.loadServices();
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось изменить видимость услуги: ' + error.message);
-            }
-        }
-    }
 
-    async deleteService(serviceId) {
-        if (confirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить!')) {
-            try {
-                const response = await fetch(`/api/service/${serviceId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Ошибка удаления услуги');
-                }
-
-                const data = await response.json();
-                
-                if (data.message === 'success') {
-                    alert('Услуга успешно удалена!');
-                    this.loadServices();
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось удалить услугу');
-            }
-        }
-    }
 
     closeForm() {
         const formContainer = document.querySelector('.service-form-container');

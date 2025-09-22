@@ -184,30 +184,31 @@ sortClients(clients = this.clients) {
         return '';
     }
 
-    async showClientDetails(clientId) {
-        try {
-            this.showModalLoading();
-            
-            // Получаем детальную информацию о клиенте
-            const response = await fetch(`/api/client/${clientId}/appointments`);
-            
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки данных клиента');
-            }
-            
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                this.displayClientDetails(data.data);
-            } else {
-                throw new Error(data.error || 'Ошибка загрузки данных');
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось загрузить информацию о клиенте');
-            this.hideModal();
+// В методе showClientDetails
+// В методе showClientDetails
+async showClientDetails(clientId) {
+    try {
+        this.showModalLoading();
+        
+        const response = await fetch(`/api/client/${clientId}/appointments`);
+        
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки данных клиента');
         }
+        
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            this.displayClientDetails(data.data);
+        } else {
+            throw new Error(data.error || 'Ошибка загрузки данных');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось загрузить информацию о клиенте');
+        this.hideModal();
     }
+}
 
     displayClientDetails(clientData) {
         const modal = document.getElementById('clientModal');

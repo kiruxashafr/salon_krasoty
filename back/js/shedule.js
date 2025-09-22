@@ -1,11 +1,12 @@
 class ScheduleManager {
     constructor() {
-        this.currentView = 'specialist'; // теперь только 'specialist'
-        this.currentType = 'appointments'; // 'appointments' или 'freetime'
-        this.selectedSpecialistId = null; // null будет означать "Все мастера"
+        this.currentView = 'specialist';
+        this.currentType = 'appointments';
+        this.selectedSpecialistId = null;
         this.startDate = null;
         this.endDate = null;
         this.specialists = [];
+        this.autoUpdateInterval = null; // Добавляем интервал
         this.init();
     }
 
@@ -15,6 +16,36 @@ class ScheduleManager {
         this.setDefaultDates();
         this.loadSchedule();
     }
+
+
+        // Добавляем метод для автообновления
+    startAutoUpdate() {
+        if (this.autoUpdateInterval) {
+            clearInterval(this.autoUpdateInterval);
+        }
+        
+        this.autoUpdateInterval = setInterval(() => {
+            this.loadSchedule();
+        }, 30000); // 30 секунд
+        
+    }
+    
+    // Добавляем метод остановки автообновления
+    stopAutoUpdate() {
+        if (this.autoUpdateInterval) {
+            clearInterval(this.autoUpdateInterval);
+            this.autoUpdateInterval = null;
+        }
+    }
+
+    async init() {
+        await this.loadSpecialists();
+        this.setupEventListeners();
+        this.setDefaultDates();
+        this.loadSchedule();
+        this.startAutoUpdate(); // Запускаем автообновление
+    }
+
 
     async loadSpecialists() {
         try {
@@ -444,5 +475,4 @@ function loadScheduleSection() {
     window.scheduleManager = new ScheduleManager();
     
     // Добавляем обработчик для кнопки генерации фото
-    document.getElementById('generatePhotoBtn').addEventListener('click', openPhotoGenerator);
-}
+    document.getElementById('generatePhotoBtn').addEventListener('click', openPhotoGenerator);}

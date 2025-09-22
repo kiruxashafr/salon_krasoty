@@ -125,61 +125,6 @@ camelToSnake(camelCase) {
         `).join('');
     }
 
-    async updateSetting(key, value) {
-        try {
-            const response = await fetch(`/api/settings/${key}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ значение: value })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.message === 'success') {
-                    this.settings[key] = value;
-                    this.showNotification('Настройка сохранена!', 'success');
-                }
-            } else {
-                throw new Error('Ошибка сохранения');
-            }
-        } catch (error) {
-            console.error('Ошибка сохранения настройки:', error);
-            this.showNotification('Ошибка сохранения настройки', 'error');
-        }
-    }
-
-    async saveTgId(masterId) {
-        const input = document.querySelector(`.tg-id-field[data-master-id="${masterId}"]`);
-        const tgId = input.value.trim();
-
-        try {
-            const response = await fetch(`/api/specialist/${masterId}/tg-id`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ tg_id: tgId })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                if (data.message === 'success') {
-                    this.showNotification('Telegram ID успешно сохранен!', 'success');
-                    const master = this.masters.find(m => m.id === masterId);
-                    if (master) {
-                        master.tg_id = tgId;
-                    }
-                }
-            } else {
-                throw new Error('Ошибка сохранения');
-            }
-        } catch (error) {
-            console.error('Ошибка сохранения Telegram ID:', error);
-            this.showNotification('Ошибка сохранения Telegram ID', 'error');
-        }
-    }
 
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
@@ -202,7 +147,68 @@ camelToSnake(camelCase) {
             notification.remove();
         }, 3000);
     }
-    async uploadDefaultPhoto(type, file) {
+
+
+// В методе updateSetting
+async updateSetting(key, value) {
+    try {
+        const response = await fetch(`/api/settings/${key}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ значение: value })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.settings[key] = value;
+                this.showNotification('Настройка сохранена!', 'success');
+            }
+        } else {
+            throw new Error('Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения настройки:', error);
+        this.showNotification('Ошибка сохранения настройки', 'error');
+    }
+}
+
+// В методе saveTgId
+async saveTgId(masterId) {
+    const input = document.querySelector(`.tg-id-field[data-master-id="${masterId}"]`);
+    const tgId = input.value.trim();
+
+    try {
+        const response = await fetch(`/api/specialist/${masterId}/tg-id`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ tg_id: tgId })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.showNotification('Telegram ID успешно сохранен!', 'success');
+                const master = this.masters.find(m => m.id === masterId);
+                if (master) {
+                    master.tg_id = tgId;
+                }
+            }
+        } else {
+            throw new Error('Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения Telegram ID:', error);
+        this.showNotification('Ошибка сохранения Telegram ID', 'error');
+    }
+}
+
+// В методе uploadDefaultPhoto
+async uploadDefaultPhoto(type, file) {
     const formData = new FormData();
     formData.append('photo', file);
     formData.append('type', type);
@@ -228,6 +234,7 @@ camelToSnake(camelCase) {
     }
 }
 
+// В методе handleDefaultPhotoUpload
 handleDefaultPhotoUpload(type, event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -242,7 +249,6 @@ handleDefaultPhotoUpload(type, event) {
         return;
     }
     
-    // Показываем превью
     const reader = new FileReader();
     reader.onload = (e) => {
         const previewId = `default${type}Preview`;
@@ -254,7 +260,6 @@ handleDefaultPhotoUpload(type, event) {
     };
     reader.readAsDataURL(file);
     
-    // Загружаем на сервер
     this.uploadDefaultPhoto(type, file);
 }
 

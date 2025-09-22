@@ -1,3 +1,5 @@
+let currentActiveSection = 'journal'; // По умолчанию активен журнал
+
 document.addEventListener('DOMContentLoaded', function() {
     // Элементы DOM
     const menuToggle = document.getElementById('menuToggle');
@@ -12,7 +14,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Переменные состояния
     let isMenuOpen = false;
-    let currentActiveSection = 'journal'; // По умолчанию активен журнал
 
     // Функция переключения меню
     function toggleMenu() {
@@ -61,16 +62,23 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
 // Функция загрузки контента раздела
+// Обновленная функция loadSection в admin.js
 function loadSection(sectionName) {
     if (window.innerWidth < 768) {
         showLoading();
+    }
+    
+    // Останавливаем автообновление при смене раздела
+    if (autoUpdateInterval) {
+        clearInterval(autoUpdateInterval);
+        autoUpdateInterval = null;
     }
     
     // Обновляем активный пункт меню
     updateActiveMenu(sectionName);
     currentActiveSection = sectionName;
 
-    // Закрываем меню на мобильных устройствах - ДОБАВЛЕНО УСЛОВИЕ
+    // Закрываем меню на мобильных устройствах
     if (window.innerWidth < 1024 && isMenuOpen) {
         toggleMenu();
     }
@@ -85,12 +93,18 @@ function loadSection(sectionName) {
     switch(sectionName) {
         case 'journal':
             loadJournalContent();
-            break;
-        case 'freetime':
-            loadFreeTimeSection();
+            // Запускаем автообновление для журнала
+            setTimeout(() => startAutoUpdate(), 1000);
             break;
         case 'schedule':
             loadScheduleSection();
+            // Запускаем автообновление для расписания
+            setTimeout(() => startAutoUpdate(), 1000);
+            break;
+        case 'freetime':
+            loadFreeTimeSection();
+            // Можно добавить автообновление для свободного времени
+            setTimeout(() => startAutoUpdate(), 1000);
             break;
         case 'specialists':
             loadMastersSection();
@@ -493,10 +507,13 @@ function loadAppointmentsForDate(date) {
 function displayAppointments(appointments, selectedDate = null) {
     const appointmentsList = document.getElementById('appointmentsList');
     
-    // Получаем дату для отображения (либо переданную, либо текущую)
+    // Сортируем записи по времени (на всякий случай, хотя сервер уже отсортировал)
+    const sortedAppointments = [...appointments].sort((a, b) => {
+        return a.время.localeCompare(b.время);
+    });
+    
     const displayDate = selectedDate || new Date().toLocaleDateString('ru-RU');
     
-    // Создаем контейнер для записей
     let appointmentsHTML = `
         <div class="appointments-container">
             <div class="appointments-header">
@@ -504,7 +521,7 @@ function displayAppointments(appointments, selectedDate = null) {
             </div>
     `;
 
-    if (appointments.length === 0) {
+    if (sortedAppointments.length === 0) {
         appointmentsHTML += `
             <div class="empty-appointments">
                 <div>Нет записей на эту дату</div>
@@ -514,48 +531,47 @@ function displayAppointments(appointments, selectedDate = null) {
     } else {
         appointmentsHTML += '<div class="appointments-grid">';
         
-        appointments.forEach((appointment, index) => {
+        // Используем отсортированный массив
+        sortedAppointments.forEach((appointment, index) => {
             const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
                                  appointment.клиент_телеfono?.replace('+7', '') || '';
             
-            // Форматируем время (убираем секунды если есть)
             const time = appointment.время.includes(':') ? 
                         appointment.время.split(':').slice(0, 2).join(':') : 
                         appointment.время;
             
-  appointmentsHTML += `
-            <div class="appointment-card" data-appointment-id="${appointment.id}">
-                <div class="appointment-content">
-                    <div class="appointment-time">${time}</div>
-                    <div class="appointment-details">
-                        <div class="client-info">
-                            <div class="client-name">${appointment.клиент_имя}</div>
-                            <div class="client-phone">${formattedPhone}</div>
-                        </div>
-                        <div class="service-info">
-                            <div class="service-name">${appointment.услуга_название}</div>
-                            <div class="service-price">${appointment.цена}₽</div>
+            appointmentsHTML += `
+                <div class="appointment-card" data-appointment-id="${appointment.id}">
+                    <div class="appointment-content">
+                        <div class="appointment-time">${time}</div>
+                        <div class="appointment-details">
+                            <div class="client-info">
+                                <div class="client-name">${appointment.клиент_имя}</div>
+                                <div class="client-phone">${formattedPhone}</div>
+                            </div>
+                            <div class="service-info">
+                                <div class="service-name">${appointment.услуга_название}</div>
+                                <div class="service-price">${appointment.цена}₽</div>
+                            </div>
                         </div>
                     </div>
+                    <div class="appointment-actions">
+                        <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
+                            ✏️ Изменить
+                        </button>
+                        <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
+                            ✕ Отменить
+                        </button>
+                    </div>
                 </div>
-                <div class="appointment-actions">
-                    <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
-                        ✏️ Изменить
-                    </button>
-                    <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
-                        ✕ Отменить
-                    </button>
-                </div>
-            </div>
-        `;
-    });
+            `;
+        });
         
-        appointmentsHTML += '</div>'; // закрываем .appointments-grid
+        appointmentsHTML += '</div>';
     }
     
-    appointmentsHTML += '</div>'; // закрываем .appointments-container
+    appointmentsHTML += '</div>';
     
-    // Заменяем старое содержимое
     appointmentsList.innerHTML = appointmentsHTML;
     
     // Добавляем кнопку "Добавить запись" если её нет
@@ -574,12 +590,18 @@ function displayAppointments(appointments, selectedDate = null) {
 }
 
 
-// Обновленная функция отмены с анимацией
-// Обновленная функция отмены записи
-function cancelAppointment(appointmentId, event) {
+// Обновленная функция отмены записи - АСИНХРОННАЯ ВЕРСИЯ
+async function cancelAppointment(appointmentId, event) {
     if (event) event.stopPropagation();
     
-    if (confirm('Вы уверены, что хотите отменить эту запись?')) {
+    try {
+        // Используем асинхронный confirm
+        const confirmed = await confirm('Вы уверены, что хотите отменить эту запись?');
+        
+        if (!confirmed) {
+            return; // Пользователь отменил действие
+        }
+        
         // Добавляем анимацию удаления
         const card = document.querySelector(`[data-appointment-id="${appointmentId}"]`);
         if (card) {
@@ -587,42 +609,41 @@ function cancelAppointment(appointmentId, event) {
             card.style.transform = 'scale(0.98)';
         }
         
-        // ИСПРАВЛЕННЫЙ ENDPOINT - используем правильный путь
-        fetch(`/api/appointment/${appointmentId}`, { // Убрали 's' из appointments
+        // Отправляем запрос на удаление
+        const response = await fetch(`/api/appointment/${appointmentId}`, {
             method: 'DELETE'
-        })
-        .then(response => {
-            if (!response.ok) throw new Error('Ошибка отмены записи');
-            return response.json();
-        })
-        .then(data => {
-            if (data.message === 'success') {
-                // Анимация удаления
-                if (card) {
-                    card.style.transition = 'all 0.3s ease';
-                    card.style.opacity = '0';
-                    card.style.transform = 'translateX(100px)';
-                    
-                    setTimeout(() => {
-                        // Перезагружаем записи
-                        loadAppointmentsForDate(window.selectedDate);
-                        // Обновляем календарь
-                        if (typeof generateCalendar === 'function') {
-                            generateCalendar();
-                        }
-                    }, 300);
-                }
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            alert('Не удалось отменить запись');
-            // Восстанавливаем карточку при ошибке
-            if (card) {
-                card.style.opacity = '1';
-                card.style.transform = 'scale(1)';
-            }
         });
+        
+        if (!response.ok) throw new Error('Ошибка отмены записи');
+        
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            // Анимация удаления
+            if (card) {
+                card.style.transition = 'all 0.3s ease';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(100px)';
+                
+                setTimeout(() => {
+                    // Перезагружаем записи
+                    loadAppointmentsForDate(window.selectedDate);
+                    // Обновляем календарь
+                    if (typeof generateCalendar === 'function') {
+                        generateCalendar();
+                    }
+                }, 300);
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось отменить запись: ' + error.message);
+        // Восстанавливаем карточку при ошибке
+        const card = document.querySelector(`[data-appointment-id="${appointmentId}"]`);
+        if (card) {
+            card.style.opacity = '1';
+            card.style.transform = 'scale(1)';
+        }
     }
 }
 
@@ -789,7 +810,7 @@ async function handleAddAppointment(e) {
     
     // Валидация времени
     if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        alert('Пожалуйста, введите корректное время');
+        showError('Пожалуйста, введите корректное время');
         return;
     }
     
@@ -798,7 +819,7 @@ async function handleAddAppointment(e) {
     
     // Валидация телефона
     if (phoneDigits.length !== 10 || !/^\d+$/.test(phoneDigits)) {
-        alert('Пожалуйста, введите корректный номер телефона (10 цифр)');
+        showError('Пожалуйста, введите корректный номер телефона (10 цифр)');
         return;
     }
     
@@ -811,7 +832,7 @@ async function handleAddAppointment(e) {
         clientPhone: '+7' + phoneDigits
     };
     
-    try {
+  try {
         const response = await fetch('/api/admin/appointment', {
             method: 'POST',
             headers: {
@@ -827,7 +848,7 @@ async function handleAddAppointment(e) {
         
         const data = await response.json();
         if (data.message === 'success') {
-            alert('Запись успешно добавлена!');
+            showSuccess('Запись успешно добавлена!');
             // Закрываем форму
             cancelAddAppointment();
             // Перезагружаем записи
@@ -837,7 +858,7 @@ async function handleAddAppointment(e) {
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        alert('Не удалось добавить запись: ' + error.message);
+        showError('Не удалось добавить запись: ' + error.message);
     }
 }
 // Обработчик изменения ориентации устройства
@@ -915,15 +936,14 @@ function showEditAppointmentForm(appointment) {
     if (isAddFormOpen) return;
     isAddFormOpen = true;
     
-    // Сохраняем текущий serviceId ГЛОБАЛЬНО
-    window.currentServiceId = appointment.услуга_id;
+    // Сохраняем оригинальные данные записи
+    window.originalAppointmentData = appointment;
     
     const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
                           appointment.клиент_телеfono?.replace('+7', '') || '';
     
     const [hours, minutes] = appointment.время.split(':');
-    // ... остальной код
-   
+    
     const formHTML = `
         <div class="edit-appointment-form" id="editAppointmentFormContainer">
             <h3>Редактировать запись</h3>
@@ -960,6 +980,7 @@ function showEditAppointmentForm(appointment) {
                     <label>Текущая услуга:</label>
                     <div class="current-service-display" style="padding: 10px; background: #f0f8ff; border-radius: 5px; margin-bottom: 10px;">
                         <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
+                        <input type="hidden" id="originalServiceId" value="${appointment.услуга_id}">
                     </div>
                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
                         ✏️ Изменить услугу
@@ -968,10 +989,11 @@ function showEditAppointmentForm(appointment) {
                 
                 <div class="form-group service-selection" id="serviceSelection" style="display: none;">
                     <label>Выберите новую услугу:</label>
-                    <select class="form-control" name="serviceId">
+                    <select class="form-control" name="serviceId" id="serviceSelect">
                         <option value="">Выберите услугу</option>
                         <!-- Услуги будут загружены динамически -->
                     </select>
+                    <small style="color: #666;">Оставьте "Выберите услугу" чтобы не менять услугу</small>
                 </div>
                 
                 <div class="form-group">
@@ -1039,6 +1061,7 @@ function showEditAppointmentForm(appointment) {
 }
 
 // Функция для переключения отображения выбора услуги
+// Обновленная функция для переключения отображения выбора услуги
 function toggleServiceSelection() {
     const serviceSelection = document.getElementById('serviceSelection');
     const toggleBtn = document.getElementById('toggleServiceBtn');
@@ -1053,6 +1076,12 @@ function toggleServiceSelection() {
         toggleBtn.textContent = '✏️ Изменить услугу';
         toggleBtn.classList.remove('btn-outline-secondary');
         toggleBtn.classList.add('btn-outline-primary');
+        
+        // Сбрасываем выбор услуги при закрытии
+        const select = document.getElementById('serviceSelect');
+        if (select) {
+            select.selectedIndex = 0;
+        }
     }
 }
 
@@ -1072,7 +1101,7 @@ async function loadServicesForEditForm(selectedServiceId) {
                 option.value = service.id;
                 option.textContent = `${service.название} - ${service.цена} ₽`;
                 
-                // Правильное сравнение ID (оба как числа)
+                // Выбираем услугу, если она соответствует исходной
                 if (parseInt(service.id) === parseInt(selectedServiceId)) {
                     option.selected = true;
                 }
@@ -1094,13 +1123,13 @@ async function handleEditAppointment(e) {
     const hours = parseInt(formData.get('hours'));
     const minutes = parseInt(formData.get('minutes'));
     
-    // Всегда используем serviceId из формы, если он есть
-    let serviceId = formData.get('serviceId');
+    // Получаем выбранную услугу из формы
+    const selectedServiceId = formData.get('serviceId');
+    // Получаем оригинальную услугу из скрытого поля
+    const originalServiceId = document.getElementById('originalServiceId')?.value;
     
-    // Если serviceId пустой, используем оригинальный
-    if (!serviceId) {
-        serviceId = window.currentServiceId;
-    }
+    // Определяем, менялась ли услуга
+    const serviceChanged = selectedServiceId && selectedServiceId !== '' && selectedServiceId !== originalServiceId;
     
     // Валидация
     if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
@@ -1117,12 +1146,15 @@ async function handleEditAppointment(e) {
         date: formData.get('date'),
         time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
         clientName: formData.get('clientName'),
-        clientPhone: '+7' + phoneDigits,
-        serviceId: serviceId
+        clientPhone: '+7' + phoneDigits
     };
     
+    // Добавляем serviceId только если услуга была изменена
+    if (serviceChanged) {
+        appointmentData.serviceId = selectedServiceId;
+    }
+    
     try {
-        // ИСПРАВЛЕННЫЙ URL - используем множественное число appointments
         const response = await fetch(`/api/appointment/${appointmentId}`, {
             method: 'PUT',
             headers: {
@@ -1156,31 +1188,304 @@ function cancelEditAppointment() {
         formContainer.remove();
     }
     isAddFormOpen = false;
+    // Очищаем глобальные переменные
+    window.originalAppointmentData = null;
+    window.currentServiceId = null;
 }
-
 
 
 // Обновленная функция удаления записи
-function deleteAppointment(appointmentId) {
-    if (confirm('Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.')) {
-        fetch(`/api/appointment/${appointmentId}`, {
+// Обновленная функция удаления записи
+async function deleteAppointment(appointmentId) {
+    try {
+        const confirmed = await confirm('Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.');
+        
+        if (!confirmed) {
+            return; // Пользователь отменил действие
+        }
+        
+        const response = await fetch(`/api/appointment/${appointmentId}`, {
             method: 'DELETE'
-        })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Ошибка удаления записи');
+        }
+        
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess('Запись успешно удалена!');
+            cancelEditAppointment();
+            loadAppointmentsForDate(window.selectedDate);
+            generateCalendar();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось удалить запись: ' + error.message);
+    }
+}
+
+
+
+// Добавить в admin.js после глобальных переменных
+let autoUpdateInterval = null;
+let lastUpdateTime = null;
+
+// Функция запуска автообновления
+function startAutoUpdate() {
+    // Останавливаем предыдущий интервал, если был
+    if (autoUpdateInterval) {
+        clearInterval(autoUpdateInterval);
+    }
+    
+    // Обновляем каждые 30 секунд
+    autoUpdateInterval = setInterval(() => {
+        autoUpdateData();
+    }, 30000); // 30 секунд
+    
+}
+
+// Функция автообновления данных
+function autoUpdateData() {
+    const now = new Date().toISOString();
+    
+    // Если мы в разделе журнала и есть выбранная дата
+    if (currentActiveSection === 'journal' && window.selectedDate && window.currentSpecialistId) {
+        updateAppointmentsSilently();
+    }
+    
+    // Если мы в разделе расписания
+    if (currentActiveSection === 'schedule' && window.scheduleManager) {
+        window.scheduleManager.loadSchedule();
+    }
+    
+    lastUpdateTime = now;
+}
+
+// Тихие обновления без показа загрузки
+function updateAppointmentsSilently() {
+    if (!window.selectedDate || !window.currentSpecialistId) return;
+    
+    fetch(`/api/appointments?specialistId=${window.currentSpecialistId}&startDate=${window.selectedDate}&endDate=${window.selectedDate}`)
         .then(response => {
-            if (!response.ok) throw new Error('Ошибка удаления записи');
+            if (!response.ok) return;
             return response.json();
         })
         .then(data => {
-            if (data.message === 'success') {
-                alert('Запись успешно удалена!');
-                cancelEditAppointment();
-                loadAppointmentsForDate(window.selectedDate);
-                generateCalendar();
+            if (data && data.message === 'success') {
+                // Обновляем только если данные изменились
+                updateAppointmentsIfChanged(data.data);
             }
         })
         .catch(error => {
-            console.error('Ошибка:', error);
-            alert('Не удалось удалить запись: ' + error.message);
+            console.log('Автообновление: ошибка загрузки данных', error);
         });
+}
+
+// Обновляем интерфейс только если данные изменились
+function updateAppointmentsIfChanged(newAppointments) {
+    const currentAppointments = getCurrentAppointmentsData();
+    
+    // Простая проверка на изменения - сравнение количества записей и хэша данных
+    if (JSON.stringify(currentAppointments) !== JSON.stringify(newAppointments)) {
+        displayAppointments(newAppointments);
+        
+        // Также обновляем календарь если он видим
+        if (typeof generateCalendar === 'function') {
+            generateCalendar();
+        }
     }
 }
+
+// Получаем текущие данные записей из DOM
+function getCurrentAppointmentsData() {
+    const appointments = [];
+    const cards = document.querySelectorAll('.appointment-card');
+    
+    cards.forEach(card => {
+        const id = card.dataset.appointmentId;
+        const time = card.querySelector('.appointment-time')?.textContent;
+        const clientName = card.querySelector('.client-name')?.textContent;
+        const clientPhone = card.querySelector('.client-phone')?.textContent;
+        const serviceName = card.querySelector('.service-name')?.textContent;
+        const price = card.querySelector('.service-price')?.textContent;
+        
+        if (id) {
+            appointments.push({
+                id,
+                время: time,
+                клиент_имя: clientName?.replace('Клиент: ', ''),
+                клиент_телефон: clientPhone,
+                услуга_название: serviceName,
+                цена: price?.replace('₽', '')
+            });
+        }
+    });
+    
+    return appointments;
+}
+
+
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        // Страница не видна - останавливаем автообновление
+        if (autoUpdateInterval) {
+            clearInterval(autoUpdateInterval);
+            autoUpdateInterval = null;
+        }
+        if (window.scheduleManager && window.scheduleManager.autoUpdateInterval) {
+            window.scheduleManager.stopAutoUpdate();
+        }
+    } else {
+        // Страница снова активна - перезапускаем автообновление
+        if (currentActiveSection === 'journal' || currentActiveSection === 'schedule') {
+            setTimeout(() => startAutoUpdate(), 1000);
+        }
+    }
+});
+
+
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Закрытие модальных окон по клику вне их области
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+        hideModal(e.target.id);
+    }
+});
+
+// Закрытие по ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modals = document.querySelectorAll('.modal-overlay');
+        modals.forEach(modal => {
+            if (modal.style.display === 'block') {
+                hideModal(modal.id);
+            }
+        });
+    }
+});
+
+// Функции-обертки для удобства
+function showSuccess(message) {
+    showModal('success', message);
+}
+
+function showError(message) {
+    showModal('error', message);
+}
+
+function showInfo(message) {
+    showModal('info', message);
+}
+
+function showConfirm(message, callback) {
+    showModal('confirm', message, callback);
+}
+
+
+// admin.js - исправленная функция showModal
+function showModal(type, message, callback = null) {
+    const modal = document.getElementById(type + 'Modal');
+    const messageElement = document.getElementById(type + 'Message');
+    
+    if (modal && messageElement) {
+        messageElement.textContent = message;
+        modal.style.display = 'block';
+        
+        if (type === 'confirm' && callback) {
+            // Клонируем кнопку Да
+            const confirmYes = document.getElementById('confirmYes').cloneNode(true);
+            document.getElementById('confirmYes').replaceWith(confirmYes);
+            
+            // Ищем кнопку Нет по классу (исправление)
+            const confirmNo = document.querySelector('#confirmModal .modal-btn-secondary');
+            if (confirmNo) {
+                const newConfirmNo = confirmNo.cloneNode(true);
+                confirmNo.replaceWith(newConfirmNo);
+                
+                newConfirmNo.onclick = () => {
+                    hideModal('confirmModal');
+                    callback(false);
+                };
+            }
+            
+            confirmYes.onclick = () => {
+                hideModal('confirmModal');
+                callback(true);
+            };
+        }
+    }
+}
+
+function hideModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Закрытие модальных окон по клику вне их области
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-overlay')) {
+        hideModal(e.target.id);
+    }
+});
+
+// Закрытие по ESC
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        const modals = document.querySelectorAll('.modal-overlay');
+        modals.forEach(modal => {
+            if (modal.style.display === 'block') {
+                hideModal(modal.id);
+            }
+        });
+    }
+});
+
+// Функции-обертки для удобства
+function showSuccess(message) {
+    showModal('success', message);
+}
+
+function showError(message) {
+    showModal('error', message);
+}
+
+function showInfo(message) {
+    showModal('info', message);
+}
+
+function showConfirm(message, callback) {
+    showModal('confirm', message, callback);
+}
+
+// Заменяем стандартные alert и confirm
+window.alert = function(message) {
+    showInfo(message);
+};
+
+window.confirm = function(message) {
+    return new Promise((resolve) => {
+        showConfirm(message, (result) => {
+            resolve(result);
+        });
+    });
+};
+
+// Инициализация модальных окон при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Скрываем все модальные окна при загрузке
+    const modals = document.querySelectorAll('.modal-overlay');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+});

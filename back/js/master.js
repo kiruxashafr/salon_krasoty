@@ -191,28 +191,9 @@ renderMasterForm(masterData = null) {
 }
 
 
-setNoPhoto() {
-    this.noPhoto = true;
-    const fileInput = document.getElementById('masterPhoto');
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    alert('Фото не будет добавлено');
-}
 
-// Метод для удаления существующего фото
-removePhoto() {
-    this.noPhoto = true;
-    const preview = document.querySelector('.image-preview');
-    if (preview) {
-        preview.style.display = 'none';
-    }
-    const removeBtn = document.querySelector('.btn-remove-photo');
-    if (removeBtn) {
-        removeBtn.style.display = 'none';
-    }
-    alert('Текущее фото будет удалено');
-}
+
+
 
     handleFileSelect(event) {
         const file = event.target.files[0];
@@ -236,6 +217,8 @@ removePhoto() {
         }
     }
 
+
+// В методе handleSubmit
 async handleSubmit(event) {
     event.preventDefault();
     
@@ -245,7 +228,7 @@ async handleSubmit(event) {
     const photoFile = formData.get('photo');
 
     if (!name) {
-        alert('Пожалуйста, введите имя мастера');
+        showError('Пожалуйста, введите имя мастера');
         return;
     }
 
@@ -254,16 +237,11 @@ async handleSubmit(event) {
         
         let photoPath = null;
         
-        // Если выбрано "без фото"
         if (this.noPhoto) {
             photoPath = null;
-        } 
-        // Если выбран файл
-        else if (photoFile && photoFile.size > 0) {
+        } else if (photoFile && photoFile.size > 0) {
             photoPath = await this.uploadPhoto(photoFile);
-        } 
-        // В режиме редактирования сохраняем старое фото
-        else if (this.isEditMode) {
+        } else if (this.isEditMode) {
             const currentPreview = document.querySelector('.image-preview');
             if (currentPreview && !currentPreview.src.startsWith('data:')) {
                 photoPath = currentPreview.src;
@@ -278,41 +256,134 @@ async handleSubmit(event) {
             фото: photoPath
         };
 
-            const url = this.isEditMode 
-                ? `/api/specialist/${this.currentMasterId}` 
-                : '/api/specialists';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
+        const url = this.isEditMode 
+            ? `/api/specialist/${this.currentMasterId}` 
+            : '/api/specialists';
             
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(masterData)
-            });
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(masterData)
+        });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
+        }
 
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                alert(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
-                this.closeForm();
-                this.loadMasters();
-            }
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
+            this.closeForm();
+            this.loadMasters();
+        }
     } catch (error) {
         console.error('Ошибка:', error);
-        alert('Не удалось сохранить: ' + error.message);
+        showError('Не удалось сохранить: ' + error.message);
     } finally {
         this.hideFormLoading();
-        this.noPhoto = false; // Сбрасываем флаг
+        this.noPhoto = false;
     }
 }
 
+// В методе toggleMasterVisibility
+async toggleMasterVisibility(masterId, status) {
+    const action = status === 1 ? 'показать' : 'скрыть';
+    
+    showConfirm(`Вы уверены, что хотите ${action} этого мастера?`, (confirmed) => {
+        if (confirmed) {
+            this.performToggleVisibility(masterId, status, action);
+        }
+    });
+}
+
+
+async performToggleVisibility(masterId, status, action) {
+    try {
+        const response = await fetch(`/api/specialist/${masterId}/visibility`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ доступен: status })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка изменения видимости');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(`Мастер успешно ${action === 'показать' ? 'показан' : 'скрыт'}!`);
+            this.loadMasters();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось изменить видимость мастера: ' + error.message);
+    }
+}
+
+
+async deleteMaster(masterId) {
+    showConfirm('Вы уверены, что хотите удалить этого мастера? Это действие нельзя отменить!', (confirmed) => {
+        if (confirmed) {
+            this.performDelete(masterId);
+        }
+    });
+}
+
+async performDelete(masterId) {
+    try {
+        const response = await fetch(`/api/specialist/${masterId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка удаления мастера');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess('Мастер успешно удален!');
+            this.loadMasters();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось удалить мастера');
+    }
+}
+
+// В методе setNoPhoto
+setNoPhoto() {
+    this.noPhoto = true;
+    const fileInput = document.getElementById('masterPhoto');
+    if (fileInput) {
+        fileInput.value = '';
+    }
+    showInfo('Фото не будет добавлено');
+}
+
+// В методе removePhoto
+removePhoto() {
+    this.noPhoto = true;
+    const preview = document.querySelector('.image-preview');
+    if (preview) {
+        preview.style.display = 'none';
+    }
+    const removeBtn = document.querySelector('.btn-remove-photo');
+    if (removeBtn) {
+        removeBtn.style.display = 'none';
+    }
+    showInfo('Текущее фото будет удалено');
+}
 // master.js - исправленная функция uploadPhoto
 async uploadPhoto(file) {
     const formData = new FormData();
@@ -337,59 +408,9 @@ async uploadPhoto(file) {
         return 'photo/работники/default.jpg';
     }
 }
-    async toggleMasterVisibility(masterId, status) {
-        const action = status === 1 ? 'показать' : 'скрыть';
-        
-        if (confirm(`Вы уверены, что хотите ${action} этого мастера?`)) {
-            try {
-                const response = await fetch(`/api/specialist/${masterId}/visibility`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ доступен: status })
-                });
 
-                if (!response.ok) {
-                    throw new Error('Ошибка изменения видимости');
-                }
 
-                const data = await response.json();
-                
-                if (data.message === 'success') {
-                    alert(`Мастер успешно ${action === 'показать' ? 'показан' : 'скрыт'}!`);
-                    this.loadMasters(); // Перезагружаем список
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось изменить видимость мастера');
-            }
-        }
-    }
 
-    async deleteMaster(masterId) {
-        if (confirm('Вы уверены, что хотите удалить этого мастера? Это действие нельзя отменить!')) {
-            try {
-                const response = await fetch(`/api/specialist/${masterId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Ошибка удаления мастера');
-                }
-
-                const data = await response.json();
-                
-                if (data.message === 'success') {
-                    alert('Мастер успешно удален!');
-                    this.loadMasters(); // Перезагружаем список
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось удалить мастера');
-            }
-        }
-    }
 
     closeForm() {
         const formContainer = document.querySelector('.master-form-container');
@@ -487,3 +508,6 @@ function loadMastersSection() {
     // Инициализируем менеджер мастеров
     mastersManager = new MastersManager();
 }
+
+
+

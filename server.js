@@ -4,6 +4,7 @@ const path = require('path');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
+const sharp = require('sharp');
 
 const app = express();
 const PORT = 3011;
@@ -65,19 +66,39 @@ const upload = multer({
 });
 
 // API endpoint для загрузки фото
-app.post('/api/upload-photo', upload.single('photo'), (req, res) => {
+app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Файл не был загружен' });
         }
-        
-        console.log('Файл сохранен по пути:', req.file.path);
-        console.log('Имя файла:', req.file.filename);
-        
-        // Возвращаем относительный путь к файлу
+
+        let filePath = req.file.path;
+        let filename = req.file.filename;
+
+        // Проверяем, является ли файл HEIC/HEIF
+        if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || path.extname(filename).toLowerCase() === '.heic') {
+            // Конвертируем в JPEG
+            const newFilename = filename.replace(/\.[^/.]+$/, ".jpg"); // Заменяем расширение на .jpg
+            const newFilePath = path.join(path.dirname(filePath), newFilename);
+
+            await sharp(filePath)
+                .jpeg({ quality: 90 }) // Качество 90% для баланса размера/качества
+                .toFile(newFilePath);
+
+            // Удаляем оригинальный HEIC
+            fs.unlinkSync(filePath);
+
+            // Обновляем пути
+            filePath = newFilePath;
+            filename = newFilename;
+        }
+
+        console.log('Файл сохранен по пути:', filePath);
+        console.log('Имя файла:', filename);
+
         res.json({
             message: "success",
-            filePath: 'photo/работники/' + req.file.filename
+            filePath: 'photo/работники/' + filename
         });
     } catch (error) {
         console.error('Ошибка загрузки фото:', error);
@@ -797,7 +818,6 @@ app.post('/api/services', (req, res) => {
 
 
 // API endpoint to get appointments with date range
-// API endpoint to get appointments with date range
 app.get('/api/appointments', (req, res) => {
     const specialistId = req.query.specialistId;
     const startDate = req.query.startDate;
@@ -851,7 +871,8 @@ app.get('/api/appointments', (req, res) => {
         sql += ' WHERE ' + conditions.join(' AND ');
     }
     
-    sql += ' ORDER BY з.created_at DESC';
+    // ИСПРАВЛЕНИЕ: Добавляем сортировку по дате и времени
+    sql += ' ORDER BY з.дата ASC, з.время ASC';
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -869,15 +890,13 @@ app.get('/api/appointments', (req, res) => {
 });
 
 // API endpoint to cancel appointment
-// API endpoint to update appointment
-// server.js - добавить этот endpoint для удаления записей
-// API endpoint to update appointment
+// API endpoint to update appointment - ИСПРАВЛЕННАЯ ВЕРСИЯ
 app.put('/api/appointment/:id', (req, res) => {
     const appointmentId = req.params.id;
     const { date, time, clientName, clientPhone, serviceId } = req.body;
     
-    if (!date || !time || !clientName || !clientPhone || !serviceId) {
-        return res.status(400).json({ error: 'Все поля обязательны' });
+    if (!date || !time || !clientName || !clientPhone) {
+        return res.status(400).json({ error: 'Дата, время, имя и телефон обязательны' });
     }
     
     // Start transaction
@@ -936,6 +955,9 @@ app.put('/api/appointment/:id', (req, res) => {
             function checkNewTimeSlot() {
                 // 3. Check if new time slot is available (if time changed)
                 if (currentAppointment.old_date !== date || currentAppointment.old_time !== time) {
+                    // Используем текущую услугу, если serviceId не передан
+                    const finalServiceId = serviceId || currentAppointment.услуга_id;
+                    
                     const checkTimeSql = `
                         SELECT id FROM расписание 
                         WHERE мастер_id = ? 
@@ -947,7 +969,7 @@ app.put('/api/appointment/:id', (req, res) => {
                     
                     db.get(checkTimeSql, [
                         currentAppointment.мастер_id,
-                        serviceId,
+                        finalServiceId,
                         date,
                         time
                     ], (err, row) => {
@@ -967,7 +989,7 @@ app.put('/api/appointment/:id', (req, res) => {
                         reserveNewTimeSlot(newScheduleId);
                     });
                 } else {
-                    // Time didn't change, just update client info and service
+                    // Time didn't change, just update client info and service (if changed)
                     updateAppointment(null);
                 }
             }
@@ -987,108 +1009,107 @@ app.put('/api/appointment/:id', (req, res) => {
                 });
             }
             
- function updateAppointment(newScheduleId) {
-    // 5. Update client information
-    const updateClientSql = "UPDATE клиенты SET имя = ?, телефон = ? WHERE id = ?";
-    
-    db.run(updateClientSql, [clientName, clientPhone, currentAppointment.клиент_id], function(err) {
-        if (err) {
-            db.run("ROLLBACK");
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        
-        // 6. Determine if service was changed and get appropriate price
-        const serviceChanged = serviceId && serviceId !== currentAppointment.услуга_id;
-        
-        if (serviceChanged) {
-            // Service changed - get new price
-            const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
-            db.get(getPriceSql, [serviceId], (err, serviceRow) => {
-                if (err) {
-                    db.run("ROLLBACK");
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
+            function updateAppointment(newScheduleId) {
+                // 5. Update client information
+                const updateClientSql = "UPDATE клиенты SET имя = ?, телефон = ? WHERE id = ?";
                 
-                if (!serviceRow) {
-                    db.run("ROLLBACK");
-                    res.status(404).json({ error: 'Услуга не найдена' });
-                    return;
-                }
-                
-                const newPrice = serviceRow.цена;
-                updateAppointmentRecord(serviceId, newPrice);
-            });
-        } else {
-            // Service not changed - use current service and price
-            const getCurrentPriceSql = "SELECT цена FROM записи WHERE id = ?";
-            db.get(getCurrentPriceSql, [appointmentId], (err, currentPriceRow) => {
-                if (err) {
-                    db.run("ROLLBACK");
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                
-                updateAppointmentRecord(currentAppointment.услуга_id, currentPriceRow.цена);
-            });
-        }
-        
-        function updateAppointmentRecord(finalServiceId, finalPrice) {
-            // 7. Update appointment record
-            const updateAppointmentSql = `
-                UPDATE записи 
-                SET услуга_id = ?, дата = ?, время = ?, цена = ?
-                WHERE id = ?
-            `;
-            
-            db.run(updateAppointmentSql, [
-                finalServiceId,
-                date,
-                time,
-                finalPrice,
-                appointmentId
-            ], function(err) {
-                if (err) {
-                    db.run("ROLLBACK");
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                
-                // 8. Delete old notifications since appointment changed
-                const deleteNotificationsSql = "DELETE FROM уведомления WHERE запись_id = ?";
-                db.run(deleteNotificationsSql, [appointmentId], function(err) {
+                db.run(updateClientSql, [clientName, clientPhone, currentAppointment.клиент_id], function(err) {
                     if (err) {
                         db.run("ROLLBACK");
                         res.status(500).json({ error: err.message });
                         return;
                     }
                     
-                    db.run("COMMIT", function(err) {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            res.status(500).json({ error: err.message });
-                            return;
+                    // 6. Определяем, нужно ли обновлять услугу и цену
+                    const serviceChanged = serviceId && serviceId !== currentAppointment.услуга_id;
+                    
+                    if (serviceChanged) {
+                        // Service changed - get new price
+                        const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
+                        db.get(getPriceSql, [serviceId], (err, serviceRow) => {
+                            if (err) {
+                                db.run("ROLLBACK");
+                                res.status(500).json({ error: err.message });
+                                return;
+                            }
+                            
+                            if (!serviceRow) {
+                                db.run("ROLLBACK");
+                                res.status(404).json({ error: 'Услуга не найдена' });
+                                return;
+                            }
+                            
+                            const newPrice = serviceRow.цена;
+                            updateAppointmentRecord(serviceId, newPrice);
+                        });
+                    } else {
+                        // Service not changed - use current service and price
+                        updateAppointmentRecord(currentAppointment.услуга_id, null);
+                    }
+                    
+                    function updateAppointmentRecord(finalServiceId, newPrice) {
+                        // 7. Update appointment record
+                        let updateAppointmentSql;
+                        let params;
+                        
+                        if (newPrice !== null) {
+                            // Если цена изменилась
+                            updateAppointmentSql = `
+                                UPDATE записи 
+                                SET услуга_id = ?, дата = ?, время = ?, цена = ?
+                                WHERE id = ?
+                            `;
+                            params = [finalServiceId, date, time, newPrice, appointmentId];
+                        } else {
+                            // Если услуга не менялась, обновляем только дату и время
+                            updateAppointmentSql = `
+                                UPDATE записи 
+                                SET дата = ?, время = ?
+                                WHERE id = ?
+                            `;
+                            params = [date, time, appointmentId];
                         }
                         
-                        res.json({
-                            message: "success",
-                            data: {
-                                id: appointmentId,
-                                date,
-                                time,
-                                clientName,
-                                clientPhone,
-                                serviceId: finalServiceId,
-                                price: finalPrice
+                        db.run(updateAppointmentSql, params, function(err) {
+                            if (err) {
+                                db.run("ROLLBACK");
+                                res.status(500).json({ error: err.message });
+                                return;
                             }
+                            
+                            // 8. Delete old notifications since appointment changed
+                            const deleteNotificationsSql = "DELETE FROM уведомления WHERE запись_id = ?";
+                            db.run(deleteNotificationsSql, [appointmentId], function(err) {
+                                if (err) {
+                                    db.run("ROLLBACK");
+                                    res.status(500).json({ error: err.message });
+                                    return;
+                                }
+                                
+                                db.run("COMMIT", function(err) {
+                                    if (err) {
+                                        db.run("ROLLBACK");
+                                        res.status(500).json({ error: err.message });
+                                        return;
+                                    }
+                                    
+                                    res.json({
+                                        message: "success",
+                                        data: {
+                                            id: appointmentId,
+                                            date,
+                                            time,
+                                            clientName,
+                                            clientPhone,
+                                            serviceId: finalServiceId
+                                        }
+                                    });
+                                });
+                            });
                         });
-                    });
+                    }
                 });
-            });
-        }
-    });
-}
+            }
         });
     });
 });
@@ -2444,6 +2465,82 @@ app.get('/api/appointments-for-hourly', (req, res) => {
         });
     });
 });
+
+
+
+// API endpoint to cancel appointment
+app.delete('/api/appointment/:id', (req, res) => {
+    const appointmentId = req.params.id;
+
+    // Start a transaction to ensure atomicity
+    db.serialize(() => {
+        // Get appointment details
+        const getAppointmentSql = `
+            SELECT мастер_id, услуга_id, дата, время 
+            FROM записи 
+            WHERE id = ?
+        `;
+        
+        db.get(getAppointmentSql, [appointmentId], (err, appointment) => {
+            if (err) {
+                console.error('Error getting appointment:', err);
+                return res.status(500).json({ error: 'Ошибка получения данных записи' });
+            }
+            
+            if (!appointment) {
+                return res.status(404).json({ error: 'Запись не найдена' });
+            }
+            
+            // Delete the appointment
+            const deleteSql = `DELETE FROM записи WHERE id = ?`;
+            db.run(deleteSql, [appointmentId], function(err) {
+                if (err) {
+                    console.error('Error deleting appointment:', err);
+                    return res.status(500).json({ error: 'Ошибка удаления записи' });
+                }
+                
+                if (this.changes === 0) {
+                    return res.status(404).json({ error: 'Запись не найдена' });
+                }
+                
+                // Update corresponding schedule slot
+                const updateScheduleSql = `
+                    UPDATE расписание 
+                    SET доступно = 1 
+                    WHERE мастер_id = ? 
+                    AND услуга_id = ? 
+                    AND дата = ? 
+                    AND время = ?
+                `;
+                
+                db.run(updateScheduleSql, 
+                    [appointment.мастер_id, appointment.услуга_id, appointment.дата, appointment.время], 
+                    function(err) {
+                        if (err) {
+                            console.error('Error updating schedule:', err);
+                            return res.status(500).json({ error: 'Ошибка обновления расписания' });
+                        }
+                        
+                        // Log the update for debugging
+                        console.log(`Updated schedule slot: master=${appointment.мастер_id}, service=${appointment.услуга_id}, date=${appointment.дата}, time=${appointment.время}, rows affected=${this.changes}`);
+                        
+                        res.json({
+                            message: "success",
+                            data: { 
+                                id: appointmentId,
+                                scheduleUpdated: this.changes > 0
+                            }
+                        });
+                    }
+                );
+            });
+        });
+    });
+
+
+});   
+
+
 
 // server.js - добавить этот endpoint
 app.get('/api/appointments-with-notifications', (req, res) => {

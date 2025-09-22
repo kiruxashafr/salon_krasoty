@@ -284,93 +284,99 @@ async loadFreeTime() {
             console.error('Ошибка загрузки данных:', error);
         }
     }
+// В методе handleSubmit
+async handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const date = formData.get('date');
+    const hours = formData.get('hours');
+    const minutes = formData.get('minutes');
+    const specialistId = formData.get('specialistId');
+    const serviceId = formData.get('serviceId');
 
-    async handleSubmit(event) {
-        event.preventDefault();
+    if (!date || !hours || !minutes || !specialistId || !serviceId) {
+        showError('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+
+    const time = `${hours}:${minutes}`;
+
+    try {
+        this.showFormLoading();
         
-        const formData = new FormData(event.target);
-        const date = formData.get('date');
-        const hours = formData.get('hours');
-        const minutes = formData.get('minutes');
-        const specialistId = formData.get('specialistId');
-        const serviceId = formData.get('serviceId');
+        const scheduleData = {
+            дата: date,
+            время: time,
+            мастер_id: parseInt(specialistId),
+            услуга_id: parseInt(serviceId),
+            доступно: 1
+        };
 
-        if (!date || !hours || !minutes || !specialistId || !serviceId) {
-            alert('Пожалуйста, заполните все обязательные поля');
-            return;
+        const url = this.isEditMode 
+            ? `/api/schedule/${this.currentScheduleId}` 
+            : '/api/schedule';
+            
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(scheduleData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
         }
 
-        // Формируем время в формате HH:MM
-        const time = `${hours}:${minutes}`;
-
-        try {
-            this.showFormLoading();
-            
-            const scheduleData = {
-                дата: date,
-                время: time,
-                мастер_id: parseInt(specialistId),
-                услуга_id: parseInt(serviceId),
-                доступно: 1
-            };
-
-            const url = this.isEditMode 
-                ? `/api/schedule/${this.currentScheduleId}` 
-                : '/api/schedule';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(scheduleData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
-
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                alert(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
-                this.closeModal();
-                this.loadFreeTime();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
+            this.closeModal();
+            this.loadFreeTime();
         }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
     }
+}
 
-    async deleteSchedule(scheduleId) {
-        if (confirm('Вы уверены, что хотите удалить это свободное время?')) {
-            try {
-                const response = await fetch(`/api/schedule/${scheduleId}`, {
-                    method: 'DELETE'
-                });
-
-                if (!response.ok) {
-                    throw new Error('Ошибка удаления свободного времени');
-                }
-
-                const data = await response.json();
-                
-                if (data.message === 'success') {
-                    alert('Свободное время успешно удалено!');
-                    this.loadFreeTime();
-                }
-            } catch (error) {
-                console.error('Ошибка:', error);
-                alert('Не удалось удалить свободное время');
-            }
+// В методе deleteSchedule
+async deleteSchedule(scheduleId) {
+    showConfirm('Вы уверены, что хотите удалить это свободное время?', (confirmed) => {
+        if (confirmed) {
+            this.performDelete(scheduleId);
         }
+    });
+}
+
+async performDelete(scheduleId) {
+    try {
+        const response = await fetch(`/api/schedule/${scheduleId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            throw new Error('Ошибка удаления свободного времени');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess('Свободное время успешно удалено!');
+            this.loadFreeTime();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось удалить свободное время');
     }
+}
 
     closeModal() {
         const modal = document.getElementById('scheduleModal');

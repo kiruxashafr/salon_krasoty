@@ -62,6 +62,72 @@
         </div>
     </div>
 
+
+
+
+
+    <!-- Универсальные модальные окна -->
+<div id="successModal" class="modal-overlay modal-success">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-icon">✅</div>
+            <h3 class="modal-title">Успех</h3>
+        </div>
+        <div class="modal-body">
+            <p id="successMessage">Операция выполнена успешно!</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-primary" onclick="hideModal('successModal')">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="errorModal" class="modal-overlay modal-error">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-icon">❌</div>
+            <h3 class="modal-title">Ошибка</h3>
+        </div>
+        <div class="modal-body">
+            <p id="errorMessage">Произошла ошибка!</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-primary" onclick="hideModal('errorModal')">OK</button>
+        </div>
+    </div>
+</div>
+
+<div id="confirmModal" class="modal-overlay modal-confirm">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-icon">⚠️</div>
+            <h3 class="modal-title">Подтверждение</h3>
+        </div>
+        <div class="modal-body">
+            <p id="confirmMessage">Вы уверены, что хотите выполнить это действие?</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-primary" id="confirmYes">Да</button>
+            <button class="modal-btn modal-btn-secondary" onclick="hideModal('confirmModal')">Нет</button>
+        </div>
+    </div>
+</div>
+
+<div id="infoModal" class="modal-overlay modal-info">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <div class="modal-icon">ℹ️</div>
+            <h3 class="modal-title">Информация</h3>
+        </div>
+        <div class="modal-body">
+            <p id="infoMessage">Информационное сообщение</p>
+        </div>
+        <div class="modal-footer">
+            <button class="modal-btn modal-btn-primary" onclick="hideModal('infoModal')">OK</button>
+        </div>
+    </div>
+</div>
+
     <!-- Подключаем скрипты -->
     <script src="js/admin.js"></script>
     <script src="js/master.js"></script>
