@@ -6,7 +6,8 @@ class ScheduleManager {
         this.startDate = null;
         this.endDate = null;
         this.specialists = [];
-        this.autoUpdateInterval = null; // Добавляем интервал
+        this.autoUpdateInterval = null;
+        this.currentPeriod = 'week'; // 'today' или 'week'
         this.init();
     }
 
@@ -84,7 +85,6 @@ class ScheduleManager {
             this.loadSchedule();
         });
 
-        // Быстрые кнопки дат
         document.getElementById('todayBtn').addEventListener('click', () => {
             this.setToday();
             this.loadSchedule();
@@ -95,18 +95,29 @@ class ScheduleManager {
             this.loadSchedule();
         });
 
-        // Выбор диапазона дат
+        // Выбор диапазона дат вручную - сбрасываем активный период
         document.getElementById('startDate').addEventListener('change', (e) => {
             this.startDate = e.target.value;
+            this.resetActivePeriod(); // Сбрасываем подсветку при ручном выборе
             this.loadSchedule();
         });
 
         document.getElementById('endDate').addEventListener('change', (e) => {
             this.endDate = e.target.value;
+            this.resetActivePeriod(); // Сбрасываем подсветку при ручном выборе
             this.loadSchedule();
         });
     }
 
+
+
+        // Новый метод для сброса активного периода при ручном выборе дат
+    resetActivePeriod() {
+        document.querySelectorAll('.quick-buttons .btn-date').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        this.currentPeriod = null;
+    }
 
     setDefaultDates() {
         const today = new Date();
@@ -117,6 +128,7 @@ class ScheduleManager {
         this.endDate = endDate.toISOString().split('T')[0];
         
         this.updateDateInputs();
+        this.setActivePeriodButton('week'); // Устанавливаем неделю по умолчанию
     }
 
     setToday() {
@@ -124,6 +136,8 @@ class ScheduleManager {
         this.startDate = today.toISOString().split('T')[0];
         this.endDate = today.toISOString().split('T')[0];
         this.updateDateInputs();
+        this.setActivePeriodButton('today');
+        this.currentPeriod = 'today';
     }
 
     setWeek() {
@@ -135,6 +149,8 @@ class ScheduleManager {
         this.endDate = endDate.toISOString().split('T')[0];
         
         this.updateDateInputs();
+        this.setActivePeriodButton('week');
+        this.currentPeriod = 'week';
     }
 
     updateDateInputs() {
@@ -182,6 +198,23 @@ class ScheduleManager {
         if (!this.selectedSpecialistId) {
             select.value = 'all';
         }
+    }
+
+        // Новый метод для установки активной кнопки периода
+    setActivePeriodButton(period) {
+        // Убираем активный класс со всех кнопок периода
+        document.querySelectorAll('.quick-buttons .btn-date').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // Добавляем активный класс к выбранной кнопке
+        if (period === 'today') {
+            document.getElementById('todayBtn').classList.add('active');
+        } else if (period === 'week') {
+            document.getElementById('weekBtn').classList.add('active');
+        }
+        
+        this.currentPeriod = period;
     }
 
     async loadSchedule() {
@@ -427,8 +460,6 @@ function loadScheduleSection() {
                 <h2 id="scheduleTitle">Расписание записей (Все мастера)</h2>
             </div>
             
-            <!-- Убрали вкладки выбора вида -->
-
             <div class="schedule-tabs type-tabs">
                 <button id="appointmentsType" class="schedule-tab active">Расписание записей</button>
                 <button id="freetimeType" class="schedule-tab">Расписание свободного времени</button>
@@ -455,7 +486,6 @@ function loadScheduleSection() {
                 </div>
             </div>
             
-            <!-- Кнопка для создания фото -->
             <div class="photo-generator-container">
                 <button id="generatePhotoBtn" class="btn-photo-generator">
                     📷 Создать фото расписания
@@ -471,8 +501,6 @@ function loadScheduleSection() {
         </div>
     `;
 
-    // Инициализируем менеджер расписания
     window.scheduleManager = new ScheduleManager();
-    
-    // Добавляем обработчик для кнопки генерации фото
-    document.getElementById('generatePhotoBtn').addEventListener('click', openPhotoGenerator);}
+    document.getElementById('generatePhotoBtn').addEventListener('click', openPhotoGenerator);
+}
