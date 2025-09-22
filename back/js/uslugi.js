@@ -1,12 +1,13 @@
-// uslugi.js
+// uslugi.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
 class ServicesManager {
-constructor() {
-    this.currentServiceId = null;
-    this.isEditMode = false;
-    this.existingCategories = [];
-    this.noPhoto = false; // Добавляем флаг
-    this.init();
-}
+    constructor() {
+        this.currentServiceId = null;
+        this.isEditMode = false;
+        this.existingCategories = [];
+        this.noPhoto = false;
+        this.originalServiceData = null; // Добавляем для хранения исходных данных
+        this.init();
+    }
 
     init() {
         this.loadServices();
@@ -148,7 +149,7 @@ constructor() {
         this.renderServiceForm();
     }
 
-    async editService(serviceId) {
+  async editService(serviceId) {
         try {
             this.showFormLoading();
             const response = await fetch(`/api/service/${serviceId}`);
@@ -162,6 +163,7 @@ constructor() {
             if (data.message === 'success') {
                 this.isEditMode = true;
                 this.currentServiceId = serviceId;
+                this.originalServiceData = data.data; // Сохраняем исходные данные
                 this.renderServiceForm(data.data);
             }
         } catch (error) {
@@ -346,60 +348,55 @@ removePhoto() {
         }
     }
 
-async handleSubmit(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const category = formData.get('category').trim();
-    const name = formData.get('name').trim();
-    const price = parseFloat(formData.get('price'));
-    const description = formData.get('description').trim();
-    const photoFile = formData.get('photo');
-
-    if (!category || !name || isNaN(price)) {
-        alert('Пожалуйста, заполните все обязательные поля');
-        return;
-    }
-
-    try {
-        this.showFormLoading();
+    async handleSubmit(event) {
+        event.preventDefault();
         
-        let photoPath = null;
-        
-        // Если выбрано "без фото"
-        if (this.noPhoto) {
-            photoPath = null;
-        } 
-        // Если выбран файл
-        else if (photoFile && photoFile.size > 0) {
-            photoPath = await this.uploadPhoto(photoFile);
-        } 
-        // В режиме редактирования сохраняем старое фото
-        else if (this.isEditMode) {
-            const currentPreview = document.querySelector('.image-preview');
-            if (currentPreview && !currentPreview.src.startsWith('data:')) {
-                photoPath = currentPreview.src;
-            } else {
+        const formData = new FormData(event.target);
+        const category = formData.get('category').trim();
+        const name = formData.get('name').trim();
+        const price = parseFloat(formData.get('price'));
+        const description = formData.get('description').trim();
+        const photoFile = formData.get('photo');
+
+        if (!category || !name || isNaN(price)) {
+            alert('Пожалуйста, заполните все обязательные поля');
+            return;
+        }
+
+        try {
+            this.showFormLoading();
+            
+            let photoPath = null;
+            
+            // Обработка фото - ИСПРАВЛЕННАЯ ЛОГИКА
+            if (this.noPhoto) {
+                // Пользователь явно выбрал "без фото"
                 photoPath = null;
+            } else if (photoFile && photoFile.size > 0) {
+                // Загружаем новое фото
+                photoPath = await this.uploadPhoto(photoFile);
+            } else if (this.isEditMode && this.originalServiceData) {
+                // В режиме редактирования сохраняем существующее фото (если не было изменений)
+                photoPath = this.originalServiceData.фото;
             }
-        }
 
-        let доступен = 1;
-        if (this.isEditMode) {
-            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-            if (serviceCard) {
-                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+            // Получаем текущий статус видимости
+            let доступен = 1;
+            if (this.isEditMode) {
+                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+                if (serviceCard) {
+                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+                }
             }
-        }
 
-        const serviceData = {
-            категория: category,
-            название: name,
-            цена: price,
-            описание: description,
-            фото: photoPath, // Может быть null
-            доступен: доступен
-        };
+            const serviceData = {
+                категория: category,
+                название: name,
+                цена: price,
+                описание: description,
+                фото: photoPath,
+                доступен: доступен
+            };
 
             const url = this.isEditMode 
                 ? `/api/service/${this.currentServiceId}` 
@@ -431,14 +428,14 @@ async handleSubmit(event) {
                 this.closeForm();
                 this.loadServices();
             }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        alert('Не удалось сохранить: ' + error.message);
-    } finally {
-        this.hideFormLoading();
-        this.noPhoto = false; // Сбрасываем флаг
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading();
+            this.noPhoto = false;
+        }
     }
-}
 
     async uploadPhoto(file) {
         const formData = new FormData();

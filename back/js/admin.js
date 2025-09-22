@@ -575,6 +575,7 @@ function displayAppointments(appointments, selectedDate = null) {
 
 
 // Обновленная функция отмены с анимацией
+// Обновленная функция отмены записи
 function cancelAppointment(appointmentId, event) {
     if (event) event.stopPropagation();
     
@@ -586,7 +587,8 @@ function cancelAppointment(appointmentId, event) {
             card.style.transform = 'scale(0.98)';
         }
         
-        fetch(`/api/appointments/${appointmentId}`, {
+        // ИСПРАВЛЕННЫЙ ENDPOINT - используем правильный путь
+        fetch(`/api/appointment/${appointmentId}`, { // Убрали 's' из appointments
             method: 'DELETE'
         })
         .then(response => {
@@ -623,6 +625,9 @@ function cancelAppointment(appointmentId, event) {
         });
     }
 }
+
+
+
 // Глобальные функции для использования в других файлах
 function showLoading() {
     document.getElementById('contentContainer').innerHTML = 
@@ -910,11 +915,15 @@ function showEditAppointmentForm(appointment) {
     if (isAddFormOpen) return;
     isAddFormOpen = true;
     
+    // Сохраняем текущий serviceId ГЛОБАЛЬНО
+    window.currentServiceId = appointment.услуга_id;
+    
     const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
                           appointment.клиент_телеfono?.replace('+7', '') || '';
     
     const [hours, minutes] = appointment.время.split(':');
-    
+    // ... остальной код
+   
     const formHTML = `
         <div class="edit-appointment-form" id="editAppointmentFormContainer">
             <h3>Редактировать запись</h3>
@@ -1076,36 +1085,6 @@ async function loadServicesForEditForm(selectedServiceId) {
     }
 }
 
-// Исправленная функция для загрузки услуг в форму редактирования
-async function loadServicesForEditForm(selectedServiceId) {
-    try {
-        const response = await fetch('/api/services');
-        if (!response.ok) throw new Error('Ошибка загрузки услуг');
-        
-        const data = await response.json();
-        if (data.message === 'success') {
-            const select = document.querySelector('#editAppointmentForm select[name="serviceId"]');
-            select.innerHTML = '<option value="">Выберите услугу</option>';
-            
-            data.data.forEach(service => {
-                const option = document.createElement('option');
-                option.value = service.id;
-                option.textContent = `${service.название} - ${service.цена} ₽`;
-                
-                // Правильное сравнение ID (оба как числа)
-                if (parseInt(service.id) === parseInt(selectedServiceId)) {
-                    option.selected = true;
-                }
-                
-                select.appendChild(option);
-            });
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-    }
-}
-
-// Обработчик редактирования записи
 async function handleEditAppointment(e) {
     e.preventDefault();
     
@@ -1114,7 +1093,14 @@ async function handleEditAppointment(e) {
     const phoneDigits = formData.get('clientPhone');
     const hours = parseInt(formData.get('hours'));
     const minutes = parseInt(formData.get('minutes'));
-    const serviceId = formData.get('serviceId') || window.currentServiceId; // Используем текущую услугу если не выбрана новая
+    
+    // Всегда используем serviceId из формы, если он есть
+    let serviceId = formData.get('serviceId');
+    
+    // Если serviceId пустой, используем оригинальный
+    if (!serviceId) {
+        serviceId = window.currentServiceId;
+    }
     
     // Валидация
     if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
@@ -1136,7 +1122,8 @@ async function handleEditAppointment(e) {
     };
     
     try {
-        const response = await fetch(`/api/appointments/${appointmentId}`, {
+        // ИСПРАВЛЕННЫЙ URL - используем множественное число appointments
+        const response = await fetch(`/api/appointment/${appointmentId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -1173,10 +1160,10 @@ function cancelEditAppointment() {
 
 
 
-// Добавьте в admin.js если ещё нет
+// Обновленная функция удаления записи
 function deleteAppointment(appointmentId) {
     if (confirm('Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.')) {
-        fetch(`/api/appointments/${appointmentId}`, {
+        fetch(`/api/appointment/${appointmentId}`, {
             method: 'DELETE'
         })
         .then(response => {
@@ -1193,7 +1180,7 @@ function deleteAppointment(appointmentId) {
         })
         .catch(error => {
             console.error('Ошибка:', error);
-            alert('Не удалось удалить запись');
+            alert('Не удалось удалить запись: ' + error.message);
         });
     }
 }

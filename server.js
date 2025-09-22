@@ -870,7 +870,9 @@ app.get('/api/appointments', (req, res) => {
 
 // API endpoint to cancel appointment
 // API endpoint to update appointment
-app.put('/api/appointments/:id', (req, res) => {
+// server.js - добавить этот endpoint для удаления записей
+// API endpoint to update appointment
+app.put('/api/appointment/:id', (req, res) => {
     const appointmentId = req.params.id;
     const { date, time, clientName, clientPhone, serviceId } = req.body;
     
@@ -882,40 +884,170 @@ app.put('/api/appointments/:id', (req, res) => {
     db.serialize(() => {
         db.run("BEGIN TRANSACTION");
         
-        // 1. Get old appointment data
-        const getOldAppointmentSql = `
-            SELECT мастер_id, услуга_id, дата, время 
+        // 1. Get current appointment data
+        const getCurrentSql = `
+            SELECT клиент_id, мастер_id, услуга_id, дата as old_date, время as old_time 
             FROM записи WHERE id = ?
         `;
         
-        db.get(getOldAppointmentSql, [appointmentId], (err, oldAppointment) => {
+        db.get(getCurrentSql, [appointmentId], (err, currentAppointment) => {
             if (err) {
                 db.run("ROLLBACK");
                 res.status(500).json({ error: err.message });
                 return;
             }
             
-            if (!oldAppointment) {
+            if (!currentAppointment) {
                 db.run("ROLLBACK");
                 res.status(404).json({ error: 'Запись не найдена' });
                 return;
             }
             
-            // 2. Free old time slot
-            const freeOldTimeSql = `
-                UPDATE расписание 
-                SET доступно = 1 
-                WHERE мастер_id = ? 
-                AND услуга_id = ?
-                AND дата = ?
-                AND время = ?
+            // 2. Free the old time slot if date or time changed
+            if (currentAppointment.old_date !== date || currentAppointment.old_time !== time) {
+                const freeOldTimeSql = `
+                    UPDATE расписание 
+                    SET доступно = 1 
+                    WHERE мастер_id = ? 
+                    AND услуга_id = ?
+                    AND дата = ?
+                    AND время = ?
+                `;
+                
+                db.run(freeOldTimeSql, [
+                    currentAppointment.мастер_id,
+                    currentAppointment.услуга_id,
+                    currentAppointment.old_date,
+                    currentAppointment.old_time
+                ], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    // Check if new time slot is available
+                    checkNewTimeSlot();
+                });
+            } else {
+                checkNewTimeSlot();
+            }
+            
+            function checkNewTimeSlot() {
+                // 3. Check if new time slot is available (if time changed)
+                if (currentAppointment.old_date !== date || currentAppointment.old_time !== time) {
+                    const checkTimeSql = `
+                        SELECT id FROM расписание 
+                        WHERE мастер_id = ? 
+                        AND услуга_id = ?
+                        AND дата = ?
+                        AND время = ?
+                        AND доступно = 1
+                    `;
+                    
+                    db.get(checkTimeSql, [
+                        currentAppointment.мастер_id,
+                        serviceId,
+                        date,
+                        time
+                    ], (err, row) => {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        if (!row) {
+                            db.run("ROLLBACK");
+                            res.status(409).json({ error: 'Новое время уже занято' });
+                            return;
+                        }
+                        
+                        const newScheduleId = row.id;
+                        reserveNewTimeSlot(newScheduleId);
+                    });
+                } else {
+                    // Time didn't change, just update client info and service
+                    updateAppointment(null);
+                }
+            }
+            
+            function reserveNewTimeSlot(scheduleId) {
+                // 4. Reserve new time slot
+                const reserveSql = "UPDATE расписание SET доступно = 0 WHERE id = ?";
+                
+                db.run(reserveSql, [scheduleId], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    updateAppointment(scheduleId);
+                });
+            }
+            
+ function updateAppointment(newScheduleId) {
+    // 5. Update client information
+    const updateClientSql = "UPDATE клиенты SET имя = ?, телефон = ? WHERE id = ?";
+    
+    db.run(updateClientSql, [clientName, clientPhone, currentAppointment.клиент_id], function(err) {
+        if (err) {
+            db.run("ROLLBACK");
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        // 6. Determine if service was changed and get appropriate price
+        const serviceChanged = serviceId && serviceId !== currentAppointment.услуга_id;
+        
+        if (serviceChanged) {
+            // Service changed - get new price
+            const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
+            db.get(getPriceSql, [serviceId], (err, serviceRow) => {
+                if (err) {
+                    db.run("ROLLBACK");
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                
+                if (!serviceRow) {
+                    db.run("ROLLBACK");
+                    res.status(404).json({ error: 'Услуга не найдена' });
+                    return;
+                }
+                
+                const newPrice = serviceRow.цена;
+                updateAppointmentRecord(serviceId, newPrice);
+            });
+        } else {
+            // Service not changed - use current service and price
+            const getCurrentPriceSql = "SELECT цена FROM записи WHERE id = ?";
+            db.get(getCurrentPriceSql, [appointmentId], (err, currentPriceRow) => {
+                if (err) {
+                    db.run("ROLLBACK");
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+                
+                updateAppointmentRecord(currentAppointment.услуга_id, currentPriceRow.цена);
+            });
+        }
+        
+        function updateAppointmentRecord(finalServiceId, finalPrice) {
+            // 7. Update appointment record
+            const updateAppointmentSql = `
+                UPDATE записи 
+                SET услуга_id = ?, дата = ?, время = ?, цена = ?
+                WHERE id = ?
             `;
             
-            db.run(freeOldTimeSql, [
-                oldAppointment.мастер_id,
-                oldAppointment.услуга_id,
-                oldAppointment.дата,
-                oldAppointment.время
+            db.run(updateAppointmentSql, [
+                finalServiceId,
+                date,
+                time,
+                finalPrice,
+                appointmentId
             ], function(err) {
                 if (err) {
                     db.run("ROLLBACK");
@@ -923,162 +1055,40 @@ app.put('/api/appointments/:id', (req, res) => {
                     return;
                 }
                 
-                // 3. Check if new time slot is available
-                const checkNewTimeSql = `
-                    SELECT id FROM расписание 
-                    WHERE мастер_id = ? 
-                    AND услуга_id = ?
-                    AND дата = ?
-                    AND время = ?
-                    AND доступно = 1
-                `;
-                
-                db.get(checkNewTimeSql, [
-                    oldAppointment.мастер_id,
-                    serviceId,
-                    date,
-                    time
-                ], (err, newSlot) => {
+                // 8. Delete old notifications since appointment changed
+                const deleteNotificationsSql = "DELETE FROM уведомления WHERE запись_id = ?";
+                db.run(deleteNotificationsSql, [appointmentId], function(err) {
                     if (err) {
                         db.run("ROLLBACK");
                         res.status(500).json({ error: err.message });
                         return;
                     }
                     
-                    if (!newSlot && (oldAppointment.дата !== date || oldAppointment.время !== time || oldAppointment.услуга_id !== serviceId)) {
-                        db.run("ROLLBACK");
-                        res.status(409).json({ error: 'Новое время уже занято' });
-                        return;
-                    }
-                    
-                    // 4. Get service price
-                    const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
-                    db.get(getPriceSql, [serviceId], (err, serviceRow) => {
+                    db.run("COMMIT", function(err) {
                         if (err) {
                             db.run("ROLLBACK");
                             res.status(500).json({ error: err.message });
                             return;
                         }
                         
-                        if (!serviceRow) {
-                            db.run("ROLLBACK");
-                            res.status(404).json({ error: 'Услуга не найдена' });
-                            return;
-                        }
-                        
-                        const price = serviceRow.цена;
-                        
-                        // 5. Update appointment
-                        const updateAppointmentSql = `
-                            UPDATE записи 
-                            SET услуга_id = ?, дата = ?, время = ?, цена = ?
-                            WHERE id = ?
-                        `;
-                        
-                        db.run(updateAppointmentSql, [
-                            serviceId,
-                            date,
-                            time,
-                            price,
-                            appointmentId
-                        ], function(err) {
-                            if (err) {
-                                db.run("ROLLBACK");
-                                res.status(500).json({ error: err.message });
-                                return;
-                            }
-                            
-                            // 6. Update client info
-                            const updateClientSql = `
-                                UPDATE клиенты 
-                                SET имя = ?, телефон = ? 
-                                WHERE id = (
-                                    SELECT клиент_id FROM записи WHERE id = ?
-                                )
-                            `;
-                            
-                            db.run(updateClientSql, [
+                        res.json({
+                            message: "success",
+                            data: {
+                                id: appointmentId,
+                                date,
+                                time,
                                 clientName,
                                 clientPhone,
-                                appointmentId
-                            ], function(err) {
-                                if (err) {
-                                    db.run("ROLLBACK");
-                                    res.status(500).json({ error: err.message });
-                                    return;
-                                }
-                                
-                                // 7. Reserve new time slot if changed
-                                if (oldAppointment.дата !== date || oldAppointment.время !== time || oldAppointment.услуга_id !== serviceId) {
-                                    const reserveNewTimeSql = `
-                                        UPDATE расписание 
-                                        SET доступно = 0 
-                                        WHERE мастер_id = ? 
-                                        AND услуга_id = ?
-                                        AND дата = ?
-                                        AND время = ?
-                                    `;
-                                    
-                                    db.run(reserveNewTimeSql, [
-                                        oldAppointment.мастер_id,
-                                        serviceId,
-                                        date,
-                                        time
-                                    ], function(err) {
-                                        if (err) {
-                                            db.run("ROLLBACK");
-                                            res.status(500).json({ error: err.message });
-                                            return;
-                                        }
-                                        
-                                        db.run("COMMIT", function(err) {
-                                            if (err) {
-                                                db.run("ROLLBACK");
-                                                res.status(500).json({ error: err.message });
-                                                return;
-                                            }
-                                            
-                                            res.json({
-                                                message: "success",
-                                                data: {
-                                                    id: appointmentId,
-                                                    date,
-                                                    time,
-                                                    clientName,
-                                                    clientPhone,
-                                                    serviceId,
-                                                    price
-                                                }
-                                            });
-                                        });
-                                    });
-                                } else {
-                                    db.run("COMMIT", function(err) {
-                                        if (err) {
-                                            db.run("ROLLBACK");
-                                            res.status(500).json({ error: err.message });
-                                            return;
-                                        }
-                                        
-                                        res.json({
-                                            message: "success",
-                                            data: {
-                                                id: appointmentId,
-                                                date,
-                                                time,
-                                                clientName,
-                                                clientPhone,
-                                                serviceId,
-                                                price
-                                            }
-                                        });
-                                    });
-                                }
-                            });
+                                serviceId: finalServiceId,
+                                price: finalPrice
+                            }
                         });
                     });
                 });
             });
+        }
+    });
+}
         });
     });
 });
