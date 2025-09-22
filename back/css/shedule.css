@@ -1,5 +1,4 @@
-
-
+/* shedule.css */
 .schedule-header {
     display: flex;
     justify-content: space-between;
@@ -248,6 +247,26 @@
     margin: 0 auto 1rem;
 }
 
+.btn-photo-generator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1a3c5e 0%, #3b6a9c 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 15px;
+    transition: all 0.3s ease;
+}
+
+.btn-photo-generator:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(26, 60, 94, 0.3);
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
@@ -275,6 +294,11 @@
     .appointment-time {
         font-size: 1rem;
     }
+    
+    .btn-photo-generator {
+        width: 100%;
+        padding: 12px;
+    }
 }
 
 @media (max-width: 480px) {
@@ -288,5 +312,10 @@
     
     .btn-date {
         width: 100%;
+    }
+    
+    .btn-photo-generator {
+        padding: 8px 16px;
+        font-size: 13px;
     }
 }
