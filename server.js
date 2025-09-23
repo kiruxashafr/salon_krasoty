@@ -638,150 +638,69 @@ app.get('/api/specialist/:id', (req, res) => {
     });
 });
 
-// API endpoint to book an appointment
-// API endpoint to book an appointment
-app.post('/api/appointment', (req, res) => {
-    const { specialistId, serviceId, date, time, clientName, clientPhone } = req.body;
+// Более устойчивая версия с LEFT JOIN
+app.get('/api/appointments', (req, res) => {
+    const specialistId = req.query.specialistId;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+    const createdSince = req.query.createdSince;
     
-    if (!specialistId || !serviceId || !date || !time || !clientName || !clientPhone) {
-        return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
-    }
-    
-    // First check if the time slot is still available
-    const checkSql = `
-        SELECT id FROM расписание 
-        WHERE мастер_id = ? 
-        AND услуга_id = ?
-        AND дата = ?
-        AND время = ?
-        AND доступно = 1
+    let sql = `
+        SELECT 
+            з.id,
+            з.дата,
+            з.время,
+            з.цена,
+            з.created_at,
+            з.мастер_id,
+            з.услуга_id,
+            к.имя as клиент_имя,
+            к.телефон as клиент_телефон,
+            к.tg_id as клиент_tg_id,
+            у.название as услуга_название,
+            м.имя as мастер_имя,
+            м.tg_id as мастер_tg_id
+        FROM записи з
+        LEFT JOIN клиенты к ON з.клиент_id = к.id
+        LEFT JOIN услуги у ON з.услуга_id = у.id
+        LEFT JOIN мастера м ON з.мастер_id = м.id
+        WHERE з.id IS NOT NULL
     `;
     
-    db.get(checkSql, [specialistId, serviceId, date, time], (err, row) => {
+    const params = [];
+    
+    if (specialistId) {
+        sql += ' AND з.мастер_id = ?';
+        params.push(specialistId);
+    }
+    
+    if (startDate && endDate) {
+        sql += ' AND з.дата BETWEEN ? AND ?';
+        params.push(startDate, endDate);
+    } else if (startDate) {
+        sql += ' AND з.дата >= ?';
+        params.push(startDate);
+    } else if (endDate) {
+        sql += ' AND з.дата <= ?';
+        params.push(endDate);
+    }
+    
+    if (createdSince) {
+        sql += ' AND з.created_at >= ?';
+        params.push(createdSince);
+    }
+    
+    sql += ' ORDER BY з.дата ASC, з.время ASC';
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
+            console.error('SQL Error:', err.message);
             res.status(500).json({ error: err.message });
             return;
         }
-        
-        if (!row) {
-            res.status(409).json({ error: 'Время уже занято' });
-            return;
-        }
-        
-        const scheduleId = row.id;
-        
-        // Start transaction
-        db.serialize(() => {
-            // Begin transaction
-            db.run("BEGIN TRANSACTION");
-            
-            // 1. Check if client exists, if not - create
-            const checkClientSql = "SELECT id FROM клиенты WHERE телефон = ?";
-            db.get(checkClientSql, [clientPhone], (err, clientRow) => {
-                if (err) {
-                    db.run("ROLLBACK");
-                    res.status(500).json({ error: err.message });
-                    return;
-                }
-                
-                let clientId;
-                if (clientRow) {
-                    // Client exists
-                    clientId = clientRow.id;
-                    
-                    // Update client name if needed
-                    const updateClientSql = "UPDATE клиенты SET имя = ? WHERE id = ?";
-                    db.run(updateClientSql, [clientName, clientId], function(err) {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            res.status(500).json({ error: err.message });
-                            return;
-                        }
-                        
-                        createAppointment(clientId);
-                    });
-                } else {
-                    // Create new client
-                    const insertClientSql = "INSERT INTO клиенты (имя, телефон) VALUES (?, ?)";
-                    db.run(insertClientSql, [clientName, clientPhone], function(err) {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            res.status(500).json({ error: err.message });
-                            return;
-                        }
-                        
-                        clientId = this.lastID;
-                        createAppointment(clientId);
-                    });
-                }
-                
-                function createAppointment(clientId) {
-                    // 2. Get service price
-                    const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
-                    db.get(getPriceSql, [serviceId], (err, serviceRow) => {
-                        if (err) {
-                            db.run("ROLLBACK");
-                            res.status(500).json({ error: err.message });
-                            return;
-                        }
-                        
-                        if (!serviceRow) {
-                            db.run("ROLLBACK");
-                            res.status(404).json({ error: 'Услуга не найдена' });
-                            return;
-                        }
-                        
-                        const price = serviceRow.цена;
-                        
-                        // 3. Create appointment record
-                        const insertAppointmentSql = `
-                            INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
-                        `;                        
-                        db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
-                            if (err) {
-                                db.run("ROLLBACK");
-                                res.status(500).json({ error: err.message });
-                                return;
-                            }
-                            
-                            // 4. Mark time slot as unavailable
-                            const updateScheduleSql = "UPDATE расписание SET доступно = 0 WHERE id = ?";
-                            db.run(updateScheduleSql, [scheduleId], function(err) {
-                                if (err) {
-                                    db.run("ROLLBACK");
-                                    res.status(500).json({ error: err.message });
-                                    return;
-                                }
-                                
-                                // Commit transaction
-                                db.run("COMMIT", function(err) {
-                                    if (err) {
-                                        db.run("ROLLBACK");
-                                        res.status(500).json({ error: err.message });
-                                        return;
-                                    }
-                                    
-                                    res.json({
-                                        message: "success",
-                                        appointment: {
-                                            id: this.lastID,
-                                            clientId: clientId,
-                                            specialistId: specialistId,
-                                            serviceId: serviceId,
-                                            date: date,
-                                            time: time,
-                                            price: price,
-                                            clientName: clientName,
-                                            clientPhone: clientPhone
-                                        }
-                                    });
-                                });
-                            });
-                        });
-                    });
-                }
-            });
+        res.json({
+            message: "success",
+            data: rows
         });
     });
 });

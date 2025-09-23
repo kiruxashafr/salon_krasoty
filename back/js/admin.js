@@ -1538,7 +1538,8 @@ function displayAppointmentsHistory(appointments) {
     startHistoryAutoUpdate();
 }
 
-// Генерация элементов истории
+
+// Генерация элементов истории - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function generateHistoryItems(appointments) {
     if (!appointments || appointments.length === 0) {
         return '<div class="empty-history">Записей пока нет</div>';
@@ -1555,6 +1556,9 @@ function generateHistoryItems(appointments) {
     return recentAppointments.map(appointment => {
         const createdDate = new Date(appointment.created_at);
         const isNew = createdDate > new Date(lastViewedTimestamp);
+        
+        // ИСПРАВЛЕНО: используем мастер_id из данных
+        const masterId = appointment.мастер_id || appointment.masterId;
         
         return `
             <div class="history-item ${isNew ? 'new-item' : ''}" data-appointment-id="${appointment.id}">
@@ -1592,7 +1596,7 @@ function generateHistoryItems(appointments) {
                 </div>
                 
                 <div class="history-item-actions">
-                    <button class="btn btn-outline btn-sm" onclick="viewAppointmentInJournal('${appointment.дата}', ${appointment.мастер_id})">
+                    <button class="btn btn-outline btn-sm" onclick="viewAppointmentInJournal('${appointment.дата}', ${masterId})">
                         📅 Перейти к записи
                     </button>
                 </div>
@@ -1601,7 +1605,6 @@ function generateHistoryItems(appointments) {
     }).join('');
 }
 
-// Функция для перехода к записи в журнале
 function viewAppointmentInJournal(date, masterId) {
     console.log('Переход к записи:', { date, masterId });
     
@@ -1611,42 +1614,53 @@ function viewAppointmentInJournal(date, masterId) {
         
         // Ждем загрузки журнала и выбираем мастера и дату
         setTimeout(() => {
-            // Выбираем мастера
-            const masterCard = document.querySelector(`[data-specialist-id="${masterId}"]`);
-            if (masterCard) {
-                masterCard.click();
-                
-                // После выбора мастера выбираем дату
-                setTimeout(() => {
-                    if (typeof selectDate === 'function') {
-                        // Убедимся, что календарь загружен
-                        if (typeof generateCalendar === 'function') {
-                            generateCalendar().then(() => {
-                                // Небольшая задержка для полной загрузки календаря
-                                setTimeout(() => {
-                                    selectDate(date);
-                                    console.log('Дата выбрана:', date);
-                                }, 500);
-                            });
-                        } else {
-                            selectDate(date);
-                        }
-                    }
-                }, 1000);
+            // Если masterId передан, выбираем конкретного мастера
+            if (masterId) {
+                const masterCard = document.querySelector(`[data-specialist-id="${masterId}"]`);
+                if (masterCard) {
+                    masterCard.click();
+                    
+                    // После выбора мастера выбираем дату
+                    setTimeout(() => {
+                        selectDateWithMaster(date, masterId);
+                    }, 500);
+                } else {
+                    // Если мастера нет в списке, все равно пытаемся выбрать дату
+                    console.log('Мастер не найден в списке, пытаемся выбрать дату...');
+                    selectDateWithMaster(date, masterId);
+                }
             } else {
-                console.error('Мастер не найден:', masterId);
-                // Если мастера нет в списке, все равно пытаемся выбрать дату
-                setTimeout(() => {
-                    if (typeof selectDate === 'function') {
-                        selectDate(date);
-                    }
-                }, 1500);
+                // Если masterId не передан, просто выбираем дату (пользователь выберет мастера вручную)
+                console.log('MasterId не передан, выбираем только дату');
+                selectDateWithMaster(date, null);
             }
         }, 500);
     }
 }
 
-
+function selectDateWithMaster(date, masterId) {
+    if (typeof selectDate === 'function') {
+        // Убедимся, что календарь загружен
+        if (typeof generateCalendar === 'function') {
+            generateCalendar().then(() => {
+                // Небольшая задержка для полной загрузки календаря
+                setTimeout(() => {
+                    selectDate(date);
+                    console.log('Дата выбрана:', date, 'Мастер:', masterId || 'не указан');
+                    
+                    // Если мастер указан, показываем подсказку
+                    if (masterId) {
+                        setTimeout(() => {
+                            showInfo(`Выбрана запись на ${date}. Пожалуйста, выберите мастера "${window.currentSpecialistName || ''}" в списке выше.`);
+                        }, 1000);
+                    }
+                }, 500);
+            });
+        } else {
+            selectDate(date);
+        }
+    }
+}
 
 // Автообновление истории
 let historyUpdateInterval = null;
@@ -1763,6 +1777,7 @@ function showHistoryView() {
     loadAppointmentsHistory();
 }
 
+// Функция загрузки истории записей - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function loadAppointmentsHistory() {
     const historyView = document.getElementById('historyView');
     
@@ -1790,13 +1805,11 @@ function loadAppointmentsHistory() {
             historyView.innerHTML = `
                 <div class="error-message">
                     <p>❌ Не удалось загрузить историю записей</p>
-                    <button onclick="showHistoryView()" class="btn btn-primary">Повторить попытку</button>
+                    <button onclick="loadAppointmentsHistory()" class="btn btn-primary">Повторить попытку</button>
                 </div>
             `;
         });
 }
-
-// Функция отображения истории в журнале
 function displayAppointmentsHistoryInJournal(appointments) {
     const historyView = document.getElementById('historyView');
     
