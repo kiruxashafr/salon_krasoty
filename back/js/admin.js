@@ -1,5 +1,7 @@
 let currentActiveSection = 'journal'; // По умолчанию активен журнал
 let currentView = 'journal'; // 'journal' или 'history'
+let lastViewedTimestamp = Date.now();
+
 
 document.addEventListener('DOMContentLoaded', function() {
     // Элементы DOM
@@ -1510,24 +1512,7 @@ window.confirm = function(message) {
 
 
 
-function loadAppointmentsHistory() {
-    showLoading();
-    
-    fetch('/api/appointments?createdSince=' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
-        .then(response => {
-            if (!response.ok) throw new Error('Ошибка загрузки истории');
-            return response.json();
-        })
-        .then(data => {
-            if (data.message === 'success') {
-                displayAppointmentsHistory(data.data);
-            }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            showError('Не удалось загрузить историю записей');
-        });
-}
+
 
 // Функция отображения истории записей
 function displayAppointmentsHistory(appointments) {
@@ -1564,11 +1549,12 @@ function generateHistoryItems(appointments) {
         new Date(b.created_at) - new Date(a.created_at)
     );
     
-    const lastUpdateTime = window.lastHistoryUpdate || new Date(0);
+    // Берем только последние 20 записей для отображения
+    const recentAppointments = sortedAppointments.slice(0, 20);
     
-    return sortedAppointments.map(appointment => {
+    return recentAppointments.map(appointment => {
         const createdDate = new Date(appointment.created_at);
-        const isNew = createdDate > lastUpdateTime;
+        const isNew = createdDate > new Date(lastViewedTimestamp);
         
         return `
             <div class="history-item ${isNew ? 'new-item' : ''}" data-appointment-id="${appointment.id}">
@@ -1617,26 +1603,50 @@ function generateHistoryItems(appointments) {
 
 // Функция для перехода к записи в журнале
 function viewAppointmentInJournal(date, masterId) {
-    // Переключаемся на раздел журнала
-    loadSection('journal');
+    console.log('Переход к записи:', { date, masterId });
     
-    // Ждем загрузки журнала и выбираем мастера и дату
-    setTimeout(() => {
-        if (window.currentSpecialistId !== masterId) {
+    // Переключаемся на раздел журнала
+    if (typeof loadSection === 'function') {
+        loadSection('journal');
+        
+        // Ждем загрузки журнала и выбираем мастера и дату
+        setTimeout(() => {
+            // Выбираем мастера
             const masterCard = document.querySelector(`[data-specialist-id="${masterId}"]`);
             if (masterCard) {
                 masterCard.click();
                 
                 // После выбора мастера выбираем дату
                 setTimeout(() => {
-                    selectDate(date);
-                }, 500);
+                    if (typeof selectDate === 'function') {
+                        // Убедимся, что календарь загружен
+                        if (typeof generateCalendar === 'function') {
+                            generateCalendar().then(() => {
+                                // Небольшая задержка для полной загрузки календаря
+                                setTimeout(() => {
+                                    selectDate(date);
+                                    console.log('Дата выбрана:', date);
+                                }, 500);
+                            });
+                        } else {
+                            selectDate(date);
+                        }
+                    }
+                }, 1000);
+            } else {
+                console.error('Мастер не найден:', masterId);
+                // Если мастера нет в списке, все равно пытаемся выбрать дату
+                setTimeout(() => {
+                    if (typeof selectDate === 'function') {
+                        selectDate(date);
+                    }
+                }, 1500);
             }
-        } else {
-            selectDate(date);
-        }
-    }, 100);
+        }, 500);
+    }
 }
+
+
 
 // Автообновление истории
 let historyUpdateInterval = null;
@@ -1652,31 +1662,15 @@ function startHistoryAutoUpdate() {
 }
 
 function updateHistorySilently() {
-    fetch('/api/appointments?createdSince=' + new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    fetch('/api/appointments?createdSince=' + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .then(response => {
             if (!response.ok) return;
             return response.json();
         })
         .then(data => {
             if (data && data.message === 'success') {
-                // Обновляем только если есть новые записи
-                const hasNewItems = data.data.some(appointment => 
-                    new Date(appointment.created_at) > (window.lastHistoryUpdate || new Date(0))
-                );
-                
-                if (hasNewItems) {
-                    window.lastHistoryUpdate = new Date();
-                    displayAppointmentsHistory(data.data);
-                    
-                    // Показываем уведомление о новых записях
-                    const newItemsCount = data.data.filter(appointment => 
-                        new Date(appointment.created_at) > (window.lastHistoryUpdate - 30000)
-                    ).length;
-                    
-                    if (newItemsCount > 0) {
-                        showInfo(`Обновлено! Новых записей: ${newItemsCount}`);
-                    }
-                }
+                // Просто обновляем отображение без уведомлений
+                displayAppointmentsHistoryInJournal(data.data);
             }
         })
         .catch(error => {
@@ -1708,6 +1702,9 @@ function switchView(view) {
     
     currentView = view;
     
+    // Сбрасываем offset при переключении
+    resetHistoryOffset();
+    
     // Обновляем активные кнопки
     document.querySelectorAll('.view-toggle-btn').forEach(btn => {
         btn.classList.remove('active');
@@ -1725,6 +1722,7 @@ function switchView(view) {
         showHistoryView();
     }
 }
+
 
 // Функция показа журнала
 function showJournalView() {
@@ -1765,9 +1763,17 @@ function showHistoryView() {
     loadAppointmentsHistory();
 }
 
-// Обновленная функция загрузки истории записей
 function loadAppointmentsHistory() {
     const historyView = document.getElementById('historyView');
+    
+    // Сбрасываем offset при загрузке
+    resetHistoryOffset();
+    
+    // Загружаем последнее время просмотра из localStorage
+    const savedTimestamp = localStorage.getItem('lastViewedTimestamp');
+    if (savedTimestamp) {
+        lastViewedTimestamp = parseInt(savedTimestamp);
+    }
     
     fetch('/api/appointments?createdSince=' + new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
         .then(response => {
@@ -1801,6 +1807,9 @@ function displayAppointmentsHistoryInJournal(appointments) {
                 <div class="history-info">
                     <span>Новые записи помечены </span>
                     <span class="new-badge">NEW</span>
+                    <button class="btn btn-outline btn-sm" onclick="markAllAsViewed()" style="margin-left: 10px;">
+                        📍 Отметить все как просмотренные
+                    </button>
                 </div>
             </div>
             
@@ -1822,16 +1831,119 @@ function displayAppointmentsHistoryInJournal(appointments) {
     historyView.innerHTML = historyHTML;
 }
 
-// Функция обновления истории
-function refreshHistory() {
-    showHistoryView();
+
+function markAllAsViewed() {
+    lastViewedTimestamp = Date.now();
+    // Сохраняем в localStorage
+    localStorage.setItem('lastViewedTimestamp', lastViewedTimestamp);
+    
+    // Обновляем отображение
+    const historyItems = document.querySelectorAll('.history-item');
+    historyItems.forEach(item => {
+        item.classList.remove('new-item');
+        const badge = item.querySelector('.new-badge');
+        if (badge) badge.remove();
+    });
+    
+    showSuccess('Все записи отмечены как просмотренные');
 }
 
-// Функция загрузки дополнительной истории (можно реализовать пагинацию)
-function loadMoreHistory() {
-    // Здесь можно реализовать загрузку более старых записей
-    showInfo('Функция загрузки дополнительной истории будет реализована в будущем');
+function refreshHistory() {
+    const historyView = document.getElementById('historyView');
+    historyView.innerHTML = `
+        <div class="loading-history">
+            <div class="spinner"></div>
+            <p>Загрузка истории записей...</p>
+        </div>
+    `;
+    
+    loadAppointmentsHistory();
 }
+
+// Исправленная функция загрузки дополнительной истории
+let historyOffset = 0;
+const HISTORY_LIMIT = 20;
+
+function loadMoreHistory() {
+    console.log('Загрузка дополнительной истории...');
+    
+    // Показываем индикатор загрузки
+    const loadMoreBtn = document.querySelector('.history-actions .btn-outline');
+    const originalText = loadMoreBtn.textContent;
+    loadMoreBtn.textContent = '⏳ Загрузка...';
+    loadMoreBtn.disabled = true;
+    
+    // Увеличиваем offset для следующей порции данных
+    historyOffset += HISTORY_LIMIT;
+    
+    // Рассчитываем дату для загрузки более старых записей
+    const olderDate = new Date();
+    olderDate.setDate(olderDate.getDate() - 7 - (historyOffset / 2)); // Загружаем более старые записи
+    
+    fetch(`/api/appointments?createdSince=${olderDate.toISOString()}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Ошибка загрузки истории');
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success' && data.data.length > 0) {
+                appendHistoryItems(data.data);
+                showSuccess(`Загружено ${data.data.length} записей`);
+            } else {
+                showInfo('Больше записей для загрузки нет');
+                // Скрываем кнопку, если записей больше нет
+                loadMoreBtn.style.display = 'none';
+            }
+        })
+        .catch(error => {
+            console.error('Ошибка загрузки истории:', error);
+            showError('Не удалось загрузить дополнительные записи');
+            // Восстанавливаем offset при ошибке
+            historyOffset -= HISTORY_LIMIT;
+        })
+        .finally(() => {
+            // Восстанавливаем кнопку
+            loadMoreBtn.textContent = originalText;
+            loadMoreBtn.disabled = false;
+        });
+}
+
+// Функция для добавления новых элементов истории
+function appendHistoryItems(newAppointments) {
+    const historyList = document.getElementById('historyList');
+    
+    if (!historyList) {
+        console.error('Элемент historyList не найден');
+        return;
+    }
+    
+    // Убираем сообщение "Записей пока нет", если оно есть
+    const emptyMessage = historyList.querySelector('.empty-history');
+    if (emptyMessage) {
+        emptyMessage.remove();
+    }
+    
+    // Генерируем HTML для новых записей
+    const newItemsHTML = generateHistoryItems(newAppointments);
+    
+    // Добавляем новые записи в конец списка
+    historyList.insertAdjacentHTML('beforeend', newItemsHTML);
+    
+    // Прокручиваем к новым записям
+    setTimeout(() => {
+        const newItems = historyList.querySelectorAll('.history-item');
+        if (newItems.length > 0) {
+            const lastItem = newItems[newItems.length - 1];
+            lastItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    }, 100);
+}
+
+
+function resetHistoryOffset() {
+    historyOffset = 0;
+}
+
 
 // Добавим стили для загрузки истории в admin.css
 const historyStyles = `
