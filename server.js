@@ -2502,6 +2502,160 @@ app.get('/api/appointments-with-notifications', (req, res) => {
     });
 });
 
+
+
+
+// API endpoint для создания записи (клиентская версия)
+app.post('/api/appointment', (req, res) => {
+    const { specialistId, serviceId, date, time, clientName, clientPhone } = req.body;
+    
+    if (!specialistId || !serviceId || !date || !time || !clientName || !clientPhone) {
+        return res.status(400).json({ error: 'Все поля обязательны для заполнения' });
+    }
+    
+    // Start transaction
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        
+        // 1. Check if client exists, if not - create
+        const checkClientSql = "SELECT id FROM клиенты WHERE телефон = ?";
+        db.get(checkClientSql, [clientPhone], (err, clientRow) => {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            let clientId;
+            if (clientRow) {
+                // Client exists
+                clientId = clientRow.id;
+                
+                // Update client name if needed
+                const updateClientSql = "UPDATE клиенты SET имя = ? WHERE id = ?";
+                db.run(updateClientSql, [clientName, clientId], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    createAppointment(clientId);
+                });
+            } else {
+                // Create new client
+                const insertClientSql = "INSERT INTO клиенты (имя, телефон) VALUES (?, ?)";
+                db.run(insertClientSql, [clientName, clientPhone], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    clientId = this.lastID;
+                    createAppointment(clientId);
+                });
+            }
+            
+            function createAppointment(clientId) {
+                // 2. Get service price
+                const getPriceSql = "SELECT цена FROM услуги WHERE id = ?";
+                db.get(getPriceSql, [serviceId], (err, serviceRow) => {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+                    
+                    if (!serviceRow) {
+                        db.run("ROLLBACK");
+                        res.status(404).json({ error: 'Услуга не найдена' });
+                        return;
+                    }
+                    
+                    const price = serviceRow.цена;
+                    
+                    // 3. Check if time slot is available
+                    const checkTimeSql = `
+                        SELECT id FROM расписание 
+                        WHERE мастер_id = ? 
+                        AND услуга_id = ?
+                        AND дата = ?
+                        AND время = ?
+                        AND доступно = 1
+                    `;
+                    
+                    db.get(checkTimeSql, [specialistId, serviceId, date, time], (err, scheduleRow) => {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        if (!scheduleRow) {
+                            db.run("ROLLBACK");
+                            res.status(409).json({ error: 'Выбранное время уже занято' });
+                            return;
+                        }
+                        
+                        const scheduleId = scheduleRow.id;
+                        
+                        // 4. Reserve the time slot
+                        const reserveSql = "UPDATE расписание SET доступно = 0 WHERE id = ?";
+                        db.run(reserveSql, [scheduleId], function(err) {
+                            if (err) {
+                                db.run("ROLLBACK");
+                                res.status(500).json({ error: err.message });
+                                return;
+                            }
+                            
+                            // 5. Create appointment record
+                            const insertAppointmentSql = `
+                                INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                            `;
+                            
+                            db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
+                                if (err) {
+                                    db.run("ROLLBACK");
+                                    res.status(500).json({ error: err.message });
+                                    return;
+                                }
+                                
+                                const appointmentId = this.lastID;
+                                
+                                // Commit transaction
+                                db.run("COMMIT", function(err) {
+                                    if (err) {
+                                        db.run("ROLLBACK");
+                                        res.status(500).json({ error: err.message });
+                                        return;
+                                    }
+                                    
+                                    res.json({
+                                        message: "success",
+                                        appointment: {
+                                            id: appointmentId,
+                                            clientId: clientId,
+                                            specialistId: specialistId,
+                                            serviceId: serviceId,
+                                            date: date,
+                                            time: time,
+                                            price: price,
+                                            clientName: clientName,
+                                            clientPhone: clientPhone
+                                        }
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            }
+        });
+    });
+});
+
 // Error handling for undefined routes
 app.use((req, res) => {
     res.status(404).json({ error: 'Endpoint not found' });

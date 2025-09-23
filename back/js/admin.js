@@ -1595,11 +1595,7 @@ function generateHistoryItems(appointments) {
                     </div>
                 </div>
                 
-                <div class="history-item-actions">
-                    <button class="btn btn-outline btn-sm" onclick="viewAppointmentInJournal('${appointment.дата}', ${masterId})">
-                        📅 Перейти к записи
-                    </button>
-                </div>
+
             </div>
         `;
     }).join('');
