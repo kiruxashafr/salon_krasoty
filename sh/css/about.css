@@ -1,0 +1,286 @@
+/* about.css */
+.about-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    width: 100%;
+    background-color: #f9f9f9;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: auto;
+}
+
+.about-trigger {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 2rem; /* Более сбалансированные отступы */
+    background-color: #6c6d74;
+    border-radius: 16px; /* Увеличил скругление */
+    width: 50%; /* Занимает 90% ширины вместо 100% */
+    max-width: 500px; /* Уменьшил максимальную ширину */
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); /* Более глубокая тень */
+margin-bottom: 10%;
+}
+
+.about-trigger::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    transition: left 0.7s ease;
+}
+
+.about-trigger:hover::before {
+    left: 100%;
+}
+
+.about-trigger:hover {
+    background-color: #7a7b82;
+    transform: translateY(-6px); /* Более заметный подъем */
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    border-color: rgb(250 250 250 / 45%);
+}
+
+.about-trigger:active {
+    transform: translateY(-2px);
+    transition: all 0.1s ease;
+}
+
+.about-section:hover {
+    background-color: #f9f9f9;
+    transform: none;
+}
+
+.about-section:hover .about-trigger {
+    background-color: #7a7b82;
+    transform: translateY(-4px);
+    transition: all 0.3s ease;
+}
+
+.about-title {
+    font-family: 'soviet', Arial, sans-serif;
+    font-size: clamp(28px, 4vw, 40px);
+    color: white;
+    margin-bottom: 0.8rem;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    position: relative;
+    z-index: 2;
+    font-weight: 600;
+}
+
+.about-subtitle {
+    font-family: 'forum', Arial, sans-serif;
+    font-size: clamp(16px, 1.8vw, 18px); /* Уменьшил максимальный размер */
+    color: rgba(255, 255, 255, 0.9);
+    margin: 0;
+    text-align: center;
+    position: relative;
+    z-index: 2;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+}
+
+/* Остальные стили модального окна */
+.about-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
+.about-modal-content {
+    background: white;
+    border-radius: 15px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.about-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: #1b1c1d;
+    cursor: pointer;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.about-close-btn:hover {
+    background-color: #f0f0f0;
+}
+
+/* Карта */
+.about-map-container {
+    width: 100%;
+    height: 300px;
+    border-radius: 15px 15px 0 0;
+    overflow: hidden;
+}
+
+.about-map {
+    width: 100%;
+    height: 100%;
+}
+
+/* Контент */
+.about-content {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.about-image {
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.about-image img {
+    width: 100%;
+    height: 250px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.about-text h3 {
+    font-family: 'soviet', Arial, sans-serif;
+    font-size: 2rem;
+    color: #1b1c1d;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+}
+
+.about-text p {
+    font-family: 'forum', Arial, sans-serif;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.about-features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'acrobat', Arial, sans-serif;
+    font-size: 1rem;
+}
+
+.feature-icon {
+    color: #1b1c1d;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .about-section {
+        padding: 3rem 1rem;
+    }
+    
+    .about-trigger {
+        padding: 1rem 1.5rem;
+        margin: 0 1rem;
+        border-radius: 10px;
+    }
+    
+    .about-trigger:hover {
+        transform: translateY(-2px);
+    }
+    
+    .about-modal-content {
+        margin: 1rem;
+        max-height: 95vh;
+    }
+    
+    .about-content {
+        padding: 1.5rem;
+        gap: 1.5rem;
+    }
+    
+    .about-map-container {
+        height: 200px;
+    }
+    
+    .about-text h3 {
+        font-size: 1.5rem;
+    }
+    
+    .about-text p {
+        font-size: 1rem;
+    }
+    
+    .about-features {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (min-width: 769px) {
+    .about-content {
+        flex-direction: row;
+        align-items: flex-start;
+    }
+    
+    .about-image {
+        flex: 0 0 300px;
+    }
+    
+    .about-text {
+        flex: 1;
+    }
+}

@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Переменные состояния
     let isMenuOpen = false;
     
-вв
+
     // Функция переключения меню
     function toggleMenu() {
         isMenuOpen = !isMenuOpen;

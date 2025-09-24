@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="css/contact.css">
     <link rel="stylesheet" href="css/specialists.css">
     <link rel="stylesheet" href="css/order.css">
+    <link rel="stylesheet" href="css/about.css">
 
     <!-- Превью фото -->
     <link rel="icon" type="image/jpeg" href="photo/фавикон/лого минимализм.png">
@@ -132,11 +133,58 @@
     </div>
 </section>
 
+<!-- Секция "О нас" -->
+<section class="about-section" id="about-section">
+    <div class="about-trigger">
+        <h2 class="about-title">О НАС</h2>
+        <p class="about-subtitle">Узнайте больше о нашем салоне</p>
+    </div>
+</section>
 
+<!-- Модальное окно "О нас" -->
+<div id="about-modal" class="about-modal">
+    <div class="about-modal-content">
+        <button class="about-close-btn">×</button>
+        
+        <div class="about-map-container">
+            <div id="about-map" class="about-map"></div>
+        </div>
+        
+        <div class="about-content">
+            <div class="about-image">
+                <img src="photo/картинки/о-нас.jpg" alt="Наш салон">
+            </div>
+            <div class="about-text">
+                <h3>Наш салон красоты</h3>
+                <p>Мы создаем пространство, где красота встречается с комфортом. Наш салон в Орле — это место, где каждый клиент получает индивидуальный подход и профессиональный уход.</p>
+                <p>Современное оборудование, качественные материалы и команда опытных специалистов — всё это для вашего идеального преображения.</p>
+                <div class="about-features">
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Профессиональные мастера</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Качественные материалы</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Уютная атмосфера</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">✓</span>
+                        <span>Доступные цены</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=cd34631a-b921-4e00-81de-cde4ec9c7fab&lang=ru_RU" type="text/javascript"></script>
     <script src="js/header.js"></script>
     <script src="js/services.js"></script>
+    <script src="js/about.js"></script>
     <script src="js/specialists.js"></script>
 </body>
 </main>
