@@ -1,16 +1,16 @@
-// about.js
 document.addEventListener('DOMContentLoaded', function() {
-    const aboutSection = document.getElementById('about-section');
+    const aboutTrigger = document.getElementById('about-trigger');
     const aboutModal = document.getElementById('about-modal');
     const aboutCloseBtn = document.querySelector('.about-close-btn');
     
-    // Открытие модального окна
-    aboutSection.addEventListener('click', function() {
-        aboutModal.style.display = 'flex';
-        document.body.style.overflow = 'hidden'; // Блокируем скролл страницы
-        initMap();
-    });
-    
+// Замените обработчик клика на этот
+aboutTrigger.addEventListener('click', function() {
+    aboutModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    initMap();
+});
+
+
     // Закрытие модального окна
     aboutCloseBtn.addEventListener('click', function() {
         aboutModal.style.display = 'none';
@@ -44,19 +44,18 @@ function initMap() {
     // Создаем карту
     ymaps.ready(function() {
         const map = new ymaps.Map('about-map', {
-            center: [53.9025, 36.0611], // Координаты Орла
+            center: [52.97103104736177, 36.06383468318084],
             zoom: 13,
             controls: ['zoomControl', 'fullscreenControl']
         });
-        
-        // Добавляем маркер
-        const marker = new ymaps.Placemark([53.9025, 36.0611], {
+
+        // Обычный указатель без фото
+        const marker = new ymaps.Placemark([52.97103104736177, 36.06383468318084], {
             balloonContent: 'Наш салон красоты в Орле'
         }, {
-            preset: 'islands#icon',
-            iconColor: '#1b1c1d'
+            preset: 'islands#redIcon'
         });
-        
+
         map.geoObjects.add(marker);
     });
 }

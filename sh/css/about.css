@@ -12,67 +12,55 @@
     min-height: auto;
 }
 
+/* about.css - добавьте в стили .about-trigger */
 .about-trigger {
     display: flex;
-    flex-direction: column;
+    flex-direction: row; /* Изменяем на row чтобы элементы были в строке */
     align-items: center;
     justify-content: center;
-    padding: 1rem 2rem; /* Более сбалансированные отступы */
-    background-color: #6c6d74;
-    border-radius: 16px; /* Увеличил скругление */
-    width: 50%; /* Занимает 90% ширины вместо 100% */
-    max-width: 500px; /* Уменьшил максимальную ширину */
+    border-radius: 16px;
+    width: 95%;
+    border: 2px solid #eee;
+    max-width: 500px;
     cursor: pointer;
     transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     position: relative;
     overflow: hidden;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); /* Более глубокая тень */
-margin-bottom: 10%;
+    margin-top: 5%;
+    padding: 0.5rem 0; /* Добавляем отступы */
+    gap: 1.5rem; /* Расстояние между иконкой и текстом */
 }
 
-.about-trigger::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
+.about-trigger-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.about-icon {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.about-icon img {
     width: 100%;
     height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-    transition: left 0.7s ease;
+    object-fit: contain;
+    filter: brightness(0) invert(1); /* Делаем иконку белой */
 }
 
-.about-trigger:hover::before {
-    left: 100%;
-}
 
-.about-trigger:hover {
-    background-color: #7a7b82;
-    transform: translateY(-6px); /* Более заметный подъем */
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
-    border-color: rgb(250 250 250 / 45%);
-}
-
-.about-trigger:active {
-    transform: translateY(-2px);
-    transition: all 0.1s ease;
-}
-
-.about-section:hover {
-    background-color: #f9f9f9;
-    transform: none;
-}
-
-.about-section:hover .about-trigger {
-    background-color: #7a7b82;
-    transform: translateY(-4px);
-    transition: all 0.3s ease;
-}
 
 .about-title {
     font-family: 'soviet', Arial, sans-serif;
-    font-size: clamp(28px, 4vw, 40px);
+    font-size: clamp(28px, 4vw, 35px);
     color: white;
-    margin-bottom: 0.8rem;
+    margin: 0;
     text-align: center;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -83,7 +71,7 @@ margin-bottom: 10%;
 
 .about-subtitle {
     font-family: 'forum', Arial, sans-serif;
-    font-size: clamp(16px, 1.8vw, 18px); /* Уменьшил максимальный размер */
+    font-size: clamp(12px, 1.8vw, 15px); /* Уменьшил максимальный размер */
     color: rgba(255, 255, 255, 0.9);
     margin: 0;
     text-align: center;
@@ -91,7 +79,7 @@ margin-bottom: 10%;
     z-index: 2;
     font-weight: 400;
     letter-spacing: 0.03em;
-    line-height: 1.4;
+    line-height: 1;
 }
 
 /* Остальные стили модального окна */
@@ -230,12 +218,12 @@ margin-bottom: 10%;
 /* Адаптация для мобильных */
 @media (max-width: 768px) {
     .about-section {
-        padding: 3rem 1rem;
+        padding: 2rem 1rem;
+        padding-top: 0;
     }
     
     .about-trigger {
-        padding: 1rem 1.5rem;
-        margin: 0 1rem;
+
         border-radius: 10px;
     }
     
@@ -254,7 +242,7 @@ margin-bottom: 10%;
     }
     
     .about-map-container {
-        height: 200px;
+        height: 300px;
     }
     
     .about-text h3 {
@@ -282,5 +270,83 @@ margin-bottom: 10%;
     
     .about-text {
         flex: 1;
+    }
+}
+
+
+/* Футер */
+.footer {
+    width: 100%;
+    padding: 2rem 0;
+    background-color: #3a0000;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    text-align: center;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+}
+
+.footer-link {
+    text-decoration: none;
+    color: white;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.footer-title {
+    display: block;
+    font-family: 'soviet', Arial, sans-serif;
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.footer-subtitle {
+    display: block;
+    font-family: 'forum', Arial, sans-serif;
+    font-size: 0.9rem;
+    opacity: 0.8;
+    text-transform: lowercase;
+    letter-spacing: 0.05em;
+}
+
+.footer-link:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
+}
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .footer {
+        padding: 1.5rem 0;
+    }
+    
+    .footer-title {
+        font-size: 1.2rem;
+    }
+    
+    .footer-subtitle {
+        font-size: 0.8rem;
+    }
+}
+
+
+
+/* Адаптация для мобильных */
+@media (max-width: 768px) {
+    .about-trigger {
+        flex-direction: row;
+        gap: 0;
+        width: 90%;
+        margin-top: 4%;
+    }
+    
+    .about-icon {
+        width: 40px;
+        height: 40px;
     }
 }
