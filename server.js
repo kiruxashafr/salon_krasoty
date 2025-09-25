@@ -2375,6 +2375,7 @@ app.post('/api/upload-default-photo', upload.single('photo'), (req, res) => {
 });
 
 
+
 app.get('/api/appointments-for-notifications', (req, res) => {
     const currentDate = new Date().toISOString().split('T')[0];
     const currentDateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
@@ -2806,6 +2807,134 @@ app.post('/api/appointment', (req, res) => {
                         });
                     });
                 });
+            }
+        });
+    });
+});
+
+
+// Добавить после существующих endpoints для страниц
+
+// API endpoint для получения всех элементов страницы с порядком
+app.get('/api/page-content-full/:pageName', (req, res) => {
+    const pageName = req.params.pageName;
+    
+    const sql = "SELECT элемент, текст, порядок FROM страницы WHERE страница = ? ORDER BY порядок";
+    
+    db.all(sql, [pageName], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// API endpoint для обновления порядка элементов
+app.put('/api/page-content-order/:pageName', (req, res) => {
+    const pageName = req.params.pageName;
+    const { elements } = req.body;
+    
+    if (!elements || !Array.isArray(elements)) {
+        return res.status(400).json({ error: 'Неверный формат данных' });
+    }
+    
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        
+        elements.forEach((element, index) => {
+            const sql = `
+                UPDATE страницы 
+                SET порядок = ? 
+                WHERE страница = ? AND элемент = ?
+            `;
+            
+            db.run(sql, [index, pageName, element]);
+        });
+        
+        db.run("COMMIT", function(err) {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: { updated: elements.length }
+            });
+        });
+    });
+});
+
+// API endpoint для добавления нового элемента
+app.post('/api/page-content/:pageName', (req, res) => {
+    const pageName = req.params.pageName;
+    const { элемент, текст } = req.body;
+    
+    if (!элемент || текст === undefined) {
+        return res.status(400).json({ error: 'Элемент и текст обязательны' });
+    }
+    
+    // Получаем максимальный порядок для установки нового элемента в конец
+    const getMaxOrderSql = "SELECT MAX(порядок) as maxOrder FROM страницы WHERE страница = ?";
+    
+    db.get(getMaxOrderSql, [pageName], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const newOrder = (row?.maxOrder || 0) + 1;
+        
+        const insertSql = `
+            INSERT INTO страницы (страница, элемент, текст, порядок) 
+            VALUES (?, ?, ?, ?)
+        `;
+        
+        db.run(insertSql, [pageName, элемент, текст, newOrder], function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: {
+                    id: this.lastID,
+                    страница: pageName,
+                    элемент: элемент,
+                    текст: текст,
+                    порядок: newOrder
+                }
+            });
+        });
+    });
+});
+
+// API endpoint для удаления элемента
+app.delete('/api/page-content/:pageName/:element', (req, res) => {
+    const pageName = req.params.pageName;
+    const element = req.params.element;
+    
+    const sql = "DELETE FROM страницы WHERE страница = ? AND элемент = ?";
+    
+    db.run(sql, [pageName, element], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                deleted: true,
+                страница: pageName,
+                элемент: element
             }
         });
     });

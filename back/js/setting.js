@@ -42,61 +42,61 @@ class NotificationSettingsManager {
         }
     }
 
-displaySettings() {
-    const container = document.getElementById('contentVisibilitySettings');
-    if (!container) return;
+    displaySettings() {
+        const container = document.getElementById('contentVisibilitySettings');
+        if (!container) return;
 
-    container.innerHTML = `
-        <div class="visibility-controls">
-            <div class="visibility-item">
-                <label>
-                    <input type="checkbox" id="showSpecialistsToggle" 
-                           ${this.settings.show_specialists === '1' ? 'checked' : ''}>
-                    Показывать специалистов
-                </label>
-                <div class="description">Отображает блок с мастерами на главной странице</div>
+        container.innerHTML = `
+            <div class="visibility-controls">
+                <div class="visibility-item">
+                    <label>
+                        <input type="checkbox" id="showSpecialistsToggle" 
+                               ${this.settings.show_specialists === '1' ? 'checked' : ''}>
+                        Показывать специалистов
+                    </label>
+                    <div class="description">Отображает блок с мастерами на главной странице</div>
+                </div>
+                
+                <div class="visibility-item">
+                    <label>
+                        <input type="checkbox" id="showServicesToggle" 
+                               ${this.settings.show_services === '1' ? 'checked' : ''}>
+                        Показывать услуги
+                    </label>
+                    <div class="description">Отображает блок с услугами и ценами</div>
+                </div>
+                
+                <div class="visibility-item">
+                    <label>
+                        <input type="checkbox" id="showContactsToggle" 
+                               ${this.settings.show_contacts === '1' ? 'checked' : ''}>
+                        Показывать контакты
+                    </label>
+                    <div class="description">Отображает контактную информацию и карту</div>
+                </div>
             </div>
-            
-            <div class="visibility-item">
-                <label>
-                    <input type="checkbox" id="showServicesToggle" 
-                           ${this.settings.show_services === '1' ? 'checked' : ''}>
-                    Показывать услуги
-                </label>
-                <div class="description">Отображает блок с услугами и ценами</div>
-            </div>
-            
-            <div class="visibility-item">
-                <label>
-                    <input type="checkbox" id="showContactsToggle" 
-                           ${this.settings.show_contacts === '1' ? 'checked' : ''}>
-                    Показывать контакты
-                </label>
-                <div class="description">Отображает контактную информацию и карту</div>
-            </div>
-        </div>
-    `;
+        `;
 
-    // Добавляем обработчики событий
-    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', (e) => {
-            let key = e.target.id.replace('Toggle', '');
-            key = this.camelToSnake(key);  // Convert to snake_case for DB
-            this.updateSetting(key, e.target.checked ? '1' : '0');
-            
-            // Визуальный эффект изменения
-            const item = e.target.closest('.visibility-item');
-            item.classList.add('changed');
-            setTimeout(() => item.classList.remove('changed'), 1000);
+        // Добавляем обработчики событий
+        const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', (e) => {
+                let key = e.target.id.replace('Toggle', '');
+                key = this.camelToSnake(key);  // Convert to snake_case for DB
+                this.updateSetting(key, e.target.checked ? '1' : '0');
+                
+                // Визуальный эффект изменения
+                const item = e.target.closest('.visibility-item');
+                item.classList.add('changed');
+                setTimeout(() => item.classList.remove('changed'), 1000);
+            });
         });
-    });
-}
+    }
 
-// Add this helper method to the NotificationSettingsManager class
-camelToSnake(camelCase) {
-    return camelCase.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
+    // Add this helper method to the NotificationSettingsManager class
+    camelToSnake(camelCase) {
+        return camelCase.replace(/([A-Z])/g, '_$1').toLowerCase();
+    }
 
     displayMasters() {
         const container = document.getElementById('mastersNotificationsList');
@@ -125,7 +125,6 @@ camelToSnake(camelCase) {
         `).join('');
     }
 
-
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
@@ -148,156 +147,151 @@ camelToSnake(camelCase) {
         }, 3000);
     }
 
+    async updateSetting(key, value) {
+        try {
+            const response = await fetch(`/api/settings/${key}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ значение: value })
+            });
 
-// В методе updateSetting
-async updateSetting(key, value) {
-    try {
-        const response = await fetch(`/api/settings/${key}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ значение: value })
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.message === 'success') {
-                this.settings[key] = value;
-                this.showNotification('Настройка сохранена!', 'success');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.settings[key] = value;
+                    this.showNotification('Настройка сохранена!', 'success');
+                }
+            } else {
+                throw new Error('Ошибка сохранения');
             }
-        } else {
-            throw new Error('Ошибка сохранения');
+        } catch (error) {
+            console.error('Ошибка сохранения настройки:', error);
+            this.showNotification('Ошибка сохранения настройки', 'error');
         }
-    } catch (error) {
-        console.error('Ошибка сохранения настройки:', error);
-        this.showNotification('Ошибка сохранения настройки', 'error');
     }
-}
 
-// В методе saveTgId
-async saveTgId(masterId) {
-    const input = document.querySelector(`.tg-id-field[data-master-id="${masterId}"]`);
-    const tgId = input.value.trim();
+    async saveTgId(masterId) {
+        const input = document.querySelector(`.tg-id-field[data-master-id="${masterId}"]`);
+        const tgId = input.value.trim();
 
-    try {
-        const response = await fetch(`/api/specialist/${masterId}/tg-id`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ tg_id: tgId })
-        });
+        try {
+            const response = await fetch(`/api/specialist/${masterId}/tg-id`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ tg_id: tgId })
+            });
 
-        if (response.ok) {
-            const data = await response.json();
-            if (data.message === 'success') {
-                this.showNotification('Telegram ID успешно сохранен!', 'success');
-                const master = this.masters.find(m => m.id === masterId);
-                if (master) {
-                    master.tg_id = tgId;
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.showNotification('Telegram ID успешно сохранен!', 'success');
+                    const master = this.masters.find(m => m.id === masterId);
+                    if (master) {
+                        master.tg_id = tgId;
+                    }
+                }
+            } else {
+                throw new Error('Ошибка сохранения');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения Telegram ID:', error);
+            this.showNotification('Ошибка сохранения Telegram ID', 'error');
+        }
+    }
+
+    async uploadDefaultPhoto(type, file) {
+        const formData = new FormData();
+        formData.append('photo', file);
+        formData.append('type', type);
+        
+        try {
+            const response = await fetch('/api/upload-default-photo', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.showNotification('Фото по умолчанию успешно обновлено!', 'success');
+                    return true;
                 }
             }
-        } else {
-            throw new Error('Ошибка сохранения');
+            throw new Error('Ошибка загрузки фото');
+        } catch (error) {
+            console.error('Ошибка загрузки фото:', error);
+            this.showNotification('Ошибка загрузки фото', 'error');
+            return false;
         }
-    } catch (error) {
-        console.error('Ошибка сохранения Telegram ID:', error);
-        this.showNotification('Ошибка сохранения Telegram ID', 'error');
     }
-}
 
-// В методе uploadDefaultPhoto
-async uploadDefaultPhoto(type, file) {
-    const formData = new FormData();
-    formData.append('photo', file);
-    formData.append('type', type);
-    
-    try {
-        const response = await fetch('/api/upload-default-photo', {
-            method: 'POST',
-            body: formData
-        });
+    handleDefaultPhotoUpload(type, event) {
+        const file = event.target.files[0];
+        if (!file) return;
         
-        if (response.ok) {
-            const data = await response.json();
-            if (data.message === 'success') {
-                this.showNotification('Фото по умолчанию успешно обновлено!', 'success');
-                return true;
+        if (!file.type.startsWith('image/')) {
+            this.showNotification('Пожалуйста, выберите изображение', 'error');
+            return;
+        }
+        
+        if (file.size > 5 * 1024 * 1024) {
+            this.showNotification('Размер файла не должен превышать 5MB', 'error');
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const previewId = `default${type}Preview`;
+            const preview = document.getElementById(previewId);
+            if (preview) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
             }
-        }
-        throw new Error('Ошибка загрузки фото');
-    } catch (error) {
-        console.error('Ошибка загрузки фото:', error);
-        this.showNotification('Ошибка загрузки фото', 'error');
-        return false;
-    }
-}
-
-// В методе handleDefaultPhotoUpload
-handleDefaultPhotoUpload(type, event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    
-    if (!file.type.startsWith('image/')) {
-        this.showNotification('Пожалуйста, выберите изображение', 'error');
-        return;
-    }
-    
-    if (file.size > 5 * 1024 * 1024) {
-        this.showNotification('Размер файла не должен превышать 5MB', 'error');
-        return;
-    }
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const previewId = `default${type}Preview`;
-        const preview = document.getElementById(previewId);
-        if (preview) {
-            preview.src = e.target.result;
-            preview.style.display = 'block';
-        }
-    };
-    reader.readAsDataURL(file);
-    
-    this.uploadDefaultPhoto(type, file);
-}
-
-openPhotoSettingsModal() {
-    const modal = document.getElementById('photoSettingsModal');
-    if (modal) {
-        modal.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
         
+        this.uploadDefaultPhoto(type, file);
+    }
+
+    openPhotoSettingsModal() {
+        const modal = document.getElementById('photoSettingsModal');
+        if (modal) {
+            modal.style.display = 'block';
+            
+            // Загружаем текущие фото по умолчанию
+            this.loadDefaultPhotos();
+        }
+    }
+
+    closePhotoSettingsModal() {
+        const modal = document.getElementById('photoSettingsModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+
+    async loadDefaultPhotos() {
         // Загружаем текущие фото по умолчанию
-        this.loadDefaultPhotos();
-    }
-}
-
-closePhotoSettingsModal() {
-    const modal = document.getElementById('photoSettingsModal');
-    if (modal) {
-        modal.style.display = 'none';
-    }
-}
-
-async loadDefaultPhotos() {
-    // Загружаем текущие фото по умолчанию
-    try {
-        const masterResponse = await fetch('/photo/работники/default.jpg');
-        const masterPreview = document.getElementById('defaultMasterPreview');
-        if (masterPreview && masterResponse.ok) {
-            masterPreview.style.display = 'block';
+        try {
+            const masterResponse = await fetch('/photo/работники/default.jpg');
+            const masterPreview = document.getElementById('defaultMasterPreview');
+            if (masterPreview && masterResponse.ok) {
+                masterPreview.style.display = 'block';
+            }
+            
+            const serviceResponse = await fetch('/photo/услуги/default.jpg');
+            const servicePreview = document.getElementById('defaultServicePreview');
+            if (servicePreview && serviceResponse.ok) {
+                servicePreview.style.display = 'block';
+            }
+        } catch (error) {
+            console.log('Фото по умолчанию еще не установлены');
         }
-        
-        const serviceResponse = await fetch('/photo/услуги/default.jpg');
-        const servicePreview = document.getElementById('defaultServicePreview');
-        if (servicePreview && serviceResponse.ok) {
-            servicePreview.style.display = 'block';
-        }
-    } catch (error) {
-        console.log('Фото по умолчанию еще не установлены');
     }
-}
 
     setupEventListeners() {
         document.getElementById('openNotificationsBtn')?.addEventListener('click', () => {
@@ -315,21 +309,22 @@ async loadDefaultPhotos() {
         document.getElementById('closeContentSettingsModal')?.addEventListener('click', () => {
             this.closeContentSettingsModal();
         });
-         document.getElementById('openPhotoSettingsBtn')?.addEventListener('click', () => {
-        this.openPhotoSettingsModal();
-    });
+        
+        document.getElementById('openPhotoSettingsBtn')?.addEventListener('click', () => {
+            this.openPhotoSettingsModal();
+        });
 
-    document.getElementById('closePhotoSettingsModal')?.addEventListener('click', () => {
-        this.closePhotoSettingsModal();
-    });
+        document.getElementById('closePhotoSettingsModal')?.addEventListener('click', () => {
+            this.closePhotoSettingsModal();
+        });
 
-    document.getElementById('masterDefaultPhoto')?.addEventListener('change', (e) => {
-        this.handleDefaultPhotoUpload('Master', e);
-    });
+        document.getElementById('masterDefaultPhoto')?.addEventListener('change', (e) => {
+            this.handleDefaultPhotoUpload('Master', e);
+        });
 
-    document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
-        this.handleDefaultPhotoUpload('Service', e);
-    });
+        document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
+            this.handleDefaultPhotoUpload('Service', e);
+        });
 
         document.addEventListener('keypress', (e) => {
             if (e.target.classList.contains('tg-id-field') && e.key === 'Enter') {
@@ -370,15 +365,437 @@ async loadDefaultPhotos() {
     }
 }
 
+class ContentManager {
+    constructor() {
+        this.pages = ['главная', 'about'];
+        this.currentPage = 'главная';
+        this.content = {};
+        this.links = {};
+    }
+
+async init() {
+    await this.loadSettings();
+    await this.loadPageContent();
+    await this.loadLinks();
+    this.setupEventListeners(); // Добавьте эту строку
+}
+
+    async loadSettings() {
+        try {
+            const response = await fetch('/api/settings');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.settings = data.data;
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки настроек:', error);
+        }
+    }
+
+    async loadPageContent() {
+        try {
+            const response = await fetch(`/api/page-content-full/${this.currentPage}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.content = data.data;
+                    this.displayContent();
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки контента:', error);
+        }
+    }
+
+    async loadLinks() {
+        try {
+            const response = await fetch('/api/links');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.links = data.data;
+                    this.displayContent();
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки ссылок:', error);
+        }
+    }
+
+    displayContent() {
+        const container = document.getElementById('contentTextSettings');
+        if (!container) return;
+
+        container.innerHTML = this.generateContentForm();
+    }
+
+    getPageElements(page) {
+        const elementsMap = {
+            'главная': [
+                { key: 'название_салона', label: 'Название салона', type: 'text' },
+                { key: 'заголовок', label: 'Заголовок', type: 'text' },
+                { key: 'описание', label: 'Описание', type: 'textarea' },
+                { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
+                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
+            ],
+            'about': [
+                { key: 'заголовок', label: 'Заголовок', type: 'text' },
+                { key: 'описание', label: 'Описание', type: 'textarea' },
+                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
+            ]
+        };
+        
+        return elementsMap[page] || [];
+    }
+
+// setting.js - исправленная функция generateContentForm()
+generateContentForm() {
+    const elements = this.getPageElements(this.currentPage);
+    const currentElements = Array.isArray(this.content) ? this.content.filter(item => 
+        elements.some(e => e.key === item.элемент)
+    ) : [];
+
+    return `
+        <div class="page-selector">
+            <label for="pageSelector">Выберите страницу для редактирования:</label>
+            <select id="pageSelector" class="page-select">
+                <option value="главная" ${this.currentPage === 'главная' ? 'selected' : ''}>Главная страница</option>
+                <option value="about" ${this.currentPage === 'about' ? 'selected' : ''}>Страница "О нас"</option>
+            </select>
+        </div>
+        
+        <div class="content-management">
+            <div class="content-elements">
+                <h4>Элементы страницы (перетащите для изменения порядка):</h4>
+                <div id="elementsList" class="elements-list">
+                    ${currentElements.map((item, index) => `
+                        <div class="element-item" data-element="${item.элемент}">
+                            <div class="element-handle">☰</div>
+                            <div class="element-content">
+                                <label>${this.getElementLabel(item.элемент)}:</label>
+                                ${this.getElementInput(item.элемент, item.текст)}
+                            </div>
+                            <div class="element-actions">
+                                <button class="save-element-btn" data-element="${item.элемент}">
+                                    💾
+                                </button>
+                                <button class="delete-element-btn" data-element="${item.элемент}">
+                                    🗑️
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+        
+        <div class="links-management">
+            <h4>Контактные ссылки:</h4>
+            ${this.generateLinksForm()}
+        </div>
+    `;
+}
+
+    getElementLabel(elementKey) {
+        const labels = {
+            'заголовок': 'Заголовок',
+            'описание': 'Описание',
+            'название_салона': 'Название салона',
+            'кнопка_записи': 'Текст кнопки записи',
+            'дополнительный_текст': 'Дополнительный текст'
+        };
+        return labels[elementKey] || elementKey;
+    }
+
+// setting.js - улучшенный getElementInput
+getElementInput(elementKey, value) {
+    const isLongText = ['описание', 'дополнительный_текст'].includes(elementKey);
+    
+    // Безопасное экранирование значения
+    const safeValue = this.escapeHtml(value || '');
+    
+    if (isLongText) {
+        return `<textarea class="content-input" data-element="${elementKey}" rows="4">${safeValue}</textarea>`;
+    } else {
+        return `<input type="text" class="content-input" data-element="${elementKey}" value="${safeValue}">`;
+    }
+}
+
+// Добавляем метод для экранирования HTML
+escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
 
 
+// setting.js - в методе setupEventListeners() класса ContentManager
+setupEventListeners() {
+    // Делегирование событий для кнопок сохранения и удаления
+    document.addEventListener('click', (e) => {
+        // Для кнопок сохранения
+        if (e.target.classList.contains('save-element-btn')) {
+            const elementKey = e.target.getAttribute('data-element');
+            if (elementKey) {
+                this.saveContent(elementKey);
+            }
+        }
+        
+        // Для кнопок удаления
+        if (e.target.classList.contains('delete-element-btn')) {
+            const elementKey = e.target.getAttribute('data-element');
+            if (elementKey) {
+                this.deleteElement(elementKey);
+            }
+        }
+    });
+
+    // Сохранение по Enter
+    document.addEventListener('keypress', (e) => {
+        if (e.target.classList.contains('content-input') && e.key === 'Enter') {
+            const elementKey = e.target.getAttribute('data-element');
+            if (elementKey) {
+                this.saveContent(elementKey);
+            }
+        }
+    });
+
+    // Обработчик для изменения страницы - ДОБАВЬТЕ ЭТОТ КОД
+    document.addEventListener('change', (e) => {
+        if (e.target.id === 'pageSelector') {
+            this.changePage(e.target.value);
+        }
+    });
+}
+// setting.js - метод changePage() в классе ContentManager
+async changePage(page) {
+    this.currentPage = page;
+    await this.loadPageContent();
+    this.displayContent(); // Перерисовываем контент после смены страницы
+}
 
 
+    generateLinksForm() {
+        const linksConfig = [
+            { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
+            { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
+            { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
+            { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
+            { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
+            { key: 'phone_contact', label: 'Телефон', placeholder: '+79991234567' }
+        ];
 
-// Инициализация менеджера уведомлений
+        return linksConfig.map(link => `
+            <div class="link-item">
+                <label>${link.label}:</label>
+                <input type="url" id="link_${link.key}" 
+                       value="${this.links[link.key] || ''}"
+                       placeholder="${link.placeholder}"
+                       class="link-input">
+                <button onclick="contentManager.saveLink('${link.key}')" 
+                        class="save-link-btn">
+                    💾 Сохранить
+                </button>
+            </div>
+        `).join('');
+    }
+
+    getPageDisplayName(page) {
+        const names = {
+            'главная': 'Главная страница',
+            'about': 'Страница "О нас"'
+        };
+        return names[page] || page;
+    }
+
+    async changePage(page) {
+        this.currentPage = page;
+        await this.loadPageContent();
+    }
+
+// setting.js - исправленный метод saveContent
+// setting.js - исправленный метод saveContent
+async saveContent(elementKey) {
+    // Ищем input более надежным способом
+    const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
+    
+    if (!input) {
+        console.error('Элемент не найден:', elementKey);
+        this.showNotification('Элемент не найден', 'error');
+        return;
+    }
+
+    const value = input.value || ''; // Защита от undefined
+    const trimmedValue = value.trim();
+
+    try {
+        const response = await fetch(`/api/pages/${this.currentPage}/${elementKey}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ текст: trimmedValue })
+        });
+
+        if (response.ok) {
+            this.showNotification('Текст успешно сохранен!', 'success');
+            
+            // Обновляем контент на странице если она открыта
+            if (this.currentPage === 'главная') {
+                this.updateLiveContent();
+            }
+        } else {
+            throw new Error('Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения текста:', error);
+        this.showNotification('Ошибка сохранения текста', 'error');
+    }
+}
+
+    async saveLink(linkKey) {
+        const input = document.getElementById(`link_${linkKey}`);
+        const value = input.value.trim();
+
+        try {
+            const response = await fetch(`/api/links/${linkKey}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: value })
+            });
+
+            if (response.ok) {
+                this.showNotification('Ссылка успешно сохранена!', 'success');
+                this.links[linkKey] = value;
+            } else {
+                throw new Error('Ошибка сохранения');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения ссылки:', error);
+            this.showNotification('Ошибка сохранения ссылки', 'error');
+        }
+    }
+
+    updateLiveContent() {
+        // Обновляем контент на открытой главной странице
+        if (typeof updateHomeContent === 'function') {
+            updateHomeContent();
+        }
+        if (typeof loadLinks === 'function') {
+            loadLinks();
+        }
+    }
+
+    showNotification(message, type) {
+        if (typeof notificationSettings !== 'undefined' && notificationSettings.showNotification) {
+            notificationSettings.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+
+    showAddElementForm() {
+        const form = document.getElementById('addElementForm');
+        if (form) {
+            form.style.display = 'block';
+        }
+    }
+
+    hideAddElementForm() {
+        const form = document.getElementById('addElementForm');
+        if (form) {
+            form.style.display = 'none';
+        }
+    }
+
+    async addNewElement() {
+        const typeSelect = document.getElementById('newElementType');
+        const textInput = document.getElementById('newElementText');
+        
+        if (!typeSelect || !textInput) return;
+        
+        const elementType = typeSelect.value;
+        const text = textInput.value.trim();
+        
+        if (!text) {
+            this.showNotification('Введите текст элемента', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/page-content/${this.currentPage}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    элемент: elementType === 'custom' ? `custom_${Date.now()}` : elementType,
+                    текст: text 
+                })
+            });
+
+            if (response.ok) {
+                this.showNotification('Элемент успешно добавлен!', 'success');
+                this.hideAddElementForm();
+                await this.loadPageContent();
+            } else {
+                throw new Error('Ошибка добавления');
+            }
+        } catch (error) {
+            console.error('Ошибка добавления элемента:', error);
+            this.showNotification('Ошибка добавления элемента', 'error');
+        }
+    }
+
+    async deleteElement(elementKey) {
+        if (!confirm('Вы уверены, что хотите удалить этот элемент?')) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/page-content/${this.currentPage}/${elementKey}`, {
+                method: 'DELETE'
+            });
+
+            if (response.ok) {
+                this.showNotification('Элемент успешно удален!', 'success');
+                await this.loadPageContent();
+            } else {
+                throw new Error('Ошибка удаления');
+            }
+        } catch (error) {
+            console.error('Ошибка удаления элемента:', error);
+            this.showNotification('Ошибка удаления элемента', 'error');
+        }
+    }
+
+    openTextSettingsModal() {
+        const modal = document.getElementById('textSettingsModal');
+        if (modal) {
+            modal.style.display = 'block';
+            this.init().then(() => {
+                this.displayContent();
+            });
+        }
+    }
+    
+
+    closeTextSettingsModal() {
+        const modal = document.getElementById('textSettingsModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
+    }
+}
+
+// Инициализация менеджеров
 let notificationSettings;
+let contentManager;
 
-// Функция для загрузки раздела настроек
 function loadSettingsSection() {
     const contentContainer = document.getElementById('contentContainer');
     contentContainer.innerHTML = `
@@ -404,14 +821,35 @@ function loadSettingsSection() {
                     </button>
                 </div>
 
+                <div class="setting-card">
+                    <h3>✏️ Тексты и ссылки</h3>
+                    <p>Редактируйте тексты на сайте и контактные ссылки</p>
+                    <button id="openTextSettingsBtn" class="setting-btn">
+                        ⚙️ Редактировать контент
+                    </button>
+                </div>
 
-
-                                <div class="setting-card">
+                <div class="setting-card">
                     <h3>🖼️ Фото по умолчанию</h3>
                     <p>Установите фото по умолчанию для мастеров и услуг</p>
                     <button id="openPhotoSettingsBtn" class="setting-btn">
                         ⚙️ Управление фото
                     </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для редактирования текстов и ссылок -->
+        <div id="textSettingsModal" class="modal" style="display: none;">
+            <div class="modaal-content text-settings-content">
+                <div class="modal-header">
+                    <h3>✏️ Редактирование текстов и ссылок</h3>
+                    <button id="closeTextSettingsModal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div id="contentTextSettings">
+                        <div class="loading">Загрузка контента...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -439,6 +877,7 @@ function loadSettingsSection() {
                 </div>
             </div>
         </div>
+        
         <div id="photoSettingsModal" class="modal" style="display: none;">
             <div class="modaal-content photo-settings">
                 <div class="modal-header">
@@ -479,83 +918,6 @@ function loadSettingsSection() {
             </div>
         </div>
 
-        <style>
-            .photo-settings .modaal-content {
-                max-width: 800px;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            }
-            
-            .photo-settings-grid {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 2rem;
-                padding: 1rem 0;
-            }
-            
-            .photo-setting-item {
-                text-align: center;
-            }
-            
-            .photo-setting-item h4 {
-                margin: 0 0 1rem 0;
-                color: #2c3e50;
-            }
-            
-            .photo-upload-area {
-                border: 2px dashed #ddd;
-                border-radius: 8px;
-                padding: 1.5rem;
-                transition: border-color 0.3s ease;
-            }
-            
-            .photo-upload-area:hover {
-                border-color: #3498db;
-            }
-            
-            .default-photo-preview {
-                margin-bottom: 1rem;
-                border-radius: 8px;
-                object-fit: cover;
-            }
-            
-            .photo-input {
-                display: none;
-            }
-            
-            .photo-upload-btn {
-                display: inline-block;
-                background: #3498db;
-                color: white;
-                padding: 0.75rem 1.5rem;
-                border-radius: 6px;
-                cursor: pointer;
-                transition: background 0.3s ease;
-                margin-bottom: 0.5rem;
-            }
-            
-            .photo-upload-btn:hover {
-                background: #2980b9;
-            }
-            
-            .photo-settings small {
-                display: block;
-                color: #7f8c8d;
-                font-size: 0.8rem;
-            }
-            
-            @media (max-width: 768px) {
-                .photo-settings-grid {
-                    grid-template-columns: 1fr;
-                }
-                
-                .photo-settings .modaal-content {
-                    margin: 1rem;
-                    width: calc(100% - 2rem);
-                }
-            }
-        </style>
         <!-- Модальное окно для управления контентом -->
         <div id="contentSettingsModal" class="modal" style="display: none;">
             <div class="modaal-content">
@@ -572,6 +934,16 @@ function loadSettingsSection() {
         </div>
     `;
 
-    // Инициализируем менеджер уведомлений
+    // Инициализация менеджеров
     notificationSettings = new NotificationSettingsManager();
+    contentManager = new ContentManager();
+
+    // Обработчики событий - добавляем после инициализации
+    document.getElementById('openTextSettingsBtn')?.addEventListener('click', () => {
+        contentManager.openTextSettingsModal();
+    });
+
+    document.getElementById('closeTextSettingsModal')?.addEventListener('click', () => {
+        contentManager.closeTextSettingsModal();
+    });
 }

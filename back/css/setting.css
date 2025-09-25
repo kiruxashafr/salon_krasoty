@@ -435,3 +435,156 @@
         font-size: 0.8rem;
     }
 }
+
+
+/* Стили для управления контентом */
+.text-settings-content .modaal-content {
+    max-width: 800px;
+    max-height: 90vh;
+}
+
+.page-selector {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.page-selector label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.page-selector select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 6px;
+    font-size: 1rem;
+}
+
+.content-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.content-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e3e3e3;
+}
+
+.content-item label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.content-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    margin-bottom: 0.5rem;
+    box-sizing: border-box;
+}
+
+.content-input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.content-description {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.5rem;
+    font-style: italic;
+}
+
+.save-content-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 0.5rem;
+}
+
+.save-content-btn:hover {
+    background: #229954;
+}
+
+.links-management {
+    border-top: 2px solid #e3e3e3;
+    padding-top: 2rem;
+}
+
+.links-management h4 {
+    margin-bottom: 1rem;
+    color: #2c3e50;
+}
+
+.link-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e3e3e3;
+}
+
+.link-item label {
+    min-width: 150px;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.link-input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 4px;
+}
+
+.save-link-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    min-width: 40px;
+}
+
+.save-link-btn:hover {
+    background: #2980b9;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .link-item {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+    }
+    
+    .link-item label {
+        min-width: auto;
+    }
+    
+    .text-settings-content .modaal-content {
+        margin: 1rem;
+        width: calc(100% - 2rem);
+    }
+}
