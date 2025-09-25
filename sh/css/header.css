@@ -91,6 +91,7 @@ object-position: right;
     font-family: 'soviet', Arial, sans-serif;
     font-size: clamp(32px, 7vw, 70px);
     margin: 0 0 1rem 0;
+    text-transform: uppercase;
 }
 
 .hero-description {

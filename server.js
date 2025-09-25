@@ -199,6 +199,28 @@ function initializeDatabase() {
     )
 `);
 
+
+        db.run(`
+            CREATE TABLE IF NOT EXISTS страницы (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                страница TEXT NOT NULL,
+                элемент TEXT NOT NULL,
+                текст TEXT,
+                порядок INTEGER DEFAULT 0,
+                UNIQUE(страница, элемент)
+            )
+        `);
+
+
+        db.run(`
+            CREATE TABLE IF NOT EXISTS ссылки (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                тип TEXT NOT NULL UNIQUE,
+                url TEXT NOT NULL,
+                описание TEXT
+            )
+        `);
+
         db.run(`
             CREATE TABLE IF NOT EXISTS записи (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -276,7 +298,140 @@ function initializeDatabase() {
         });
     });
 }
+// server.js - добавить API endpoints для страниц
 
+// Получить контент страницы
+app.get('/api/pages/:pageName', (req, res) => {
+    const pageName = req.params.pageName;
+    
+    const sql = "SELECT элемент, текст FROM страницы WHERE страница = ? ORDER BY порядок";
+    
+    db.all(sql, [pageName], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const content = {};
+        rows.forEach(row => {
+            content[row.элемент] = row.текст;
+        });
+        
+        res.json({
+            message: "success",
+            data: content
+        });
+    });
+});
+
+
+app.get('/api/home-content', (req, res) => {
+    const sql = "SELECT элемент, текст FROM страницы WHERE страница = 'главная' ORDER BY порядок";
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const content = {};
+        rows.forEach(row => {
+            content[row.элемент] = row.текст;
+        });
+        
+        res.json({
+            message: "success",
+            data: content
+        });
+    });
+});
+
+
+app.get('/api/links', (req, res) => {
+    const sql = "SELECT тип, url, описание FROM ссылки";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const links = {};
+        rows.forEach(row => {
+            links[row.тип] = row.url;
+        });
+        
+        res.json({
+            message: "success",
+            data: links
+        });
+    });
+});
+
+// Обновить ссылку
+app.put('/api/links/:type', (req, res) => {
+    const linkType = req.params.type;
+    const { url } = req.body;
+    
+    if (!url) {
+        return res.status(400).json({ error: 'URL обязателен' });
+    }
+    
+    const sql = `
+        INSERT INTO ссылки (тип, url) 
+        VALUES (?, ?) 
+        ON CONFLICT(тип) 
+        DO UPDATE SET url = excluded.url
+    `;
+    
+    db.run(sql, [linkType, url], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                тип: linkType,
+                url: url
+            }
+        });
+    });
+});
+
+// Обновить контент элемента страницы
+app.put('/api/pages/:pageName/:element', (req, res) => {
+    const pageName = req.params.pageName;
+    const element = req.params.element;
+    const { текст } = req.body;
+    
+    if (текст === undefined) {
+        return res.status(400).json({ error: 'Текст обязателен' });
+    }
+    
+    const sql = `
+        INSERT INTO страницы (страница, элемент, текст) 
+        VALUES (?, ?, ?) 
+        ON CONFLICT(страница, элемент) 
+        DO UPDATE SET текст = excluded.текст
+    `;
+    
+    db.run(sql, [pageName, element, текст], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                страница: pageName,
+                элемент: element,
+                текст: текст
+            }
+        });
+    });
+});
 
 // Serve main page
 app.get('/', (req, res) => {
