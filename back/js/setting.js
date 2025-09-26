@@ -365,6 +365,7 @@ class NotificationSettingsManager {
     }
 }
 
+
 class ContentManager {
     constructor() {
         this.pages = ['главная', 'about'];
@@ -373,12 +374,12 @@ class ContentManager {
         this.links = {};
     }
 
-async init() {
-    await this.loadSettings();
-    await this.loadPageContent();
-    await this.loadLinks();
-    this.setupEventListeners(); // Добавьте эту строку
-}
+    async init() {
+        await this.loadSettings();
+        await this.loadPageContent();
+        await this.loadLinks();
+        this.setupEventListeners();
+    }
 
     async loadSettings() {
         try {
@@ -450,53 +451,47 @@ async init() {
         return elementsMap[page] || [];
     }
 
-// setting.js - исправленная функция generateContentForm()
-generateContentForm() {
-    const elements = this.getPageElements(this.currentPage);
-    const currentElements = Array.isArray(this.content) ? this.content.filter(item => 
-        elements.some(e => e.key === item.элемент)
-    ) : [];
+    // Упрощенная версия generateContentForm() без удаления и перетаскивания
+    generateContentForm() {
+        const elements = this.getPageElements(this.currentPage);
+        const currentElements = Array.isArray(this.content) ? this.content.filter(item => 
+            elements.some(e => e.key === item.элемент)
+        ) : [];
 
-    return `
-        <div class="page-selector">
-            <label for="pageSelector">Выберите страницу для редактирования:</label>
-            <select id="pageSelector" class="page-select">
-                <option value="главная" ${this.currentPage === 'главная' ? 'selected' : ''}>Главная страница</option>
-                <option value="about" ${this.currentPage === 'about' ? 'selected' : ''}>Страница "О нас"</option>
-            </select>
-        </div>
-        
-        <div class="content-management">
-            <div class="content-elements">
-                <h4>Элементы страницы (перетащите для изменения порядка):</h4>
-                <div id="elementsList" class="elements-list">
-                    ${currentElements.map((item, index) => `
-                        <div class="element-item" data-element="${item.элемент}">
-                            <div class="element-handle">☰</div>
-                            <div class="element-content">
-                                <label>${this.getElementLabel(item.элемент)}:</label>
-                                ${this.getElementInput(item.элемент, item.текст)}
+        return `
+            <div class="page-selector">
+                <label for="pageSelector">Выберите страницу для редактирования:</label>
+                <select id="pageSelector" class="page-select">
+                    <option value="главная" ${this.currentPage === 'главная' ? 'selected' : ''}>Главная страница</option>
+                    <option value="about" ${this.currentPage === 'about' ? 'selected' : ''}>Страница "О нас"</option>
+                </select>
+            </div>
+            
+            <div class="content-management">
+                <div class="content-elements">
+                    <h4>Элементы страницы:</h4>
+                    <div id="elementsList" class="elements-list">
+                        ${currentElements.map((item, index) => `
+                            <div class="element-item" data-element="${item.элемент}">
+                                <div class="element-content">
+                                    <label>${this.getElementLabel(item.элемент)}:</label>
+                                    ${this.getElementInput(item.элемент, item.текст)}
+                                    <button class="save-element-btn" data-element="${item.элемент}">
+                                        💾 Сохранить
+                                    </button>
+                                </div>
                             </div>
-                            <div class="element-actions">
-                                <button class="save-element-btn" data-element="${item.элемент}">
-                                    💾
-                                </button>
-                                <button class="delete-element-btn" data-element="${item.элемент}">
-                                    🗑️
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
+                        `).join('')}
+                    </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="links-management">
-            <h4>Контактные ссылки:</h4>
-            ${this.generateLinksForm()}
-        </div>
-    `;
-}
+            
+            <div class="links-management">
+                <h4>Контактные ссылки:</h4>
+                ${this.generateLinksForm()}
+            </div>
+        `;
+    }
 
     getElementLabel(elementKey) {
         const labels = {
@@ -509,73 +504,60 @@ generateContentForm() {
         return labels[elementKey] || elementKey;
     }
 
-// setting.js - улучшенный getElementInput
-getElementInput(elementKey, value) {
-    const isLongText = ['описание', 'дополнительный_текст'].includes(elementKey);
-    
-    // Безопасное экранирование значения
-    const safeValue = this.escapeHtml(value || '');
-    
-    if (isLongText) {
-        return `<textarea class="content-input" data-element="${elementKey}" rows="4">${safeValue}</textarea>`;
-    } else {
-        return `<input type="text" class="content-input" data-element="${elementKey}" value="${safeValue}">`;
-    }
-}
-
-// Добавляем метод для экранирования HTML
-escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-
-// setting.js - в методе setupEventListeners() класса ContentManager
-setupEventListeners() {
-    // Делегирование событий для кнопок сохранения и удаления
-    document.addEventListener('click', (e) => {
-        // Для кнопок сохранения
-        if (e.target.classList.contains('save-element-btn')) {
-            const elementKey = e.target.getAttribute('data-element');
-            if (elementKey) {
-                this.saveContent(elementKey);
-            }
-        }
+    getElementInput(elementKey, value) {
+        const isLongText = ['описание', 'дополнительный_текст'].includes(elementKey);
         
-        // Для кнопок удаления
-        if (e.target.classList.contains('delete-element-btn')) {
-            const elementKey = e.target.getAttribute('data-element');
-            if (elementKey) {
-                this.deleteElement(elementKey);
+        // Безопасное экранирование значения
+        const safeValue = this.escapeHtml(value || '');
+        
+        if (isLongText) {
+            return `<textarea class="content-input" data-element="${elementKey}" rows="4">${safeValue}</textarea>`;
+        } else {
+            return `<input type="text" class="content-input" data-element="${elementKey}" value="${safeValue}">`;
+        }
+    }
+
+    // Метод для экранирования HTML
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    setupEventListeners() {
+        // Делегирование событий для кнопок сохранения
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('save-element-btn')) {
+                const elementKey = e.target.getAttribute('data-element');
+                if (elementKey) {
+                    this.saveContent(elementKey);
+                }
             }
-        }
-    });
+        });
 
-    // Сохранение по Enter
-    document.addEventListener('keypress', (e) => {
-        if (e.target.classList.contains('content-input') && e.key === 'Enter') {
-            const elementKey = e.target.getAttribute('data-element');
-            if (elementKey) {
-                this.saveContent(elementKey);
+        // Сохранение по Enter
+        document.addEventListener('keypress', (e) => {
+            if (e.target.classList.contains('content-input') && e.key === 'Enter') {
+                const elementKey = e.target.getAttribute('data-element');
+                if (elementKey) {
+                    this.saveContent(elementKey);
+                }
             }
-        }
-    });
+        });
 
-    // Обработчик для изменения страницы - ДОБАВЬТЕ ЭТОТ КОД
-    document.addEventListener('change', (e) => {
-        if (e.target.id === 'pageSelector') {
-            this.changePage(e.target.value);
-        }
-    });
-}
-// setting.js - метод changePage() в классе ContentManager
-async changePage(page) {
-    this.currentPage = page;
-    await this.loadPageContent();
-    this.displayContent(); // Перерисовываем контент после смены страницы
-}
+        // Обработчик для изменения страницы
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'pageSelector') {
+                this.changePage(e.target.value);
+            }
+        });
+    }
 
+   async changePage(page) {
+        this.currentPage = page;
+        await this.loadPageContent();
+        this.displayContent();
+    }
 
     generateLinksForm() {
         const linksConfig = [
@@ -602,6 +584,7 @@ async changePage(page) {
         `).join('');
     }
 
+
     getPageDisplayName(page) {
         const names = {
             'главная': 'Главная страница',
@@ -617,43 +600,42 @@ async changePage(page) {
 
 // setting.js - исправленный метод saveContent
 // setting.js - исправленный метод saveContent
-async saveContent(elementKey) {
-    // Ищем input более надежным способом
-    const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
-    
-    if (!input) {
-        console.error('Элемент не найден:', elementKey);
-        this.showNotification('Элемент не найден', 'error');
-        return;
-    }
-
-    const value = input.value || ''; // Защита от undefined
-    const trimmedValue = value.trim();
-
-    try {
-        const response = await fetch(`/api/pages/${this.currentPage}/${elementKey}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ текст: trimmedValue })
-        });
-
-        if (response.ok) {
-            this.showNotification('Текст успешно сохранен!', 'success');
-            
-            // Обновляем контент на странице если она открыта
-            if (this.currentPage === 'главная') {
-                this.updateLiveContent();
-            }
-        } else {
-            throw new Error('Ошибка сохранения');
+    async saveContent(elementKey) {
+        const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
+        
+        if (!input) {
+            console.error('Элемент не найден:', elementKey);
+            this.showNotification('Элемент не найден', 'error');
+            return;
         }
-    } catch (error) {
-        console.error('Ошибка сохранения текста:', error);
-        this.showNotification('Ошибка сохранения текста', 'error');
+
+        const value = input.value || '';
+        const trimmedValue = value.trim();
+
+        try {
+            const response = await fetch(`/api/pages/${this.currentPage}/${elementKey}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ текст: trimmedValue })
+            });
+
+            if (response.ok) {
+                this.showNotification('Текст успешно сохранен!', 'success');
+                
+                // Обновляем контент на странице если она открыта
+                if (this.currentPage === 'главная') {
+                    this.updateLiveContent();
+                }
+            } else {
+                throw new Error('Ошибка сохранения');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения текста:', error);
+            this.showNotification('Ошибка сохранения текста', 'error');
+        }
     }
-}
 
     async saveLink(linkKey) {
         const input = document.getElementById(`link_${linkKey}`);
@@ -681,7 +663,6 @@ async saveContent(elementKey) {
     }
 
     updateLiveContent() {
-        // Обновляем контент на открытой главной странице
         if (typeof updateHomeContent === 'function') {
             updateHomeContent();
         }
@@ -698,81 +679,6 @@ async saveContent(elementKey) {
         }
     }
 
-    showAddElementForm() {
-        const form = document.getElementById('addElementForm');
-        if (form) {
-            form.style.display = 'block';
-        }
-    }
-
-    hideAddElementForm() {
-        const form = document.getElementById('addElementForm');
-        if (form) {
-            form.style.display = 'none';
-        }
-    }
-
-    async addNewElement() {
-        const typeSelect = document.getElementById('newElementType');
-        const textInput = document.getElementById('newElementText');
-        
-        if (!typeSelect || !textInput) return;
-        
-        const elementType = typeSelect.value;
-        const text = textInput.value.trim();
-        
-        if (!text) {
-            this.showNotification('Введите текст элемента', 'error');
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/page-content/${this.currentPage}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ 
-                    элемент: elementType === 'custom' ? `custom_${Date.now()}` : elementType,
-                    текст: text 
-                })
-            });
-
-            if (response.ok) {
-                this.showNotification('Элемент успешно добавлен!', 'success');
-                this.hideAddElementForm();
-                await this.loadPageContent();
-            } else {
-                throw new Error('Ошибка добавления');
-            }
-        } catch (error) {
-            console.error('Ошибка добавления элемента:', error);
-            this.showNotification('Ошибка добавления элемента', 'error');
-        }
-    }
-
-    async deleteElement(elementKey) {
-        if (!confirm('Вы уверены, что хотите удалить этот элемент?')) {
-            return;
-        }
-        
-        try {
-            const response = await fetch(`/api/page-content/${this.currentPage}/${elementKey}`, {
-                method: 'DELETE'
-            });
-
-            if (response.ok) {
-                this.showNotification('Элемент успешно удален!', 'success');
-                await this.loadPageContent();
-            } else {
-                throw new Error('Ошибка удаления');
-            }
-        } catch (error) {
-            console.error('Ошибка удаления элемента:', error);
-            this.showNotification('Ошибка удаления элемента', 'error');
-        }
-    }
-
     openTextSettingsModal() {
         const modal = document.getElementById('textSettingsModal');
         if (modal) {
@@ -782,7 +688,6 @@ async saveContent(elementKey) {
             });
         }
     }
-    
 
     closeTextSettingsModal() {
         const modal = document.getElementById('textSettingsModal');

@@ -588,3 +588,72 @@
         width: calc(100% - 2rem);
     }
 }
+
+
+/* setting.css (дополнения для нового стиля) */
+/* Добавляем стили для упрощенного вида элементов */
+
+.element-item {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    border: 1px solid #e3e3e3;
+    margin-bottom: 1rem;
+}
+
+.element-content label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.element-content .content-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-family: inherit;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+}
+
+.element-content .content-input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.save-element-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.save-element-btn:hover {
+    background: #229954;
+    transform: translateY(-1px);
+}
+
+/* Убираем стили для handle и actions которые больше не нужны */
+.element-handle,
+.element-actions {
+    display: none;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .element-item {
+        padding: 1rem;
+    }
+    
+    .save-element-btn {
+        width: 100%;
+        padding: 1rem;
+    }
+}
