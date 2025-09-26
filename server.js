@@ -178,6 +178,48 @@ app.use((error, req, res, next) => {
     res.status(400).json({ error: error.message });
 });
 
+
+// server.js - добавить после существующих endpoints
+
+// API endpoint для получения всех клиентов с tg_id
+app.get('/api/clients-with-tg', (req, res) => {
+    const sql = `
+        SELECT id, имя, телефон, tg_id 
+        FROM клиенты 
+        WHERE tg_id IS NOT NULL AND tg_id != ''
+        ORDER BY имя
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// API endpoint для массовой рассылки (для статистики)
+app.get('/api/broadcast-stats', (req, res) => {
+    const sql = "SELECT COUNT(*) as total FROM клиенты WHERE tg_id IS NOT NULL AND tg_id != ''";
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: {
+                total_clients: row.total
+            }
+        });
+    });
+});
+
 // Database initialization
 function initializeDatabase() {
     db.serialize(() => {

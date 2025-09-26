@@ -1,24 +1,26 @@
-/* ----- Base ----- */
-body {
-  background-color: #55c1FA;
+
+.loader-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #3a0000; /* Цвет фона загрузчика */
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
-/* ----- Loader ----- */
-.loader-wrapper {
-  width: 148px;
-  height: 100px;
-  position: absolute;
-  top: 60%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
 
 .loader {
   width: 148px;
   height: 100px;
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 .loader::after {
@@ -29,7 +31,7 @@ body {
   height: 0.25em;
   width: 1em;
   border-radius: 50%;
-  background-color: #1a7cb5; /* Darkened from #55c1FA */
+  background-color: #4e1b1b; /* Darkened from #55c1FA */
   opacity: 0.3;
   animation: shadow 1.2s infinite linear;
 }
@@ -58,7 +60,7 @@ body {
   display: block;
   width: 15px;
   height: 15px;
-  background: #000;
+  background: #ffffff;
   border-radius: 50%;
 }
 

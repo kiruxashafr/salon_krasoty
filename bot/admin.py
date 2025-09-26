@@ -45,12 +45,13 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Пользователь является мастером, показываем админ-панель
-        photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
-        message_text = f"👑 Админ-панель мастера\n\nМастер: {user_master['имя']}"
+        photo_url = f"{API_BASE_URL}/photo/images/admin.jpg"
+        message_text = f"♔ Админ-панель мастера\n\nМастер: {user_master['имя']}"
 
         keyboard = [
-            [InlineKeyboardButton("➕ Добавить свободное время", callback_data='admin_add_freetime')],
-            [InlineKeyboardButton("📊 Мои записи", callback_data='admin_my_records')],
+            [InlineKeyboardButton("⊹ Добавить свободное время", callback_data='admin_add_freetime')],
+            [InlineKeyboardButton("≣ Мои записи", callback_data='admin_my_records')],
+            [InlineKeyboardButton("⎋ Рассылка", callback_data='admin_broadcast')],  # Новая кнопка
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -86,6 +87,8 @@ async def show_admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
+
+
 async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback для админ-панели"""
     query = update.callback_query
@@ -103,19 +106,21 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await show_master_appointments(update, context, user_id)
     elif data == 'admin_my_freetime':
         await show_master_freetime(update, context, user_id)
-    elif data.startswith('admin_select_service_'):
-        service_id = data.split('_')[3]
-        await select_date_for_freetime(update, context, service_id)
-    elif data.startswith('admin_select_date_'):
-        date_str = data.split('_')[3]
-        await enter_time_for_freetime(update, context, date_str)
-    elif data == 'admin_back_to_services':
-        await select_service_for_freetime(update, context)
-    elif data == 'admin_back_to_records':
-        await show_my_records_menu(update, context, user_id)
-
-
-
+    # ДОБАВЬТЕ ЭТИ ОБРАБОТЧИКИ ДЛЯ РАССЫЛКИ:
+    elif data == 'admin_broadcast':
+        await show_broadcast_menu(update, context, user_id)
+    elif data == 'admin_broadcast_menu':
+        await show_broadcast_menu(update, context, user_id)
+    elif data == 'admin_create_broadcast':
+        await start_broadcast_creation(update, context)
+    elif data == 'admin_clients_list':
+        await show_clients_list(update, context, user_id)
+    elif data == 'admin_confirm_broadcast':
+        await confirm_and_send_broadcast(update, context, user_id)
+    else:
+        # Если callback не распознан, показываем админ-панель
+        logger.warning(f"Неизвестный callback: {data}")
+        await show_admin_panel(update, context)
 async def show_my_records_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
     """Показать меню 'Мои записи' с выбором типа"""
     query = update.callback_query
@@ -203,7 +208,7 @@ async def show_master_freetime(update: Update, context: ContextTypes.DEFAULT_TYP
 
         keyboard = [
             [InlineKeyboardButton("↲ Назад к записям", callback_data='admin_back_to_records')],
-            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -404,64 +409,55 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         state = admin_states[user_id]
 
         if state['step'] == 'enter_time':
-            # Валидация времени
-            if not validate_time(text):
+            # Обработка добавления времени (существующий код)
+            time_str = text
+            if not validate_time(time_str):
                 await update.message.reply_text(
                     "❌ Неверный формат времени!\n\n"
                     "Пожалуйста, введите время в формате ЧЧ:ММ\n"
                     "Пример: 14:30 или 09:00\n"
-                    "Время должно быть кратно 5 минутам\n\n"
-                    "Попробуйте снова или нажмите /cancel для отмены"
+                    "Время должно быть кратно 5 минутам (00, 05, 10, ..., 55)\n\n"
+                    "Для отмены нажмите /cancel"
                 )
                 return
 
-            # Добавляем свободное время в расписание
+            # Получаем данные из состояния
+            master_id = state['master_id']
+            service_id = state['service_id']
+            date_str = state['date']
+
             try:
-                schedule_data = {
-                    'мастер_id': state['master_id'],
-                    'услуга_id': state['service_id'],
-                    'дата': state['date'],
-                    'время': text,
-                    'доступно': 1
-                }
+                # Создаем свободное время
+                response = requests.post(f"{API_BASE_URL}/api/freetime", json={
+                    'specialistId': master_id,
+                    'serviceId': service_id,
+                    'date': date_str,
+                    'time': time_str
+                })
 
-                response = requests.post(
-                    f"{API_BASE_URL}/api/schedule",
-                    json=schedule_data
-                )
-
-                if response.json()['message'] == 'success':
-                    formatted_date = datetime.strptime(state['date'], '%Y-%m-%d').strftime('%d.%m.%Y')
+                if response.json().get('message') == 'success':
+                    await update.message.reply_text("✅ Свободное время успешно добавлено!")
                     
-                    # Получаем название услуги для отображения
-                    service_response = requests.get(f"{API_BASE_URL}/api/service/{state['service_id']}")
-                    service_name = "Услуга"
-                    if service_response.json()['message'] == 'success':
-                        service_name = service_response.json()['data']['название']
+                    # Очищаем состояние
+                    if user_id in admin_states:
+                        del admin_states[user_id]
                     
-                    await update.message.reply_text(
-                        f"✅ Свободное время успешно добавлено!\n\n"
-                        f"≣ Дата: {formatted_date}\n"
-                        f"⏰ Время: {text}\n"
-                        f"🎯 Услуга: {service_name}\n"
-                        f"♢ Мастер: {state['master_name']}\n\n"
-                        "Хотите добавить ещё время?",
-                        reply_markup=InlineKeyboardMarkup([
-                            [InlineKeyboardButton("➕ Добавить ещё", callback_data='admin_add_freetime')],
-                            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')],
-                            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
-                        ])
-                    )
-                    del admin_states[user_id]
+                    # Возвращаем в админ-панель
+                    await show_admin_panel(update, context)
                 else:
-                    await update.message.reply_text("❌ Ошибка при добавлении времени")
+                    await update.message.reply_text("❌ Ошибка при добавлении свободного времени")
 
             except Exception as e:
-                logger.error(f"Error adding freetime: {e}")
+                logger.error(f"Error adding free time: {e}")
                 await update.message.reply_text("❌ Ошибка подключения к серверу")
-
-
                 
+            pass
+            
+        elif state['step'] == 'broadcast_message':
+            # Обработчик для сообщения рассылки
+            await process_broadcast_message(update, context, user_id)
+
+
 def validate_time(time_str):
     """Валидация времени в формате HH:MM"""
     import re
@@ -540,7 +536,7 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
 
         keyboard = [
             [InlineKeyboardButton("↲ Назад к записям", callback_data='admin_back_to_records')],
-            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -634,7 +630,7 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
 
         keyboard = [
             [InlineKeyboardButton("↲ Назад к записям", callback_data='admin_back_to_records')],
-            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -689,7 +685,7 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
                 )
 
         keyboard = [
-            [InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -699,3 +695,301 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
     except Exception as e:
         logger.error(f"Error showing master appointments: {e}")
         await query.edit_message_text(text="❌ Ошибка загрузки записей")
+
+
+async def show_broadcast_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Показать меню рассылки"""
+    query = update.callback_query
+    
+    try:
+        # Получаем статистику по клиентам
+        response = requests.get(f"{API_BASE_URL}/api/broadcast-stats")
+        if response.status_code != 200 or response.json().get('message') != 'success':
+            raise Exception("Error fetching broadcast stats")
+            
+        stats = response.json().get('data', {})
+        total_clients = stats.get('total_clients', 0)
+        
+        message_text = (
+            "📢 Рассылка сообщений\n\n"
+            f"👥 Всего клиентов с Telegram: {total_clients}\n\n"
+            "Выберите действие:"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("⊹ Создать рассылку", callback_data='admin_create_broadcast')],
+            [InlineKeyboardButton("≣ Статистика клиентов", callback_data='admin_clients_list')],
+            [InlineKeyboardButton("↲ Назад в админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Проверяем тип сообщения (с фото или без)
+        if hasattr(query.message, 'photo') and query.message.photo:
+            await query.edit_message_caption(
+                caption=message_text,
+                reply_markup=reply_markup
+            )
+        else:
+            await query.edit_message_text(
+                text=message_text,
+                reply_markup=reply_markup
+            )
+        
+    except Exception as e:
+        logger.error(f"Error showing broadcast menu: {e}")
+        error_text = "❌ Ошибка загрузки статистики рассылки"
+        
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад в админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        if hasattr(query.message, 'photo') and query.message.photo:
+            await query.edit_message_caption(caption=error_text, reply_markup=reply_markup)
+        else:
+            await query.edit_message_text(text=error_text, reply_markup=reply_markup)
+
+
+
+async def show_clients_list(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Показать список клиентов для рассылки"""
+    query = update.callback_query
+    
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/clients-with-tg")
+        if response.json()['message'] != 'success':
+            raise Exception("Error fetching clients")
+            
+        clients = response.json()['data']
+        
+        if not clients:
+            message_text = "❌ Нет клиентов с подключенным Telegram"
+        else:
+            message_text = f"👥 Список клиентов ({len(clients)}):\n\n"
+            
+            for i, client in enumerate(clients, 1):
+                message_text += f"{i}. {client['имя']} ({client['телефон']})\n"
+                
+                # Обрезаем длинные сообщения
+                if len(message_text) > 3500:  # Лимит Telegram
+                    message_text += f"\n... и еще {len(clients) - i} клиентов"
+                    break
+        
+        keyboard = [
+            [InlineKeyboardButton("⊹ Создать рассылку", callback_data='admin_create_broadcast')],
+            [InlineKeyboardButton("↲ Назад к рассылке", callback_data='admin_broadcast_menu')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        # Проверяем тип сообщения
+        if query.message.photo:
+            await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+        else:
+            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            
+    except Exception as e:
+        logger.error(f"Error showing clients list: {e}")
+        error_text = "❌ Ошибка загрузки списка клиентов"
+        if query.message.photo:
+            await query.edit_message_caption(caption=error_text)
+        else:
+            await query.edit_message_text(text=error_text)
+
+async def start_broadcast_creation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Начать создание рассылки"""
+    query = update.callback_query
+    user_id = update.effective_user.id
+    
+    # Устанавливаем состояние для рассылки
+    admin_states[user_id] = {
+        'step': 'broadcast_message',
+        'broadcast_data': {
+            'sent_count': 0,
+            'failed_count': 0,
+            'start_time': None
+        }
+    }
+    
+    message_text = (
+        "📝 Создание рассылки\n\n"
+        "Введите сообщение для рассылки. Вы можете использовать:\n"
+        "• Текст\n"
+        "• Эмодзи\n"
+        "• HTML-разметку для форматирования\n\n"
+        "Пример:\n"
+        "<b>Специальное предложение!</b>\n"
+        "Только этой недели скидка 20% на все услуги! 🎁"
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("↲ Отмена", callback_data='admin_broadcast_menu')],
+        [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    # Используем правильный метод редактирования сообщения
+    if query.message.photo:
+        await query.edit_message_caption(
+            caption=message_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+    else:
+        await query.edit_message_text(
+            text=message_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+
+async def process_broadcast_message(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Обработать сообщение для рассылки и показать предпросмотр"""
+    user_data = admin_states.get(user_id, {})
+    
+    if user_data.get('step') != 'broadcast_message':
+        return
+    
+    message_text = update.message.text
+    
+    if not message_text.strip():
+        await update.message.reply_text("❌ Сообщение не может быть пустым!")
+        return
+    
+    # Сохраняем сообщение
+    user_data['broadcast_data']['message'] = message_text
+    admin_states[user_id] = user_data
+    
+    # Получаем статистику клиентов
+    try:
+        stats_response = requests.get(f"{API_BASE_URL}/api/broadcast-stats")
+        if stats_response.status_code != 200 or stats_response.json().get('message') != 'success':
+            raise Exception("Error fetching stats")
+        
+        stats = stats_response.json().get('data', {})
+        total_clients = stats.get('total_clients', 0)
+        
+        preview_text = (
+            "📋 Предпросмотр рассылки\n\n"
+            "Ваше сообщение:\n"
+            "────────────────────\n"
+            f"{message_text}\n"
+            "────────────────────\n\n"
+            f"👥 Будет отправлено: {total_clients} клиентам\n\n"
+            "Подтвердить отправку?"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("✓ Начать рассылку", callback_data='admin_confirm_broadcast')],
+            [InlineKeyboardButton("✎ Изменить сообщение", callback_data='admin_create_broadcast')],
+            [InlineKeyboardButton("↲ Отмена", callback_data='admin_broadcast_menu')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            text=preview_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error processing broadcast message: {e}")
+        await update.message.reply_text("❌ Ошибка при подготовке рассылки")
+
+
+async def confirm_and_send_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Подтвердить и начать рассылку"""
+    query = update.callback_query
+    user_data = admin_states.get(user_id, {})
+    
+    if not user_data or 'broadcast_data' not in user_data:
+        await query.edit_message_text(text="❌ Данные рассылки не найдены")
+        return
+    
+    broadcast_data = user_data['broadcast_data']
+    message_text = broadcast_data.get('message', '')
+    
+    if not message_text:
+        await query.edit_message_text(text="❌ Сообщение для рассылки не найдено")
+        return
+    
+    # Начинаем рассылку
+    await query.edit_message_text(text="🔄 Начинаем рассылку...")
+    
+    try:
+        # Получаем список клиентов
+        clients_response = requests.get(f"{API_BASE_URL}/api/clients-with-tg")
+        if clients_response.json()['message'] != 'success':
+            raise Exception("Error fetching clients")
+        
+        clients = clients_response.json()['data']
+        total_clients = len(clients)
+        
+        if total_clients == 0:
+            await query.edit_message_text(text="❌ Нет клиентов для рассылки")
+            return
+        
+        # Обновляем данные рассылки
+        broadcast_data['total_count'] = total_clients
+        broadcast_data['start_time'] = datetime.now().strftime('%H:%M:%S')
+        user_data['broadcast_data'] = broadcast_data
+        admin_states[user_id] = user_data
+        
+        # Отправляем рассылку
+        success_count = 0
+        failed_count = 0
+        
+        for i, client in enumerate(clients, 1):
+            try:
+                # Импортируем бота из main
+                from main import bot
+                
+                await bot.send_message(
+                    chat_id=client['tg_id'],
+                    text=message_text,
+                    parse_mode='HTML'
+                )
+                success_count += 1
+                
+                # Обновляем прогресс каждые 10 сообщений или для последнего сообщения
+                if i % 10 == 0 or i == total_clients:
+                    progress = f"📤 Отправлено {i}/{total_clients} сообщений"
+                    await query.edit_message_text(text=progress)
+                
+                # Задержка чтобы не превысить лимиты Telegram
+                import asyncio
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"Error sending to client {client['id']}: {e}")
+                failed_count += 1
+        
+        # Финальный отчет
+        report_text = (
+            "✓ Рассылка завершена!\n\n"
+            f"≣ Статистика:\n"
+            f"• Всего клиентов: {total_clients}\n"
+            f"• Успешно отправлено: {success_count}\n"
+            f"• Не удалось отправить: {failed_count}\n"
+            f"• Время начала: {broadcast_data['start_time']}\n"
+            f"• Время окончания: {datetime.now().strftime('%H:%M:%S')}"
+        )
+        
+        keyboard = [
+            [InlineKeyboardButton("⊹ Новая рассылка", callback_data='admin_create_broadcast')],
+            [InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(text=report_text, reply_markup=reply_markup)
+        
+        # Очищаем состояние
+        if user_id in admin_states:
+            del admin_states[user_id]
+            
+    except Exception as e:
+        logger.error(f"Error during broadcast: {e}")
+        await query.edit_message_text(text="❌ Ошибка во время рассылки")

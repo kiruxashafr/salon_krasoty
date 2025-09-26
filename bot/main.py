@@ -9,8 +9,9 @@ from menu_handlers import show_main_menu, handle_menu_callback
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from admin import handle_admin_message, admin_states
+from admin import show_admin_panel, handle_admin_callback, handle_admin_message, admin_states
 from personal_cabinet import handle_personal_message, personal_states
-
+bot = None
 
 # Настройка логирования
 logging.basicConfig(
@@ -49,11 +50,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = query.from_user.id
     data = query.data
     
+    print(f"DEBUG: Received callback: {data} from user: {user_id}")  # Отладочная информация
+    
     # Обрабатываем callback запросы админ-панели
     admin_prefixes = [
         'admin_panel', 'admin_add_freetime', 'admin_my_records', 
         'admin_my_appointments', 'admin_my_freetime', 'admin_back_to_records',
-        'admin_back_to_services'
+        'admin_back_to_services', 'admin_broadcast', 'admin_broadcast_menu',
+        'admin_create_broadcast', 'admin_clients_list', 'admin_confirm_broadcast'
     ]
     
     admin_starts_with = [
@@ -1297,7 +1301,10 @@ async def start_callback(query):
 
 def main():
     """Запуск бота"""
-    application = Application.builder().token(BOT_TOKEN).build()    
+    global bot
+    application = Application.builder().token(BOT_TOKEN).build()
+    bot = application.bot  # Сохраняем экземпляр бота
+    
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(handle_callback))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

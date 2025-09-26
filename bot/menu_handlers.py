@@ -38,7 +38,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Добавляем кнопку админ-панели если пользователь мастер
     if is_master:
-        keyboard.append([InlineKeyboardButton("👑 Админ-панель", callback_data='admin_panel')])
+        keyboard.append([InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = "☰ Главное меню"
