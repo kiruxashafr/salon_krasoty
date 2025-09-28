@@ -51,8 +51,7 @@ function displaySpecialists(specialists) {
         
         specialistCard.style.backgroundImage = `url('${imageUrl}')`;
         specialistCard.style.backgroundSize = 'cover';
-        specialistCard.style.backgroundPosition = 'center';
-        specialistCard.style.backgroundRepeat = 'no-repeat';
+        specialistCard.style.backgroundPosition = 'top';        specialistCard.style.backgroundRepeat = 'no-repeat';
         specialistCard.style.position = 'relative';
         specialistCard.style.overflow = 'hidden';
 

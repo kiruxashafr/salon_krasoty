@@ -37,7 +37,7 @@
 body {
     margin: 0;
     padding: 0;
-
+    background-color: #3a0000;
     font-weight: 400;
     scroll-behavior: smooth;
 }
@@ -109,7 +109,7 @@ object-position: right;
 @media screen and (max-width: 500px) {
     .fullscreen-img-hero {
         height: 100%; /* Allow section to adjust based on wrapper */
-        min-height: 100vh; /* Ensure minimum viewport height */
+        min-height: 101vh; /* Ensure minimum viewport height */
     }
 
 
@@ -214,7 +214,7 @@ main {
 }
 
 .modal-content {
-    background-color: rgba(27, 28, 29, 1);
+    background-color: #6c6d74;
     padding: 10px;
     border-radius: 10px;
     width: 80%;
