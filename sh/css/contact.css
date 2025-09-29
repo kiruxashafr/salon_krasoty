@@ -38,6 +38,7 @@
   border-radius: 45px;
   object-fit: cover;
   margin: 20px auto;
+  object-position: top;
   display: block;
 }
 

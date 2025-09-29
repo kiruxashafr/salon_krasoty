@@ -173,7 +173,8 @@ class ServicesManager {
     }
 
 renderServiceForm(serviceData = null) {
-    const hasPhoto = serviceData?.фото && serviceData.фото !== 'photo/услуги/default.jpg' && !serviceData.фoto.startsWith('data:');
+    // ИСПРАВЛЕНИЕ: используем правильное свойство 'фото' вместо 'фoto'
+    const hasPhoto = serviceData?.фото && serviceData.фото !== 'photo/услуги/default.jpg' && !serviceData.фото.startsWith('data:');
     
     const formHTML = `
         <div class="service-form-container">
