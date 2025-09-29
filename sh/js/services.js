@@ -824,13 +824,18 @@ function showBookingSuccessService() {
             <h3>Запись подтверждена!</h3>
             <p>Услуга: ${window.currentService.название}</p>
             <p>Мастер: ${window.currentSpecialist ? window.currentSpecialist.имя : 'Неизвестно'}</p>
-            <p>Дата: ${formatDate(window.selectedDate)}</p>
+            <p>Дата: ${formatDateSpecialist(window.selectedDate)}</p>
             <p>Время: ${window.selectedTime}</p>
             <p>Цена: ${window.currentService.цена} ₽</p>
             <p>С вами свяжутся для подтверждения</p>
-            <button class="submit-btn" onclick="closeServiceModal()" style="margin-top: 2rem;">ЗАКРЫТЬ</button>
+            <a href="https://t.me/shafrbeautybot" target="_blank" class="buttonn">
+
+                <p3>Telegram</p3>
+            </a>
+            <button class="submit-btn" onclick="closeSpecialistModal()" style="margin-top: 2rem;">ЗАКРЫТЬ</button>
         </div>
     `;
+
     
     // Заменяем содержимое модального окна
     document.querySelector('.service-modal-content').innerHTML = '';
