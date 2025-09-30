@@ -188,6 +188,65 @@ async function checkContactsVisibility() {
         console.error('Ошибка загрузки настроек видимости:', error);
     }
 }
+async function loadAdminPhoto() {
+    try {
+        const response = await fetch('/api/pages/главная');
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки данных');
+        }
+        
+        const data = await response.json();
+        if (data.message === 'success' && data.data.фото_администратора) {
+            updateAdminPhoto(data.data.фото_администратора);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки фото администратора:', error);
+    }
+}
+
+function updateAdminPhoto(photoUrl) {
+    const adminPhoto = document.querySelector('.profile-photo');
+    if (adminPhoto && photoUrl) {
+        // Добавляем временную метку для избежания кэширования
+        const timestamp = new Date().getTime();
+        adminPhoto.src = photoUrl + '?t=' + timestamp;
+        
+        // Обработчик ошибки загрузки фото
+        adminPhoto.onerror = function() {
+            console.error('Ошибка загрузки фото администратора:', photoUrl);
+            // Можно установить фото по умолчанию
+            this.src = 'photo/работники/default.jpg';
+        };
+    }
+}
+
+// В функцию updateHomeContent добавьте:
+function updateHomeContent(content) {
+    const heroTitle = document.querySelector('.hero-title');
+    if (heroTitle && content.заголовок) {
+        heroTitle.textContent = content.заголовок;
+    }
+    
+    const heroDescription = document.querySelector('.hero-description');
+    if (heroDescription && content.описание) {
+        heroDescription.textContent = content.описание;
+    }
+    
+    const logo = document.querySelector('.logo');
+    if (logo && content.название_салона) {
+        logo.textContent = content.название_салона;
+    }
+    
+    const contactBtn = document.querySelector('.contact-btn');
+    if (contactBtn && content.кнопка_записи) {
+        contactBtn.textContent = content.кнопка_записи;
+    }
+    
+    // Добавляем загрузку фото администратора
+    if (content.фото_администратора) {
+        updateAdminPhoto(content.фото_администратора);
+    }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('modal');
@@ -203,6 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHomeContent();
     loadLinks();
     checkContactsVisibility();
+    loadAdminPhoto(); // Добавляем эту строку
 
     window.addEventListener('scroll', () => {
         let currentScroll = window.pageYOffset || document.documentElement.scrollTop;
@@ -230,6 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
     });
+    
 
     closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';

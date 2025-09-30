@@ -203,6 +203,68 @@ class NotificationSettingsManager {
         }
     }
 
+    // setting.js - добавьте этот метод в класс NotificationSettingsManager
+async uploadAdminPhoto(file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        const response = await fetch('/api/upload-default-admin-photo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                // Обновляем превью с временной меткой чтобы избежать кэширования
+                const preview = document.getElementById('adminPhotoPreview');
+                if (preview) {
+                    const timestamp = new Date().getTime();
+                    preview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
+                }
+                
+                this.showNotification('✅ Фото администратора успешно обновлено!', 'success');
+                return true;
+            }
+        }
+        throw new Error('Ошибка загрузки фото');
+    } catch (error) {
+        console.error('Ошибка загрузки фото администратора:', error);
+        this.showNotification('Ошибка загрузки фото', 'error');
+        return false;
+    }
+}
+
+handleAdminPhotoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        this.showNotification('Пожалуйста, выберите изображение', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        return;
+    }
+    
+    // Сразу показываем превью
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const preview = document.getElementById('adminPhotoPreview');
+        if (preview) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+    };
+    reader.readAsDataURL(file);
+    
+    // Загружаем фото
+    this.uploadAdminPhoto(file);
+}
+
     async uploadDefaultPhoto(type, file) {
         const formData = new FormData();
         formData.append('photo', file);
@@ -274,65 +336,92 @@ class NotificationSettingsManager {
         }
     }
 
-    async loadDefaultPhotos() {
-        // Загружаем текущие фото по умолчанию
-        try {
-            const masterResponse = await fetch('/photo/работники/default.jpg');
-            const masterPreview = document.getElementById('defaultMasterPreview');
-            if (masterPreview && masterResponse.ok) {
-                masterPreview.style.display = 'block';
-            }
+// setting.js - исправленный метод loadDefaultPhotos
+async loadDefaultPhotos() {
+    try {
+        // Загружаем фото администратора с временной меткой
+        const adminPreview = document.getElementById('adminPhotoPreview');
+        if (adminPreview) {
+            const timestamp = new Date().getTime();
+            adminPreview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
+            adminPreview.style.display = 'block';
             
-            const serviceResponse = await fetch('/photo/услуги/default.jpg');
-            const servicePreview = document.getElementById('defaultServicePreview');
-            if (servicePreview && serviceResponse.ok) {
-                servicePreview.style.display = 'block';
-            }
-        } catch (error) {
-            console.log('Фото по умолчанию еще не установлены');
+            // Проверяем доступность фото
+            const img = new Image();
+            img.onload = function() {
+                // Фото доступно
+                adminPreview.style.display = 'block';
+            };
+            img.onerror = function() {
+                // Фото недоступно, скрываем превью
+                adminPreview.style.display = 'none';
+            };
+            img.src = adminPreview.src;
         }
-    }
-
-    setupEventListeners() {
-        document.getElementById('openNotificationsBtn')?.addEventListener('click', () => {
-            this.openNotificationsModal();
-        });
-
-        document.getElementById('closeNotificationsModal')?.addEventListener('click', () => {
-            this.closeNotificationsModal();
-        });
-
-        document.getElementById('openContentSettingsBtn')?.addEventListener('click', () => {
-            this.openContentSettingsModal();
-        });
-
-        document.getElementById('closeContentSettingsModal')?.addEventListener('click', () => {
-            this.closeContentSettingsModal();
-        });
         
-        document.getElementById('openPhotoSettingsBtn')?.addEventListener('click', () => {
-            this.openPhotoSettingsModal();
-        });
-
-        document.getElementById('closePhotoSettingsModal')?.addEventListener('click', () => {
-            this.closePhotoSettingsModal();
-        });
-
-        document.getElementById('masterDefaultPhoto')?.addEventListener('change', (e) => {
-            this.handleDefaultPhotoUpload('Master', e);
-        });
-
-        document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
-            this.handleDefaultPhotoUpload('Service', e);
-        });
-
-        document.addEventListener('keypress', (e) => {
-            if (e.target.classList.contains('tg-id-field') && e.key === 'Enter') {
-                const masterId = e.target.getAttribute('data-master-id');
-                this.saveTgId(parseInt(masterId));
-            }
-        });
+        // Загружаем другие фото по умолчанию
+        const masterPreview = document.getElementById('defaultMasterPreview');
+        if (masterPreview) {
+            masterPreview.src = 'photo/работники/default.jpg';
+            masterPreview.style.display = 'block';
+        }
+        
+        const servicePreview = document.getElementById('defaultServicePreview');
+        if (servicePreview) {
+            servicePreview.src = 'photo/услуги/default.jpg';
+            servicePreview.style.display = 'block';
+        }
+        
+    } catch (error) {
+        console.log('Фото по умолчанию еще не установлены');
     }
+}
+
+setupEventListeners() {
+    document.getElementById('openNotificationsBtn')?.addEventListener('click', () => {
+        this.openNotificationsModal();
+    });
+
+    document.getElementById('closeNotificationsModal')?.addEventListener('click', () => {
+        this.closeNotificationsModal();
+    });
+
+    document.getElementById('openContentSettingsBtn')?.addEventListener('click', () => {
+        this.openContentSettingsModal();
+    });
+
+    document.getElementById('closeContentSettingsModal')?.addEventListener('click', () => {
+        this.closeContentSettingsModal();
+    });
+    
+    document.getElementById('openPhotoSettingsBtn')?.addEventListener('click', () => {
+        this.openPhotoSettingsModal();
+    });
+
+    document.getElementById('closePhotoSettingsModal')?.addEventListener('click', () => {
+        this.closePhotoSettingsModal();
+    });
+
+    // Исправленный обработчик для загрузки фото администратора
+    document.getElementById('adminPhotoUpload')?.addEventListener('change', (e) => {
+        this.handleAdminPhotoUpload(e);
+    });
+
+    document.getElementById('masterDefaultPhoto')?.addEventListener('change', (e) => {
+        this.handleDefaultPhotoUpload('Master', e);
+    });
+
+    document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
+        this.handleDefaultPhotoUpload('Service', e);
+    });
+
+    document.addEventListener('keypress', (e) => {
+        if (e.target.classList.contains('tg-id-field') && e.key === 'Enter') {
+            const masterId = e.target.getAttribute('data-master-id');
+            this.saveTgId(parseInt(masterId));
+        }
+    });
+}
 
     openNotificationsModal() {
         const modal = document.getElementById('notificationsModal');
@@ -432,24 +521,25 @@ class ContentManager {
         container.innerHTML = this.generateContentForm();
     }
 
-    getPageElements(page) {
-        const elementsMap = {
-            'главная': [
-                { key: 'название_салона', label: 'Название салона', type: 'text' },
-                { key: 'заголовок', label: 'Заголовок', type: 'text' },
-                { key: 'описание', label: 'Описание', type: 'textarea' },
-                { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
-                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
-            ],
-            'about': [
-                { key: 'заголовок', label: 'Заголовок', type: 'text' },
-                { key: 'описание', label: 'Описание', type: 'textarea' },
-                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
-            ]
-        };
-        
-        return elementsMap[page] || [];
-    }
+getPageElements(page) {
+    const elementsMap = {
+        'главная': [
+            { key: 'название_салона', label: 'Название салона', type: 'text' },
+            { key: 'заголовок', label: 'Заголовок', type: 'text' },
+            { key: 'описание', label: 'Описание', type: 'textarea' },
+            { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
+            { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' },
+            { key: 'фото_администратора', label: 'Фото администратора (URL)', type: 'text' } // Добавляем этот элемент
+        ],
+        'about': [
+            { key: 'заголовок', label: 'Заголовок', type: 'text' },
+            { key: 'описание', label: 'Описание', type: 'textarea' },
+            { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
+        ]
+    };
+    
+    return elementsMap[page] || [];
+}
 
     // Упрощенная версия generateContentForm() без удаления и перетаскивания
     generateContentForm() {
@@ -493,13 +583,15 @@ class ContentManager {
         `;
     }
 
+    // Также обновите getElementLabel:
     getElementLabel(elementKey) {
         const labels = {
             'заголовок': 'Заголовок',
             'описание': 'Описание',
             'название_салона': 'Название салона',
             'кнопка_записи': 'Текст кнопки записи',
-            'дополнительный_текст': 'Дополнительный текст'
+            'дополнительный_текст': 'Дополнительный текст',
+            'фото_администратора': 'Фото администратора' // Добавляем эту метку
         };
         return labels[elementKey] || elementKey;
     }
@@ -597,6 +689,93 @@ class ContentManager {
         this.currentPage = page;
         await this.loadPageContent();
     }
+
+
+
+async uploadAdminPhoto(file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        const response = await fetch('/api/upload-default-admin-photo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                // Обновляем превью с временной меткой чтобы избежать кэширования
+                const preview = document.getElementById('adminPhotoPreview');
+                if (preview) {
+                    const timestamp = new Date().getTime();
+                    preview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
+                }
+                
+                this.showNotification('✅ Фото администратора успешно обновлено!', 'success');
+                return true;
+            }
+        }
+        throw new Error('Ошибка загрузки фото');
+    } catch (error) {
+        console.error('Ошибка загрузки фото администратора:', error);
+        this.showNotification('Ошибка загрузки фото', 'error');
+        return false;
+    }
+}
+
+// Метод подтверждения загрузки
+showPhotoConfirmation(type) {
+    const preview = document.getElementById('adminPhotoPreview');
+    if (preview) {
+        // Добавляем временную метку чтобы избежать кэширования
+        const timestamp = new Date().getTime();
+        preview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
+        preview.style.display = 'block';
+        
+        // Добавляем визуальное подтверждение
+        preview.classList.add('photo-confirmed');
+        setTimeout(() => preview.classList.remove('photo-confirmed'), 2000);
+    }
+    
+    // Показываем сообщение о успешной загрузке
+    this.showNotification('✅ Фото администратора установлено по умолчанию!', 'success');
+}
+
+
+
+// Показывает подтверждение выбора файла
+showFileSelectionConfirmation(file) {
+    const fileName = file.name;
+    const fileSize = (file.size / 1024 / 1024).toFixed(2);
+    
+    this.showNotification(`📁 Выбран файл: ${fileName} (${fileSize}MB)`, 'info');
+}
+
+// Показывает кнопку подтверждения (опционально)
+showConfirmationButton() {
+    const uploadArea = document.querySelector('.photo-upload-area');
+    if (!uploadArea) return;
+    
+    // Удаляем существующую кнопку если есть
+    const existingBtn = uploadArea.querySelector('.confirm-upload-btn');
+    if (existingBtn) existingBtn.remove();
+    
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'confirm-upload-btn';
+    confirmBtn.innerHTML = '✅ Подтвердить загрузку';
+    confirmBtn.onclick = () => {
+        const fileInput = document.getElementById('adminPhotoUpload');
+        if (fileInput.files[0]) {
+            this.uploadAdminPhoto(fileInput.files[0]);
+        }
+    };
+    
+    uploadArea.appendChild(confirmBtn);
+}
+
+
+
 
 // setting.js - исправленный метод saveContent
 // setting.js - исправленный метод saveContent
@@ -802,6 +981,23 @@ function loadSettingsSection() {
                                     📸 Выбрать фото мастера
                                 </label>
                                 <small>Рекомендуемый размер: 400x400px</small>
+                            </div>
+                        </div>
+                        <div class="photo-setting-item">
+                            <h4>📸 Фото администратора по умолчанию</h4>
+                            <div class="photo-upload-area">
+                                <img id="adminPhotoPreview" class="default-photo-preview" 
+                                    style="display: none; max-width: 200px; max-height: 200px; border-radius: 10px;">
+                                <div class="upload-instructions">
+                                    <p><strong>Текущее фото будет заменено</strong></p>
+                                    <p>Файл сохранится как: <code>admin_default.jpg</code></p>
+                                </div>
+                                <input type="file" id="adminPhotoUpload" 
+                                    accept="image/*" class="photo-input">
+                                <label for="adminPhotoUpload" class="photo-upload-btn">
+                                    📁 Выбрать новое фото
+                                </label>
+                                <small>Рекомендуемый размер: 400x400px, JPG/PNG (макс. 5MB)</small>
                             </div>
                         </div>
                         
