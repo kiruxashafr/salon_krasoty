@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('DOM loaded, checking specialists visibility...');
     checkSpecialistsVisibility();
 });
+let specialistsRefreshInterval;
 
 function fetchSpecialists() {
     console.log('Fetching specialists from /api/specialists');
@@ -25,6 +26,18 @@ function fetchSpecialists() {
             console.error('Fetch error:', error);
             showError('Не удалось загрузить данные специалистов');
         });
+}
+function startSpecialistsAutoRefresh() {
+    // Останавливаем предыдущий интервал если был
+    if (specialistsRefreshInterval) {
+        clearInterval(specialistsRefreshInterval);
+    }
+    
+    // Запускаем обновление каждые 30 секунд
+    specialistsRefreshInterval = setInterval(() => {
+        console.log('Auto-refreshing specialists data...');
+        fetchSpecialistsWithAvailability();
+    }, 30000); // 30 секунд
 }
 
 function displaySpecialists(specialists) {
@@ -563,11 +576,22 @@ function bookAppointment(scheduleId, time) {
 function closeSpecialistModal() {
     console.log('Closing specialist modal');
     document.getElementById('specialist-modal').style.display = 'none';
+    
+    // Проверяем, находимся ли мы на шаге успешного бронирования
+    const isOnSuccessStep = window.currentStep === 'success-specialist' || 
+                           document.getElementById('step-success-specialist');
+    
     window.currentSpecialistId = null;
     window.currentServiceId = null;
     window.selectedDate = null;
     window.availableDates = {};
     window.currentStep = null;
+    
+    // Если закрываем после успешного бронирования - обновляем страницу
+    if (isOnSuccessStep) {
+        console.log('Closing after successful booking - refreshing page');
+        location.reload();
+    }
 }
 
 function fetchSpecialistInfo(specialistId) {
@@ -808,6 +832,9 @@ function showBookingSuccessSpecialist() {
     
     document.querySelector('.specialist-modal-content').innerHTML = '';
     document.querySelector('.specialist-modal-content').appendChild(stepContent);
+    
+    // Устанавливаем текущий шаг как успешное бронирование
+    window.currentStep = 'success-specialist';
 }
 
 function showNoServicesMessage() {
@@ -848,17 +875,24 @@ async function checkSpecialistsVisibility() {
             if (data.message === 'success' && data.data.show_specialists === '1') {
                 console.log('Specialists section is enabled, fetching specialists...');
                 fetchSpecialistsWithAvailability();
+                startSpecialistsAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
             } else {
                 console.log('Specialists section is disabled, hiding section...');
                 hideSpecialistsSection();
+                // Останавливаем автообновление если секция скрыта
+                if (specialistsRefreshInterval) {
+                    clearInterval(specialistsRefreshInterval);
+                }
             }
         } else {
             console.error('Failed to fetch settings');
             fetchSpecialistsWithAvailability();
+            startSpecialistsAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
         }
     } catch (error) {
         console.error('Error checking specialists visibility:', error);
         fetchSpecialistsWithAvailability();
+        startSpecialistsAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
     }
 }
 

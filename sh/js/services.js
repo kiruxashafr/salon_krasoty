@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     checkServicesVisibility();
 });
-
-
+let servicesRefreshInterval;
 function fetchServices() {
     fetch('/api/services')
         .then(response => {
@@ -22,11 +21,21 @@ function fetchServices() {
             console.error('Error fetching services:', error);
         });
 }
-
+function startServicesAutoRefresh() {
+    // Останавливаем предыдущий интервал если был
+    if (servicesRefreshInterval) {
+        clearInterval(servicesRefreshInterval);
+    }
+    
+    // Запускаем обновление каждые 30 секунд
+    servicesRefreshInterval = setInterval(() => {
+        console.log('Auto-refreshing services data...');
+        fetchServicesWithAvailability();
+    }, 30000); // 30 секунд
+}
 function fetchServicesWithAvailability() {
     console.log('Fetching all services first...');
     
-    // Сначала получаем все услуги
     fetch('/api/services')
         .then(response => {
             if (!response.ok) {
@@ -36,7 +45,6 @@ function fetchServicesWithAvailability() {
         })
         .then(data => {
             if (data.message === 'success') {
-                // Фильтруем услуги с доступными мастерами
                 filterServicesWithAvailability(data.data);
             } else {
                 console.error('Error fetching services:', data.error);
@@ -48,7 +56,6 @@ function fetchServicesWithAvailability() {
             showError('Не удалось загрузить услуги');
         });
 }
-
 
 function filterServicesWithAvailability(services) {
     if (!services || services.length === 0) {
@@ -62,7 +69,6 @@ function filterServicesWithAvailability(services) {
 
     const servicePromises = services.map(service => {
         return new Promise((resolve) => {
-            // Проверяем, есть ли мастера для этой услуги
             fetch(`/api/service/${service.id}/specialists`)
                 .then(response => {
                     if (!response.ok) {
@@ -73,7 +79,6 @@ function filterServicesWithAvailability(services) {
                 })
                 .then(data => {
                     if (data.message === 'success' && data.data && data.data.length > 0) {
-                        // Проверяем доступное время для каждого мастера
                         checkSpecialistsAvailability(service.id, data.data, startDate, endDate)
                             .then(hasAvailability => {
                                 resolve({ service, hasAvailability });
@@ -126,7 +131,6 @@ function checkSpecialistsAvailability(serviceId, specialists, startDate, endDate
         .then(results => results.some(result => result === true));
 }
 
-// Остальной код остается без изменений
 function displayServices(services) {
     const servicesContainer = document.getElementById('services-container');
     
@@ -137,28 +141,24 @@ function displayServices(services) {
     
     servicesContainer.innerHTML = '';
     
-    // Group services by category
     const servicesByCategory = services.reduce((acc, service) => {
         (acc[service.категория] = acc[service.категория] || []).push(service);
         return acc;
     }, {});
     
-    // Display each category and its services
     Object.keys(servicesByCategory).forEach(category => {
-        // Create category header
         const categoryHeader = document.createElement('h2');
         categoryHeader.className = 'category-title';
         categoryHeader.textContent = category;
         servicesContainer.appendChild(categoryHeader);
         
-        // Create container for services in this category
         const categoryContainer = document.createElement('div');
         categoryContainer.className = 'category-services';
         
         servicesByCategory[category].forEach(service => {
             const serviceCard = document.createElement('div');
             serviceCard.className = 'service-card';
-serviceCard.style.backgroundImage = `url(${service.фото || 'photo/услуги/default.jpg'})`;            
+            serviceCard.style.backgroundImage = `url(${service.фото || 'photo/услуги/default.jpg'})`;            
             serviceCard.innerHTML = `
                 <div class="service-content">
                     <div class="service-text">
@@ -172,7 +172,6 @@ serviceCard.style.backgroundImage = `url(${service.фото || 'photo/услуг
                 </div>
             `;
             
-            // Добавляем обработчик клика на всю карточку
             serviceCard.onclick = (e) => {
                 if (!e.target.classList.contains('book-btn')) {
                     openServiceModal(service.id);
@@ -196,7 +195,6 @@ function showError(message) {
 function openServiceModal(serviceId) {
     console.log(`Opening modal for service ID: ${serviceId}`);
     
-    // Сначала получаем информацию об услуге
     fetch(`/api/service/${serviceId}`)
         .then(response => {
             if (!response.ok) {
@@ -206,7 +204,6 @@ function openServiceModal(serviceId) {
         })
         .then(serviceData => {
             if (serviceData.message === 'success') {
-                // Затем получаем мастеров, которые предоставляют эту услугу
                 fetch(`/api/service/${serviceId}/specialists`)
                     .then(response => {
                         if (!response.ok) {
@@ -216,7 +213,6 @@ function openServiceModal(serviceId) {
                     })
                     .then(specialistsData => {
                         if (specialistsData.message === 'success') {
-                            // Фильтруем мастеров: оставляем только тех, у кого есть свободное время
                             filterSpecialistsWithAvailableTime(serviceId, serviceData.data, specialistsData.data);
                         } else {
                             console.error('Error fetching specialists for service:', specialistsData.error);
@@ -283,27 +279,26 @@ function filterSpecialistsWithAvailableTime(serviceId, service, specialists) {
         });
 }
 
-
 function showServiceModal(serviceId, service, specialists) {
     const modal = document.getElementById('service-modal');
     const modalContent = modal.querySelector('.service-modal-content');
     
     window.currentServiceId = serviceId;
     window.currentService = service;
-    window.currentStep = 'specialists'; // Начинаем с выбора специалистов
+    window.currentStep = 'specialists';
     
     let specialistsHTML = '';
     if (specialists && specialists.length > 0) {
         specialists.forEach(specialist => {
-    specialistsHTML += `
-        <div class="modal-specialist-item" data-specialist-id="${specialist.id}" onclick="selectSpecialist(${specialist.id}, this)">
-            <div class="specialist-image" style="background-image: url('${specialist.фото || 'photo/услуги/default.jpg'}')"></div>
-            <div class="specialist-info">
-                <h4>${specialist.имя}</h4>
-                <p>${specialist.описание || 'Профессиональный мастер'}</p>
-            </div>
-        </div>
-    `;
+            specialistsHTML += `
+                <div class="modal-specialist-item" data-specialist-id="${specialist.id}" onclick="selectSpecialist(${specialist.id}, this)">
+                    <div class="specialist-image" style="background-image: url('${specialist.фото || 'photo/работники/default.jpg'}')"></div>
+                    <div class="specialist-info">
+                        <h4>${specialist.имя}</h4>
+                        <p>${specialist.описание || 'Профессиональный мастер'}</p>
+                    </div>
+                </div>
+            `;
         });
     } else {
         specialistsHTML = '<p>Нет доступных мастеров для этой услуги</p>';
@@ -330,9 +325,9 @@ function showServiceModal(serviceId, service, specialists) {
                 <h2>Выберите дату</h2>
             </div>
             <div class="month-navigation">
-                <button class="month-nav-btn" onclick="changeMonthService(-1)">⭠</button>
+                <button class="month-nav-btn" onclick="changeMonthService(-1)">←</button>
                 <span class="current-month" id="current-month-service"></span>
-                <button class="month-nav-btn" onclick="changeMonthService(1)">⭢</button>
+                <button class="month-nav-btn" onclick="changeMonthService(1)">→</button>
             </div>
             <div class="date-grid" id="date-grid-service"></div>
             <div class="loading-dates" id="loading-dates-service" style="display: none; text-align: center; padding: 1rem;">
@@ -342,7 +337,7 @@ function showServiceModal(serviceId, service, specialists) {
         
         <div class="modal-step" id="step-times" style="display: none;">
             <div class="step-header">
-                <button class="back-btn" onclick="backToDatesserv()">← Назад</button>
+                <button class="back-btn" onclick="backToDatesService()">← Назад</button>
                 <h2>Выберите время</h2>
             </div>
             <div class="time-slots" id="time-slots-service"></div>
@@ -365,20 +360,15 @@ function selectSpecialist(specialistId, element) {
     window.currentYearService = new Date().getFullYear();
     window.availableDatesService = {};
     
-    // Переходим к выбору даты
     showStep('dates');
-    
-    // Загружаем доступные даты для текущего месяца
     loadAvailableDatesService();
 }
 
 function showStep(step) {
-    // Скрываем все шаги
     document.querySelectorAll('.modal-step').forEach(stepEl => {
         stepEl.style.display = 'none';
     });
     
-    // Показываем нужный шаг
     document.getElementById(`step-${step}`).style.display = 'block';
     window.currentStep = step;
 }
@@ -387,14 +377,13 @@ function backToSpecialists() {
     showStep('specialists');
 }
 
-function backToDatesserv() {
+function backToDatesService() {
     showStep('dates');
 }
 
 function changeMonthService(direction) {
     window.currentMonthService += direction;
     
-    // Проверяем границы года
     if (window.currentMonthService < 0) {
         window.currentMonthService = 11;
         window.currentYearService--;
@@ -403,34 +392,28 @@ function changeMonthService(direction) {
         window.currentYearService++;
     }
     
-    // Загружаем доступные даты для нового месяца
     loadAvailableDatesService();
 }
 
 function loadAvailableDatesService() {
     const monthKey = `${window.currentYearService}-${window.currentMonthService + 1}`;
     
-    // Показываем индикатор загрузки
     document.getElementById('loading-dates-service').style.display = 'block';
     document.getElementById('date-grid-service').innerHTML = '';
     
-    // Если данные уже загружены для этого месяца, используем их
     if (window.availableDatesService[monthKey]) {
         generateDateGridService(window.availableDatesService[monthKey]);
         return;
     }
     
-    // Получаем первый и последний день месяца
     const firstDay = new Date(window.currentYearService, window.currentMonthService, 1);
     const lastDay = new Date(window.currentYearService, window.currentMonthService + 1, 0);
     
-    // Форматируем даты для запроса
     const startDate = `${window.currentYearService}-${(window.currentMonthService + 1).toString().padStart(2, '0')}-01`;
     const endDate = `${window.currentYearService}-${(window.currentMonthService + 1).toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`;
     
     console.log(`Fetching available dates for specialist ${window.currentSpecialistId}, service ${window.currentServiceId} from ${startDate} to ${endDate}`);
     
-    // Запрашиваем доступные даты у API
     fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
         .then(response => {
             if (!response.ok) {
@@ -441,19 +424,14 @@ function loadAvailableDatesService() {
         .then(data => {
             console.log(`Available dates for month ${monthKey}:`, data);
             
-            // Сохраняем доступные даты
             window.availableDatesService[monthKey] = data.availableDates || [];
-            
-            // Генерируем календарь
             generateDateGridService(window.availableDatesService[monthKey]);
         })
         .catch(error => {
             console.error('Error fetching available dates:', error);
-            // Если API не поддерживает запрос доступных дат, генерируем календарь без данных
             generateDateGridService([]);
         })
         .finally(() => {
-            // Скрываем индикатор загрузки
             document.getElementById('loading-dates-service').style.display = 'none';
         });
 }
@@ -462,24 +440,18 @@ function generateDateGridService(availableDates) {
     const dateGrid = document.getElementById('date-grid-service');
     const currentMonthElement = document.getElementById('current-month-service');
     
-    // Названия месяцев
     const monthNames = [
         'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
         'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
     ];
     
-    // Устанавливаем текущий месяц
     currentMonthElement.textContent = `${monthNames[window.currentMonthService]} ${window.currentYearService}`;
-    
-    // Очищаем сетку дат
     dateGrid.innerHTML = '';
     
-    // Получаем первый день месяца и количество дней в месяце
     const firstDay = new Date(window.currentYearService, window.currentMonthService, 1);
     const lastDay = new Date(window.currentYearService, window.currentMonthService + 1, 0);
     const daysInMonth = lastDay.getDate();
     
-    // Создаем заголовки дней недели
     const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
     dayNames.forEach(day => {
         const dayHeader = document.createElement('div');
@@ -488,14 +460,12 @@ function generateDateGridService(availableDates) {
         dateGrid.appendChild(dayHeader);
     });
     
-    // Добавляем пустые ячейки для дней перед первым днем месяца
     for (let i = 0; i < (firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1); i++) {
         const emptyCell = document.createElement('div');
         emptyCell.className = 'date-cell empty';
         dateGrid.appendChild(emptyCell);
     }
     
-    // Добавляем ячейки с датами
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
@@ -506,20 +476,15 @@ function generateDateGridService(availableDates) {
         const currentDate = new Date(window.currentYearService, window.currentMonthService, day);
         const formattedDate = `${window.currentYearService}-${(window.currentMonthService + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         
-        // Проверяем, не прошедшая ли это дата
         if (currentDate < today) {
             dateCell.classList.add('past-date');
             dateCell.textContent = day;
-        } 
-        // Проверяем, доступна ли эта дата
-        else if (availableDates.includes(formattedDate)) {
+        } else if (availableDates.includes(formattedDate)) {
             dateCell.classList.add('available-date');
             dateCell.textContent = day;
             dateCell.onclick = () => selectDateService(day);
             dateCell.title = 'Есть доступное время';
-        }
-        // Дата в будущем, но без доступного времени
-        else {
+        } else {
             dateCell.classList.add('no-availability');
             dateCell.textContent = day;
             dateCell.title = 'Нет доступного времени';
@@ -532,14 +497,10 @@ function generateDateGridService(availableDates) {
 function selectDateService(day) {
     console.log(`Selected date: ${day}.${window.currentMonthService + 1}.${window.currentYearService}`);
     
-    // Форматируем дату для запроса
     const formattedDate = `${window.currentYearService}-${(window.currentMonthService + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
     window.selectedDate = formattedDate;
     
-    // Переходим к выбору времени
     showStep('times');
-    
-    // Загружаем доступное время
     loadAvailableTimeService(formattedDate);
 }
 
@@ -591,67 +552,75 @@ function displayTimeSlotsService(timeSlots) {
     });
 }
 
-function bookAppointmentService(scheduleId) {
-    console.log(`Booking appointment: Service ID ${window.currentServiceId}, Specialist ID ${window.currentSpecialistId}, Schedule ID ${scheduleId}, Date ${window.selectedDate}`);
-    alert(`Запись подтверждена!\nУслуга: ${window.currentService.название}\nМастер: #${window.currentSpecialistId}\nДата: ${window.selectedDate}`);
-    closeServiceModal();
+function bookAppointmentService(scheduleId, time) {
+    console.log(`Booking appointment: Service ID ${window.currentServiceId}, Specialist ID ${window.currentSpecialistId}, Schedule ID ${scheduleId}, Date ${window.selectedDate}, Time ${time}`);
+    showConfirmationStepService(time, scheduleId);
 }
 
 function closeServiceModal() {
     console.log('Closing service modal');
     document.getElementById('service-modal').style.display = 'none';
+    
+    // Проверяем, находимся ли мы на шаге успешного бронирования
+    const isOnSuccessStep = window.currentStep === 'success-service' || 
+                           document.getElementById('step-success-service');
+    
     window.currentServiceId = null;
     window.currentService = null;
     window.currentSpecialistId = null;
     window.selectedDate = null;
     window.availableDatesService = {};
     window.currentStep = null;
-}
-
-// Добавляем обработчики для модального окна услуг
-window.onclick = function(event) {
-    const modal = document.getElementById('service-modal');
-    if (event.target === modal) {
-        closeServiceModal();
-    }
     
-    const specialistModal = document.getElementById('specialist-modal');
-    if (event.target === specialistModal) {
-        closeSpecialistModal();
+    // Если закрываем после успешного бронирования - обновляем страницу
+    if (isOnSuccessStep) {
+        console.log('Closing after successful booking - refreshing page');
+        location.reload();
     }
 }
 
-document.addEventListener('keydown', function(event) {
-    if (event.key === 'Escape') {
-        closeServiceModal();
-        closeSpecialistModal();
-    }
-});
+function fetchSpecialistInfo(specialistId) {
+    return fetch(`/api/specialist/${specialistId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                return data.data;
+            } else {
+                throw new Error(data.error || 'Ошибка загрузки информации о мастере');
+            }
+        });
+}
 
-// Функция для показа шага подтверждения
 function showConfirmationStepService(time, scheduleId) {
     window.selectedTime = time;
     window.scheduleId = scheduleId;
     
-    // Получаем информацию о мастере
-    fetch(`/api/specialist/${window.currentSpecialistId}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.message === 'success') {
-                window.currentSpecialist = data.data;
-                showConfirmationStepContentService();
-            }
-        })
-        .catch(error => {
-            console.error('Error fetching specialist info:', error);
-            showConfirmationStepContentService();
-        });
+    Promise.all([
+        fetchSpecialistInfo(window.currentSpecialistId)
+    ])
+    .then(([specialistData]) => {
+        window.currentSpecialist = specialistData;
+        showConfirmationStepContentService();
+    })
+    .catch(error => {
+        console.error('Error fetching info:', error);
+        showConfirmationStepContentService();
+    });
 }
 
 function showConfirmationStepContentService() {
     const stepContent = document.createElement('div');
     stepContent.className = 'modal-step';
     stepContent.id = 'step-confirmation-service';
+    
+    const masterPhoto = window.currentSpecialist?.фото || 'photo/работники/default.jpg';
+    const formattedDate = formatDateService(window.selectedDate);
+    
     stepContent.innerHTML = `
         <div class="step-header">
             <button class="back-btn" onclick="backToTimesService()">← Назад</button>
@@ -660,43 +629,34 @@ function showConfirmationStepContentService() {
         
         <div class="booking-confirmation">
             <div class="booking-summary">
-                <div class="booking-summary-item">
-                    <span class="booking-summary-label">Услуга:</span>
-                    <span class="booking-summary-value">${window.currentService.название}</span>
+                <div class="booking-summary-header">
+                    <img src="${masterPhoto}" alt="${window.currentSpecialist?.имя || 'Мастер'}" class="booking-summary-avatar" onerror="this.src='photo/работники/default.jpg'">
+                    <div class="booking-summary-title">
+                        <h3>${window.currentService.название}</h3>
+                        <p>${window.currentSpecialist ? window.currentSpecialist.имя : 'Неизвестно'}</p>
+                    </div>
                 </div>
-                <div class="booking-summary-item">
-                    <span class="booking-summary-label">Мастер:</span>
-                <span class="booking-summary-value">${window.currentSpecialist ? window.currentSpecialist.имя : 'Неизвестно'}</span>
-                </div>
-                <div class="booking-summary-item">
-                    <span class="booking-summary-label">Дата:</span>
-                    <span class="booking-summary-value">${formatDate(window.selectedDate)}</span>
-                </div>
-                <div class="booking-summary-item">
-                    <span class="booking-summary-label">Время:</span>
-                    <span class="booking-summary-value">${window.selectedTime}</span>
-                </div>
-                <div class="booking-summary-item">
-                    <span class="booking-summary-label">Цена:</span>
-                    <span class="booking-summary-value-price">${window.currentService.цена} ₽</span>
+                
+                <div class="booking-summary-content">
+                    <span class="booking-summary-datetime">${formattedDate} в ${window.selectedTime}</span>
+                    <span class="booking-summary-price">${window.currentService.цена} ₽</span>
                 </div>
             </div>
             
             <div class="client-form">
                 <div class="form-group">
-
-                    <input type="text" id="client-name" placeholder="Введите ваше имя" required>
-                    <div class="error-message" id="name-error">Пожалуйста, введите ваше имя</div>
+                    <input type="text" id="client-name-service" placeholder="Введите ваше имя" required>
+                    <div class="error-message" id="name-error-service">Пожалуйста, введите ваше имя</div>
                 </div>
                 
                 <div class="form-group">
                     <div class="phone-input-container">
                         <span class="phone-prefix">+7</span>
-                        <input type="tel" id="client-phone" class="phone-input" 
-                               placeholder="*** *** ** **" pattern="[0-9]{10}" 
+                        <input type="tel" id="client-phone-service" class="phone-input" 
+                               placeholder="9001234567" pattern="[0-9]{10}" 
                                maxlength="10" required>
                     </div>
-                    <div class="error-message" id="phone-error">Введите 10 цифр номера телефона</div>
+                    <div class="error-message" id="phone-error-service">Введите 10 цифр номера телефона</div>
                 </div>
                 
                 <button class="submit-btn" onclick="submitBookingService()">ПОДТВЕРДИТЬ ЗАПИСЬ</button>
@@ -704,35 +664,30 @@ function showConfirmationStepContentService() {
         </div>
     `;
     
-    // Добавляем шаг в модальное окно
     document.querySelector('.service-modal-content').appendChild(stepContent);
     showStep('confirmation-service');
     
-    // Добавляем валидацию для телефона
-    const phoneInput = document.getElementById('client-phone');
+    const phoneInput = document.getElementById('client-phone-service');
     phoneInput.addEventListener('input', function(e) {
-        // Оставляем только цифры
         this.value = this.value.replace(/\D/g, '');
-        // Ограничиваем длину
         if (this.value.length > 10) {
             this.value = this.value.slice(0, 10);
         }
-        validatePhone();
+        validatePhoneService();
     });
 }
 
 function backToTimesService() {
     showStep('times');
-    // Удаляем шаг подтверждения
     const confirmationStep = document.getElementById('step-confirmation-service');
     if (confirmationStep) {
         confirmationStep.remove();
     }
 }
 
-function validatePhone() {
-    const phoneInput = document.getElementById('client-phone');
-    const errorElement = document.getElementById('phone-error');
+function validatePhoneService() {
+    const phoneInput = document.getElementById('client-phone-service');
+    const errorElement = document.getElementById('phone-error-service');
     const phone = phoneInput.value;
     
     if (phone.length === 10 && /^\d+$/.test(phone)) {
@@ -746,9 +701,9 @@ function validatePhone() {
     }
 }
 
-function validateName() {
-    const nameInput = document.getElementById('client-name');
-    const errorElement = document.getElementById('name-error');
+function validateNameService() {
+    const nameInput = document.getElementById('client-name-service');
+    const errorElement = document.getElementById('name-error-service');
     const name = nameInput.value.trim();
     
     if (name.length >= 2) {
@@ -763,22 +718,20 @@ function validateName() {
 }
 
 function submitBookingService() {
-    const nameValid = validateName();
-    const phoneValid = validatePhone();
+    const nameValid = validateNameService();
+    const phoneValid = validatePhoneService();
     
     if (!nameValid || !phoneValid) {
         return;
     }
     
-    const clientName = document.getElementById('client-name').value.trim();
-    const clientPhone = '+7' + document.getElementById('client-phone').value;
+    const clientName = document.getElementById('client-name-service').value.trim();
+    const clientPhone = '+7' + document.getElementById('client-phone-service').value;
     
-    // Блокируем кнопку
-    const submitBtn = document.querySelector('.submit-btn');
+    const submitBtn = document.querySelector('.service-modal-content .submit-btn');
     submitBtn.disabled = true;
     submitBtn.textContent = 'ОБРАБОТКА...';
     
-    // Отправляем запрос на сервер
     fetch('/api/appointment', {
         method: 'POST',
         headers: {
@@ -818,28 +771,49 @@ function showBookingSuccessService() {
     const stepContent = document.createElement('div');
     stepContent.className = 'modal-step';
     stepContent.id = 'step-success-service';
+    
+    const masterPhoto = window.currentSpecialist?.фото || 'photo/работники/default.jpg';
+    const formattedDate = formatDateService(window.selectedDate);
+    
     stepContent.innerHTML = `
         <div class="booking-success">
-            <div class="success-icon">✓</div>
-            <h3>Запись подтверждена!</h3>
-            <p>Услуга: ${window.currentService.название}</p>
-            <p>Мастер: ${window.currentSpecialist ? window.currentSpecialist.имя : 'Неизвестно'}</p>
-            <p>Дата: ${formatDateSpecialist(window.selectedDate)}</p>
-            <p>Время: ${window.selectedTime}</p>
-            <p>Цена: ${window.currentService.цена} ₽</p>
-            <p>С вами свяжутся для подтверждения</p>
-            <a href="https://t.me/shafrbeautybot" target="_blank" class="buttonn">
-
-                <p3>Telegram</p3>
-            </a>
-            <button class="submit-btn" onclick="closeSpecialistModal()" style="margin-top: 2rem;">ЗАКРЫТЬ</button>
+            <div class="success-header">
+                <div class="success-icon">✓</div>
+                <h3>Запись подтверждена!</h3>
+            </div>
+            
+            <div class="booking-summary" style="margin: 1.5rem 0;">
+                <div class="booking-summary-header">
+                    <img src="${masterPhoto}" alt="${window.currentSpecialist?.имя || 'Мастер'}" class="booking-summary-avatar" onerror="this.src='photo/работники/default.jpg'">
+                    <div class="booking-summary-title">
+                        <h3>${window.currentService.название}</h3>
+                        <p>${window.currentSpecialist ? window.currentSpecialist.имя : 'Неизвестно'}</p>
+                    </div>
+                </div>
+                
+                <div class="booking-summary-content">
+                    <span class="booking-summary-datetime">${formattedDate} в ${window.selectedTime}</span>
+                    <span class="booking-summary-price">${window.currentService.цена} ₽</span>
+                </div>
+            </div>
+            
+            <div class="success-buttons">
+                <a href="https://t.me/shafrbeautybot" target="_blank" class="telegram-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.287 5.906c-.778.324-2.334.994-4.666 2.01-.378.15-.577.298-.595.442-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294.26.006.549-.1.868-.32 2.179-1.471 3.304-2.214 3.374-2.23.05-.012.12-.026.166.016.047.041.042.12.037.141-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8.154 8.154 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629.093.06.183.125.27.187.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.426 1.426 0 0 0-.013-.315.337.337 0 0 0-.114-.217.526.526 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09z"/>
+                    </svg>
+                    Управляйте записями<br>Получайте уведомления
+                </a>
+                <button class="close-success-btn" onclick="closeServiceModal()">Закрыть</button>
+            </div>
         </div>
     `;
-
     
-    // Заменяем содержимое модального окна
     document.querySelector('.service-modal-content').innerHTML = '';
     document.querySelector('.service-modal-content').appendChild(stepContent);
+    
+    // Устанавливаем текущий шаг как успешное бронирование
+    window.currentStep = 'success-service';
 }
 
 function showNoSpecialistsMessage(service) {
@@ -869,8 +843,7 @@ function showNoSpecialistsMessage(service) {
     modal.style.display = 'block';
 }
 
-
-function formatDate(dateString) {
+function formatDateService(dateString) {
     const date = new Date(dateString);
     return date.toLocaleDateString('ru-RU', {
         day: '2-digit',
@@ -878,6 +851,8 @@ function formatDate(dateString) {
         year: 'numeric'
     });
 }
+
+// В функции checkServicesVisibility добавьте запуск автообновления
 async function checkServicesVisibility() {
     try {
         const response = await fetch('/api/settings');
@@ -885,18 +860,25 @@ async function checkServicesVisibility() {
             const data = await response.json();
             if (data.message === 'success' && data.data.show_services === '1') {
                 console.log('Services section is enabled, fetching services with availability...');
-                fetchServicesWithAvailability(); // ← ИЗМЕНИТЕ ЭТУ СТРОКУ
+                fetchServicesWithAvailability();
+                startServicesAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
             } else {
                 console.log('Services section is disabled, hiding section...');
                 hideServicesSection();
+                // Останавливаем автообновление если секция скрыта
+                if (servicesRefreshInterval) {
+                    clearInterval(servicesRefreshInterval);
+                }
             }
         } else {
             console.error('Failed to fetch settings');
-            fetchServicesWithAvailability(); // ← И ЭТУ СТРОКУ
+            fetchServicesWithAvailability();
+            startServicesAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
         }
     } catch (error) {
         console.error('Error checking services visibility:', error);
-        fetchServicesWithAvailability(); // ← И ЭТУ СТРОКУ
+        fetchServicesWithAvailability();
+        startServicesAutoRefresh(); // ← ДОБАВИТЬ ЭТУ СТРОКУ
     }
 }
 
@@ -907,8 +889,22 @@ function hideServicesSection() {
     }
 }
 
-// Обновляем функцию bookAppointmentService
-function bookAppointmentService(scheduleId, time) {
-    console.log(`Booking appointment: Service ID ${window.currentServiceId}, Specialist ID ${window.currentSpecialistId}, Schedule ID ${scheduleId}, Date ${window.selectedDate}, Time ${time}`);
-    showConfirmationStepService(time, scheduleId);
+// Обработчики для модального окна
+window.onclick = function(event) {
+    const modal = document.getElementById('service-modal');
+    if (event.target === modal) {
+        closeServiceModal();
+    }
+    
+    const specialistModal = document.getElementById('specialist-modal');
+    if (event.target === specialistModal) {
+        closeSpecialistModal();
+    }
 }
+
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        closeServiceModal();
+        closeSpecialistModal();
+    }
+});
