@@ -30,6 +30,16 @@
     margin: 0 0 1rem 0;
 }
 
+.setting-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
 .setting-btn {
     background: #3498db;
     color: white;
@@ -39,6 +49,8 @@
     cursor: pointer;
     font-weight: 600;
     transition: all 0.3s ease;
+    margin-top: auto;
+    display: block;
 }
 
 .setting-btn:hover {
@@ -340,6 +352,9 @@
 }
 
 .default-photo-preview {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
     max-width: 200px;
     max-height: 200px;
     border-radius: 8px;
@@ -350,6 +365,7 @@
 
 .photo-upload-btn {
     display: inline-block;
+    white-space: nowrap;
     background: linear-gradient(135deg, #3498db, #2980b9);
     color: white;
     padding: 1rem 2rem;

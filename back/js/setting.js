@@ -974,42 +974,37 @@ function loadSettingsSection() {
                             <h4>Фото мастера по умолчанию</h4>
                             <div class="photo-upload-area">
                                 <img id="defaultMasterPreview" class="default-photo-preview" 
-                                     style="display: none; max-width: 200px; max-height: 200px;">
+                                    style="display: none; max-width: 200px; max-height: 200px;">
                                 <input type="file" id="masterDefaultPhoto" 
-                                       accept="image/*" class="photo-input">
+                                    accept="image/*" class="photo-input">
                                 <label for="masterDefaultPhoto" class="photo-upload-btn">
-                                    📸 Выбрать фото мастера
+                                    📸 Выбрать фото
                                 </label>
                                 <small>Рекомендуемый размер: 400x400px</small>
                             </div>
                         </div>
                         <div class="photo-setting-item">
-                            <h4>📸 Фото администратора по умолчанию</h4>
+                            <h4>Фото в контактах</h4>
                             <div class="photo-upload-area">
                                 <img id="adminPhotoPreview" class="default-photo-preview" 
-                                    style="display: none; max-width: 200px; max-height: 200px; border-radius: 10px;">
-                                <div class="upload-instructions">
-                                    <p><strong>Текущее фото будет заменено</strong></p>
-                                    <p>Файл сохранится как: <code>admin_default.jpg</code></p>
-                                </div>
+                                    style="display: none; max-width: 200px; max-height: 200px;">
                                 <input type="file" id="adminPhotoUpload" 
                                     accept="image/*" class="photo-input">
                                 <label for="adminPhotoUpload" class="photo-upload-btn">
-                                    📁 Выбрать новое фото
+                                    📸 Выбрать фото
                                 </label>
-                                <small>Рекомендуемый размер: 400x400px, JPG/PNG (макс. 5MB)</small>
+                                <small>Рекомендуемый размер: 400x400px</small>
                             </div>
                         </div>
-                        
                         <div class="photo-setting-item">
                             <h4>Фото услуги по умолчанию</h4>
                             <div class="photo-upload-area">
                                 <img id="defaultServicePreview" class="default-photo-preview" 
-                                     style="display: none; max-width: 200px; max-height: 200px;">
+                                    style="display: none; max-width: 200px; max-height: 200px;">
                                 <input type="file" id="serviceDefaultPhoto" 
-                                       accept="image/*" class="photo-input">
+                                    accept="image/*" class="photo-input">
                                 <label for="serviceDefaultPhoto" class="photo-upload-btn">
-                                    📸 Выбрать фото услуги
+                                    📸 Выбрать фото
                                 </label>
                                 <small>Рекомендуемый размер: 400x300px</small>
                             </div>

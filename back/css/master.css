@@ -385,6 +385,7 @@ input[type="file"] {
     padding: 0.5rem;
     border: 2px dashed #3498db;
     border-radius: 6px;
+    display: none;
     background: #f8f9fa;
     cursor: pointer;
 }

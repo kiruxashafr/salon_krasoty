@@ -196,7 +196,7 @@ window.addEventListener('resize', function() {
 // [Здесь должен быть весь остальной код из вашего файла admin.js]
 
     // Функция загрузки контента журнала
-    function loadJournalContent() {
+function loadJournalContent() {
     contentContainer.innerHTML = `
         <div class="journal-content">
             <div class="view-toggle-container">
@@ -211,8 +211,15 @@ window.addEventListener('resize', function() {
             <div id="journalView" class="view-content">
                 <div class="specialists-selection">
                     <h2>Выберите мастера</h2>
+
                     <div class="specialists-list" id="specialistsList">
                         <!-- Мастера будут загружены динамически -->
+                        
+                    </div>
+                                        <div class="specialists-actions">
+                        <button class="all-masters-btn" id="allMastersBtn">
+                             Все мастера
+                        </button>
                     </div>
                 </div>
                 
@@ -227,21 +234,9 @@ window.addEventListener('resize', function() {
                 
                 <div class="appointments-list" id="appointmentsList" style="display: none;">
                     <h3>Записи на выбранную дату</h3>
-                    <table id="appointmentsTable">
-                        <thead>
-                            <tr>
-                                <th>Время</th>
-                                <th>Клиент</th>
-                                <th>Телефон</th>
-                                <th>Услуга</th>
-                                <th>Цена</th>
-                                <th>Действия</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Данные будут загружены динамически -->
-                        </tbody>
-                    </table>
+                    <div id="appointmentsContainer">
+                        <!-- Записи будут загружены динамически -->
+                    </div>
                 </div>
             </div>
             
@@ -257,8 +252,41 @@ window.addEventListener('resize', function() {
     // Загружаем список мастеров
     loadSpecialistsForJournal();
     
+    // Добавляем обработчик для кнопки "Все мастера"
+    document.getElementById('allMastersBtn').addEventListener('click', selectAllMasters);
+    
     // Показываем журнал по умолчанию
     showJournalView();
+}
+
+
+// Функция выбора всех мастеров
+function selectAllMasters() {
+    window.currentSpecialistId = null; // null означает "все мастера"
+    window.currentSpecialistName = 'Все мастера';
+    
+    // Показываем активное состояние кнопки
+    document.getElementById('allMastersBtn').classList.add('active');
+    
+    // Снимаем выделение с отдельных мастеров
+    document.querySelectorAll('.specialist-card-admin').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    // Показываем календарь
+    const calendarSection = document.getElementById('calendarSection');
+    calendarSection.style.display = 'block';
+    
+    // Инициализируем календарь
+    initCalendar();
+    
+    // Прокручиваем к календарю после небольшой задержки
+    setTimeout(() => {
+        calendarSection.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }, 100);
 }
 
     // Функция загрузки мастеров для журнала
@@ -321,6 +349,9 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     window.currentSpecialistId = specialistId;
     window.currentSpecialistName = specialistName;
     
+    // Снимаем выделение с кнопки "Все мастера"
+    document.getElementById('allMastersBtn').classList.remove('active');
+    
     // Показываем выбранного мастера
     document.querySelectorAll('.specialist-card-admin').forEach(card => {
         card.classList.remove('selected');
@@ -334,7 +365,7 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     // Инициализируем календарь
     initCalendar();
     
-    // Прокручиваем к календарю после небольшой задержки (чтобы успел отрендериться)
+    // Прокручиваем к календарю после небольшой задержки
     setTimeout(() => {
         calendarSection.scrollIntoView({ 
             behavior: 'smooth', 
@@ -372,14 +403,17 @@ function changeMonth(direction) {
 }
 let appointmentsByDate = {};
 // Функция для загрузки дней с записями
+// Функция для загрузки дней с записями
 async function loadAppointmentDays(year, month) {
-    if (!window.currentSpecialistId) return {};
+    // Если выбран "Все мастера", не фильтруем по specialistId
+    const specialistFilter = window.currentSpecialistId ? 
+        `&specialistId=${window.currentSpecialistId}` : '';
     
     const startDate = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
     const endDate = `${year}-${(month + 1).toString().padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
     
     try {
-        const response = await fetch(`/api/appointments?specialistId=${window.currentSpecialistId}&startDate=${startDate}&endDate=${endDate}`);
+        const response = await fetch(`/api/appointments?startDate=${startDate}&endDate=${endDate}${specialistFilter}`);
         if (!response.ok) throw new Error('Ошибка загрузки дней с записями');
         
         const data = await response.json();
@@ -487,7 +521,9 @@ async function generateCalendar() {
 
 
 function loadAppointmentsForDate(date) {
-    if (!window.currentSpecialistId) return;
+    // Если выбран "Все мастера", не фильтруем по specialistId
+    const specialistFilter = window.currentSpecialistId ? 
+        `&specialistId=${window.currentSpecialistId}` : '';
     
     // Обновляем заголовок
     const dateObj = new Date(date);
@@ -497,13 +533,15 @@ function loadAppointmentsForDate(date) {
         year: 'numeric'
     });
     
+    const masterInfo = window.currentSpecialistName ? ` - ${window.currentSpecialistName}` : '';
+    
     const appointmentsHeader = document.querySelector('#appointmentsList h3');
     if (appointmentsHeader) {
-        appointmentsHeader.textContent = `Записи на ${formattedDate}`;
+        appointmentsHeader.textContent = `Записи на ${formattedDate}${masterInfo}`;
     }
     
-    // ИСПРАВЛЕННЫЙ ЗАПРОС - добавляем фильтрацию по дате
-    fetch(`/api/appointments?specialistId=${window.currentSpecialistId}&startDate=${date}&endDate=${date}`)
+    // Запрос с учетом фильтра по мастеру (или без него)
+    fetch(`/api/appointments?startDate=${date}&endDate=${date}${specialistFilter}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Ошибка загрузки записей');
@@ -512,7 +550,6 @@ function loadAppointmentsForDate(date) {
         })
         .then(data => {
             if (data.message === 'success') {
-                // ПЕРЕДАЕМ ДАТУ В displayAppointments
                 displayAppointments(data.data, formattedDate);
                 
                 // Дополнительная прокрутка после загрузки записей
@@ -534,19 +571,21 @@ function loadAppointmentsForDate(date) {
 }
 
 function displayAppointments(appointments, selectedDate = null) {
-    const appointmentsList = document.getElementById('appointmentsList');
+    const appointmentsContainer = document.getElementById('appointmentsContainer');
+    if (!appointmentsContainer) return;
     
-    // Сортируем записи по времени (на всякий случай, хотя сервер уже отсортировал)
+    // Сортируем записи по времени
     const sortedAppointments = [...appointments].sort((a, b) => {
         return a.время.localeCompare(b.время);
     });
     
     const displayDate = selectedDate || new Date().toLocaleDateString('ru-RU');
+    const masterInfo = window.currentSpecialistName ? ` - ${window.currentSpecialistName}` : '';
     
     let appointmentsHTML = `
         <div class="appointments-container">
             <div class="appointments-header">
-                <h3 class="appointments-title">Записи на ${displayDate}</h3>
+                <h3 class="appointments-title">Записи на ${displayDate}${masterInfo}</h3>
             </div>
     `;
 
@@ -560,7 +599,6 @@ function displayAppointments(appointments, selectedDate = null) {
     } else {
         appointmentsHTML += '<div class="appointments-grid">';
         
-        // Используем отсортированный массив
         sortedAppointments.forEach((appointment, index) => {
             const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
                                  appointment.клиент_телеfono?.replace('+7', '') || '';
@@ -568,6 +606,10 @@ function displayAppointments(appointments, selectedDate = null) {
             const time = appointment.время.includes(':') ? 
                         appointment.время.split(':').slice(0, 2).join(':') : 
                         appointment.время;
+            
+            // Добавляем информацию о мастере, если просматриваем всех мастеров
+            const masterInfo = !window.currentSpecialistId ? 
+                `<div class="master-info">Мастер: ${appointment.мастер_имя}</div>` : '';
             
             appointmentsHTML += `
                 <div class="appointment-card" data-appointment-id="${appointment.id}">
@@ -582,6 +624,7 @@ function displayAppointments(appointments, selectedDate = null) {
                                 <div class="service-name">${appointment.услуга_название}</div>
                                 <div class="service-price">${appointment.цена}₽</div>
                             </div>
+                            ${masterInfo}
                         </div>
                     </div>
                     <div class="appointment-actions">
@@ -601,7 +644,7 @@ function displayAppointments(appointments, selectedDate = null) {
     
     appointmentsHTML += '</div>';
     
-    appointmentsList.innerHTML = appointmentsHTML;
+    appointmentsContainer.innerHTML = appointmentsHTML;
     
     // Добавляем кнопку "Добавить запись" если её нет
     if (!document.querySelector('.add-appointment-btn')) {
