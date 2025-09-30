@@ -303,6 +303,7 @@ function showServiceModal(serviceId, service, specialists) {
     } else {
         specialistsHTML = '<p>Нет доступных мастеров для этой услуги</p>';
     }
+
     
     modalContent.innerHTML = `
         <button class="close-modal-btn" onclick="closeServiceModal()">⨉</button>

@@ -30,6 +30,104 @@ const db = new sqlite3.Database('./database.db', (err) => {
     }
 });
 
+const adminPhotoStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, 'photo/администратор/');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        const timestamp = Date.now();
+        const extension = path.extname(file.originalname);
+        const safeName = `admin_${timestamp}${extension}`;
+        cb(null, safeName);
+    }
+});
+
+const uploadAdminPhoto = multer({ 
+    storage: adminPhotoStorage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Только изображения разрешены'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+});
+
+// API endpoint для загрузки фото администратора
+// server.js - добавьте после существующих upload endpoints
+
+// API endpoint для загрузки фото администратора по умолчанию (замена файла)
+app.post('/api/upload-default-admin-photo', uploadAdminPhoto.single('photo'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+
+        let filePath = req.file.path;
+        let filename = req.file.filename;
+
+        // Конвертируем HEIC в JPEG если нужно
+        if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || path.extname(filename).toLowerCase() === '.heic') {
+            const newFilename = filename.replace(/\.[^/.]+$/, ".jpg");
+            const newFilePath = path.join(path.dirname(filePath), newFilename);
+
+            await sharp(filePath)
+                .jpeg({ quality: 90 })
+                .toFile(newFilePath);
+
+            fs.unlinkSync(filePath);
+            filePath = newFilePath;
+            filename = newFilename;
+        }
+
+        // Путь к файлу по умолчанию
+        const defaultPhotoPath = path.join(__dirname, 'photo/администратор/admin_default.jpg');
+        const tempPhotoPath = filePath;
+
+        // Удаляем старое фото по умолчанию если существует
+        if (fs.existsSync(defaultPhotoPath)) {
+            fs.unlinkSync(defaultPhotoPath);
+        }
+
+        // Переименовываем загруженное фото в admin_default.jpg
+        fs.renameSync(tempPhotoPath, defaultPhotoPath);
+
+        const photoUrl = 'photo/администратор/admin_default.jpg';
+
+        // Сохраняем URL фото в базу данных
+        const sql = `
+            INSERT INTO страницы (страница, элемент, текст) 
+            VALUES ('главная', 'фото_администратора', ?) 
+            ON CONFLICT(страница, элемент) 
+            DO UPDATE SET текст = excluded.текст
+        `;
+        
+        db.run(sql, [photoUrl], function(err) {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                filePath: photoUrl,
+                isDefault: true
+            });
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки фото администратора по умолчанию:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
+    }
+});
+
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         // Используем абсолютный путь к папке

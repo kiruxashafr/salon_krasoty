@@ -307,14 +307,26 @@ function showSpecialistModal(specialistId, services) {
     window.currentStep = 'services';
     
     let servicesHTML = '';
-    services.forEach(service => {
-        servicesHTML += `
-            <div class="modal-service-item" data-service-id="${service.id}" onclick="selectService(${service.id}, this)">
-                <h4>${service.название}</h4>
-                <p>${service.цена} ₽</p>
-            </div>
-        `;
-    });
+    if (services && services.length > 0) {
+        services.forEach(service => {
+            servicesHTML += `
+                <div class="modal-service-item" data-service-id="${service.id}" onclick="selectService(${service.id}, this)">
+                    <div class="service-item-background" style="background-image: url('${service.фото || 'photo/услуги/default.jpg'}')"></div>
+                    <div class="service-item-content">
+                        <div class="service-item-info">
+                            <h4>${service.название}</h4>
+                            <p>${service.описание || ''}</p>
+                        </div>
+                        <div class="service-item-price">
+                            <span>${service.цена} ₽</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        servicesHTML = '<p>Нет доступных услуг для этого специалиста</p>';
+    }
     
     modalContent.innerHTML = `
         <button class="close-modal-btn" onclick="closeSpecialistModal()">⨉</button>
@@ -341,7 +353,7 @@ function showSpecialistModal(specialistId, services) {
             </div>
         </div>
         
-        <div class="modal-step" id="step-times-specialist" style="display: none;">
+        <div class="modal-step" id="step-times" style="display: none;">
             <div class="step-header">
                 <button class="back-btn" onclick="backToDates()">← Назад</button>
                 <h2>Выберите время</h2>
