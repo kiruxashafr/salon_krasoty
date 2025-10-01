@@ -247,9 +247,7 @@ body {
     border-radius: 50%;
 }
 /* Стили для отображения записей - современный дизайн */
-.appointments-container {
-    margin-top: 2rem;
-}
+
 
 .appointments-header {
     display: flex;

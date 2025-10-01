@@ -233,7 +233,7 @@ function loadJournalContent() {
                 </div>
                 
                 <div class="appointments-list" id="appointmentsList" style="display: none;">
-                    <h3>Записи на выбранную дату</h3>
+
                     <div id="appointmentsContainer">
                         <!-- Записи будут загружены динамически -->
                     </div>
@@ -260,7 +260,6 @@ function loadJournalContent() {
 }
 
 
-// Функция выбора всех мастеров
 function selectAllMasters() {
     window.currentSpecialistId = null; // null означает "все мастера"
     window.currentSpecialistName = 'Все мастера';
@@ -280,13 +279,41 @@ function selectAllMasters() {
     // Инициализируем календарь
     initCalendar();
     
-    // Прокручиваем к календарю после небольшой задержки
-    setTimeout(() => {
-        calendarSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
+    // ЕСЛИ УЖЕ ВЫБРАНА ДАТА - ОБНОВЛЯЕМ ЗАПИСИ АВТОМАТИЧЕСКИ
+    if (window.selectedDate) {
+        // Показываем список записей если он скрыт
+        const appointmentsList = document.getElementById('appointmentsList');
+        appointmentsList.style.display = 'block';
+        
+        // Обновляем заголовок
+        const dateObj = new Date(window.selectedDate);
+        const formattedDate = dateObj.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
         });
-    }, 100);
+        
+
+        
+        // Загружаем записи для выбранной даты и всех мастеров
+        loadAppointmentsForDate(window.selectedDate);
+        
+        // Прокручиваем к списку записей
+        setTimeout(() => {
+            appointmentsList.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    } else {
+        // Прокручиваем к календарю если дата не выбрана
+        setTimeout(() => {
+            calendarSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    }
 }
 
     // Функция загрузки мастеров для журнала
@@ -344,7 +371,6 @@ function selectAllMasters() {
         });
     }
 
-// Функция выбора мастера
 function selectSpecialistForJournal(specialistId, specialistName) {
     window.currentSpecialistId = specialistId;
     window.currentSpecialistName = specialistName;
@@ -358,6 +384,7 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     });
     document.querySelector(`[data-specialist-id="${specialistId}"]`).classList.add('selected');
     
+
     // Показываем календарь
     const calendarSection = document.getElementById('calendarSection');
     calendarSection.style.display = 'block';
@@ -365,13 +392,41 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     // Инициализируем календарь
     initCalendar();
     
-    // Прокручиваем к календарю после небольшой задержки
-    setTimeout(() => {
-        calendarSection.scrollIntoView({ 
-            behavior: 'smooth', 
-            block: 'start' 
+    // ЕСЛИ УЖЕ ВЫБРАНА ДАТА - ОБНОВЛЯЕМ ЗАПИСИ АВТОМАТИЧЕСКИ
+    if (window.selectedDate) {
+        // Показываем список записей если он скрыт
+        const appointmentsList = document.getElementById('appointmentsList');
+        appointmentsList.style.display = 'block';
+        
+        // Обновляем заголовок
+        const dateObj = new Date(window.selectedDate);
+        const formattedDate = dateObj.toLocaleDateString('ru-RU', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
         });
-    }, 100);
+        
+
+        
+        // Загружаем записи для выбранной даты и нового мастера
+        loadAppointmentsForDate(window.selectedDate);
+        
+        // Прокручиваем к списку записей
+        setTimeout(() => {
+            appointmentsList.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    } else {
+        // Прокручиваем к календарю если дата не выбрана
+        setTimeout(() => {
+            calendarSection.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 100);
+    }
 }
 
 
@@ -535,10 +590,7 @@ function loadAppointmentsForDate(date) {
     
     const masterInfo = window.currentSpecialistName ? ` - ${window.currentSpecialistName}` : '';
     
-    const appointmentsHeader = document.querySelector('#appointmentsList h3');
-    if (appointmentsHeader) {
-        appointmentsHeader.textContent = `Записи на ${formattedDate}${masterInfo}`;
-    }
+
     
     // Запрос с учетом фильтра по мастеру (или без него)
     fetch(`/api/appointments?startDate=${date}&endDate=${date}${specialistFilter}`)
@@ -551,17 +603,6 @@ function loadAppointmentsForDate(date) {
         .then(data => {
             if (data.message === 'success') {
                 displayAppointments(data.data, formattedDate);
-                
-                // Дополнительная прокрутка после загрузки записей
-                setTimeout(() => {
-                    const appointmentsList = document.getElementById('appointmentsList');
-                    if (appointmentsList) {
-                        appointmentsList.scrollIntoView({ 
-                            behavior: 'smooth', 
-                            block: 'start' 
-                        });
-                    }
-                }, 100);
             }
         })
         .catch(error => {
@@ -763,12 +804,32 @@ let isAddFormOpen = false;
 
 // Обновленная функция showAddAppointmentForm
 function showAddAppointmentForm() {
+    // Проверяем, выбран ли конкретный мастер
+    if (!window.currentSpecialistId) {
+        showConfirm('Вы выбрали "Все мастера". Пожалуйста, выберите конкретного мастера для добавления записи.', (confirmed) => {
+            if (confirmed) {
+                // Прокручиваем к списку мастеров
+                const specialistsSection = document.querySelector('.specialists-selection');
+                if (specialistsSection) {
+                    specialistsSection.scrollIntoView({ 
+                        behavior: 'smooth', 
+                        block: 'start' 
+                    });
+                }
+            }
+        });
+        return;
+    }
+
     if (isAddFormOpen) return;
     isAddFormOpen = true;
     
     const formHTML = `
         <div class="add-appointment-form" id="addAppointmentFormContainer">
             <h3>Добавить новую запись</h3>
+            <div class="selected-master-info" style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 1rem;">
+                <strong>Мастер:</strong> ${window.currentSpecialistName}
+            </div>
             <button class="btn btn-danger btn-sm" onclick="cancelAddAppointment()" style="margin-bottom: 1rem;">
                 ✖ Отменить
             </button>
@@ -824,7 +885,8 @@ function showAddAppointmentForm() {
     
     document.getElementById('appointmentsList').insertAdjacentHTML('beforeend', formHTML);
     loadServicesForForm();
-        // Прокручиваем к форме
+    
+    // Прокручиваем к форме
     setTimeout(() => {
         const formContainer = document.getElementById('addAppointmentFormContainer');
         if (formContainer) {
@@ -959,10 +1021,7 @@ function selectDate(date, day) {
         year: 'numeric'
     });
     
-    const appointmentsHeader = document.querySelector('#appointmentsList h3');
-    if (appointmentsHeader) {
-        appointmentsHeader.textContent = `Записи на ${formattedDate}`;
-    }
+
     
     // Показываем список записей
     const appointmentsList = document.getElementById('appointmentsList');
