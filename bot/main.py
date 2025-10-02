@@ -1132,6 +1132,8 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
+# main.py - в функции process_confirmed_appointment обновим создание клиента
+
 async def process_confirmed_appointment(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработать подтверждение записи для авторизованного пользователя"""
     query = update.callback_query
@@ -1169,17 +1171,27 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
                     # Обновляем расписание как недоступное
                     requests.patch(f"{API_BASE_URL}/api/schedule/{schedule_id}", json={'доступно': 0})
                     
+                    # Обновляем tg_id клиента если его нет
+                    if not client.get('tg_id'):
+                        requests.patch(f"{API_BASE_URL}/api/client/{client['id']}", json={
+                            'tg_id': str(user_id)
+                        })
+                    
                     message_text = (
-                        "✓ Запись успешно создана!\n\n"
-                        f"≣ Дата: {schedule['дата']}\n"
-                        f"○ Время: {schedule['время']}\n"
+                        "✅ Запись успешно создана!\n\n"
                         f"✮ Услуга: {schedule['услуга_название']}\n"
                         f"♢ Мастер: {schedule['мастер_имя']}\n"
-                        f"₽ Стоимость: {schedule['услуга_цена']}₽\n\n"
-                        "С вами свяжутся для подтверждения."
+                        f"≣ Дата: {schedule['дата']}\n"
+                        f"⏰ Время: {schedule['время']}\n"
+                        f"💵 Стоимость: {schedule['услуга_цена']}₽\n\n"
+                        "📌 Мы напомним вам о записи:\n"
+                        "• За день до визита (в 18:00)\n" 
+                        "• За час до записи\n\n"
+                        "📋 Все ваши записи можно посмотреть в личном кабинете"
                     )
                     
                     keyboard = [
+                        [InlineKeyboardButton("📋 Личный кабинет", callback_data='personal_cabinet')],
                         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1211,6 +1223,8 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
         message_text = "❌ Ошибка подключения к серверу"
         await query.edit_message_text(text=message_text)
 
+
+
 def validate_phone(phone):
     """Валидация номера телефона в формате +7XXXXXXXXXX"""
     import re
@@ -1239,18 +1253,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Пример: +79255355278"
             )
             
-        elif user_data.get('step') == 'phone':
-            if not validate_phone(text):
-                await update.message.reply_text(
-                    "❌ Неверный формат телефона!\n\n"
-                    "Пожалуйста, введите телефон в формате +7XXXXXXXXXX\n"
-                    "Пример: +79255355278"
-                )
-                return
+    elif user_data.get('step') == 'phone':
+        if not validate_phone(text):
+            await update.message.reply_text(
+                "❌ Неверный формат телефона!\n\n"
+                "Пожалуйста, введите телефон в формате +7XXXXXXXXXX\n"
+                "Пример: +79255355278"
+            )
+            return
+        
+        user_data['client_phone'] = text
+        
+        try:
+            # Сначала проверяем есть ли клиент с таким телефоном
+            client_check_response = requests.get(f"{API_BASE_URL}/api/client/by-phone/{user_data['client_phone']}")
+            client_data = client_check_response.json()
             
-            user_data['client_phone'] = text
+            client_id = None
+            if client_data['message'] == 'success' and client_data['data']:
+                # Клиент существует - обновляем tg_id
+                client_id = client_data['data']['id']
+                update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={
+                    'tg_id': str(user_id)
+                })
+            else:
+                # Создаем нового клиента с tg_id
+                create_response = requests.post(f"{API_BASE_URL}/api/client", json={
+                    'имя': user_data['client_name'],
+                    'телефон': user_data['client_phone'],
+                    'tg_id': str(user_id)
+                })
+                if create_response.json()['message'] == 'success':
+                    client_id = create_response.json()['data']['id']
             
-            try:
+            if client_id:
+                # Создаем запись
                 response = requests.post(f"{API_BASE_URL}/api/appointment", json={
                     'specialistId': user_data['specialist_id'],
                     'serviceId': user_data['service_id'],
@@ -1262,12 +1299,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 if response.json().get('message') == 'success':
                     keyboard = [
+                        [InlineKeyboardButton("📋 Личный кабинет", callback_data='personal_cabinet')],
                         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
+                    
                     await update.message.reply_text(
                         "✅ Запись успешно создана!\n\n"
-                        "С вами свяжутся для подтверждения.",
+                        "📌 Мы напомним вам о записи:\n"
+                        "• За день до визита (в 18:00)\n"
+                        "• За час до записи\n\n"
+                        "📋 Все ваши записи можно посмотреть в личном кабинете",
                         reply_markup=reply_markup
                     )
                     
@@ -1277,12 +1319,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     
                 else:
                     await update.message.reply_text("❌ Ошибка при создании записи")
-                    
-            except Exception as e:
-                logger.error(f"Error creating appointment: {e}")
-                await update.message.reply_text("❌ Ошибка подключения к серверу")
-            
-            del user_states[user_id]
+            else:
+                await update.message.reply_text("❌ Ошибка при создании клиента")
+                
+        except Exception as e:
+            logger.error(f"Error creating appointment: {e}")
+            await update.message.reply_text("❌ Ошибка подключения к серверу")
+        
+        del user_states[user_id]
     
     # Проверяем для личного кабинета
     elif user_id in personal_states:

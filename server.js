@@ -399,13 +399,13 @@ function initializeDatabase() {
             )
         `);
 
-        // server.js - исправленная схема таблицы уведомлений
-        // server.js - исправленная схема таблицы уведомлений
+
+        // server.js - в схеме таблицы уведомлений добавить 'immediate'
         db.run(`
             CREATE TABLE IF NOT EXISTS уведомления (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 запись_id INTEGER NOT NULL,
-                тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew')), -- Добавьте 'masternew'
+                тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew', 'immediate')),
                 отправлено INTEGER DEFAULT 0,
                 время_отправки DATETIME DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (запись_id) REFERENCES записи(id),

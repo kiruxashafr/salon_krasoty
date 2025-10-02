@@ -22,6 +22,8 @@ TIMEZONE = pytz.timezone('Europe/Moscow')
 bot = None
 scheduler = None
 
+# notification.py - в функции initialize_notifications добавим проверку новых записей для клиентов
+
 def initialize_notifications():
     """Инициализация системы уведомлений"""
     global bot, scheduler
@@ -33,14 +35,14 @@ def initialize_notifications():
         # Ежедневное уведомление мастерам в 18:00 по MSK
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=14, timezone=TIMEZONE),
+            CronTrigger(hour=18, minute=0, timezone=TIMEZONE),
             id='daily_master_notifications'
         )
         
         # Ежедневное уведомление пользователям в 18:00 по MSK
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=32, timezone=TIMEZONE),
+            CronTrigger(hour=18, minute=0, timezone=TIMEZONE),
             id='daily_user_notifications'
         )
         
@@ -52,7 +54,7 @@ def initialize_notifications():
             id='hourly_notifications_check'
         )
         
-        # Проверка новых записей каждую минуту (для пользователей)
+        # Проверка новых записей для клиентов каждую минуту
         scheduler.add_job(
             check_new_appointments,
             'interval',
@@ -74,6 +76,7 @@ def initialize_notifications():
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
 
+        
 
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
@@ -412,9 +415,9 @@ async def send_master_daily_notification(master_id, tg_id, date):
 
 # notification.py - исправленная функция
 async def check_new_appointments():
-    """Проверка новых записей (только созданные сегодня)"""
+    """Проверка новых записей для уведомления клиентов (только созданные сегодня)"""
     try:
-        logger.info("🔄 Проверка новых записей (сегодня)")
+        logger.info("🔄 Проверка новых записей для уведомления клиентов (сегодня)")
         
         # Получаем записи, созданные сегодня
         today_date = datetime.now(TIMEZONE).strftime('%Y-%m-%d')
@@ -430,23 +433,23 @@ async def check_new_appointments():
             
         appointments = response.json().get('data', [])
         
-        # Фильтруем только записи, созданные сегодня
+        # Фильтруем только записи, созданные сегодня (по дате создания)
         today_appointments = []
         for appointment in appointments:
             created_at = appointment.get('created_at', '')
             if created_at.startswith(today_date):
                 today_appointments.append(appointment)
         
-        new_appointments_count = 0
+        new_client_notifications_sent = 0
         
         for appointment in today_appointments:
             try:
-                # Проверяем, отправлено ли уже уведомление о новой записи
+                # Проверяем, отправлено ли уже immediate уведомление клиенту
                 check_notification_response = requests.get(
                     f"{API_BASE_URL}/api/check-notification",
                     params={
                         'запись_id': appointment['id'],
-                        'тип': 'new'
+                        'тип': 'immediate'
                     }
                 )
                 
@@ -456,22 +459,21 @@ async def check_new_appointments():
                     check_notification_response.json().get('message') == 'success' and 
                     check_notification_response.json().get('sent', False)):
                     should_send = False
-                    logger.info(f"Уведомление new для записи {appointment['id']} уже отправлено")
+                    logger.info(f"Уведомление immediate для записи {appointment['id']} уже отправлено")
                 
-                if should_send and appointment.get('мастер_tg_id'):
-                    await send_new_appointment_notification(appointment)
-                    new_appointments_count += 1
+                if should_send and appointment.get('клиент_tg_id'):
+                    await send_immediate_client_notification(appointment)
+                    new_client_notifications_sent += 1
                     await asyncio.sleep(0.5)
                     
             except Exception as e:
-                logger.error(f"Ошибка обработки новой записи {appointment.get('id')}: {e}")
+                logger.error(f"Ошибка обработки новой записи для клиента {appointment.get('id')}: {e}")
                 continue
                 
-        logger.info(f"✅ Отправлено {new_appointments_count} уведомлений о новых записях (сегодня)")
+        logger.info(f"✅ Отправлено {new_client_notifications_sent} уведомлений клиентам о новых записях (сегодня)")
         
     except Exception as e:
-        logger.error(f"Ошибка проверки новых записей: {e}")
-
+        logger.error(f"Ошибка проверки новых записей для клиентов: {e}")
 
 
 
@@ -556,6 +558,45 @@ async def check_master_new_appointments(master_id, tg_id):
             
     except Exception as e:
         logger.error(f"Ошибка проверки новых записей для мастера {master_id}: {e}")
+
+
+async def send_immediate_client_notification(appointment):
+    """Немедленная отправка уведомления клиенту о successful записи"""
+    try:
+        # Форматируем дату в понятный формат
+        appointment_date = datetime.strptime(appointment['дата'], '%Y-%m-%d')
+        formatted_date = appointment_date.strftime('%d.%m.%Y')
+        
+        message = (
+            "✅ Запись успешно создана!\n\n"
+            f"✮ Услуга: {appointment['услуга_название']}\n"
+            f"♢ Мастер: {appointment['мастер_имя']}\n"
+            f"≣ Дата: {formatted_date}\n"
+            f"⏰ Время: {appointment['время']}\n"
+            f"💵 Стоимость: {appointment['цена']}₽\n\n"
+            "📌 Мы напомним вам о записи:\n"
+            "• За день до визита (в 18:00)\n"
+            "• За час до записи\n\n"
+            "📋 Все ваши записи можно посмотреть в личном кабинете"
+        )
+        
+        await bot.send_message(chat_id=appointment['клиент_tg_id'], text=message)
+        
+        # Отмечаем уведомление как отправленное
+        mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
+            'запись_id': appointment['id'],
+            'тип': 'immediate'
+        })
+        
+        if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
+            logger.info(f"✅ Отправлено немедленное уведомление клиенту {appointment['клиент_tg_id']}")
+        else:
+            logger.error(f"❌ Ошибка отметки immediate уведомления: {mark_response.text}")
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки немедленного уведомления клиенту: {e}")
+
+
 
 async def send_immediate_notification(master_id, appointment_data):
     """Немедленная отправка уведомления о новой записи"""
