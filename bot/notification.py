@@ -21,16 +21,20 @@ TIMEZONE = pytz.timezone('Europe/Moscow')
 # Глобальные переменные
 bot = None
 scheduler = None
-
-# notification.py - в функции initialize_notifications добавим проверку новых записей для клиентов
+notification_loop = None
 
 def initialize_notifications():
     """Инициализация системы уведомлений"""
-    global bot, scheduler
+    global bot, scheduler, notification_loop
     
     try:
         bot = Bot(token=BOT_TOKEN)
-        scheduler = AsyncIOScheduler(timezone=TIMEZONE)
+        
+        # Создаем отдельный event loop для уведомлений
+        notification_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(notification_loop)
+        
+        scheduler = AsyncIOScheduler(event_loop=notification_loop, timezone=TIMEZONE)
         
         # Ежедневное уведомление мастерам в 18:00 по MSK
         scheduler.add_job(
@@ -75,8 +79,6 @@ def initialize_notifications():
         
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
-
-        
 
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
@@ -139,9 +141,6 @@ async def check_new_master_appointments():
     except Exception as e:
         logger.error(f"Ошибка проверки новых записей для мастеров: {e}")
 
-
-
-
 async def send_master_new_appointment_notification(appointment):
     """Отправка уведомления о новой записи мастеру"""
     try:
@@ -175,9 +174,6 @@ async def send_master_new_appointment_notification(appointment):
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления о новой записи мастеру: {e}")
 
-
-
-# notification.py - исправленная функция send_daily_user_notifications
 async def send_daily_user_notifications():
     """Отправка ежедневных уведомлений пользователям о записях на завтра"""
     try:
@@ -232,8 +228,6 @@ async def send_daily_user_notifications():
         
     except Exception as e:
         logger.error(f"Ошибка отправки ежедневных уведомлений пользователям: {e}")
-
-
 
 async def send_hourly_notifications():
     """Отправка уведомлений пользователям за час до записи"""
@@ -351,7 +345,6 @@ async def send_user_hourly_notification(appointment):
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления за час пользователю: {e}")
         
-        
 async def send_daily_master_notifications():
     """Отправка ежедневных уведомлений мастерам о записях на завтра"""
     try:
@@ -410,10 +403,6 @@ async def send_master_daily_notification(master_id, tg_id, date):
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления мастеру {master_id}: {e}")
 
-
-
-
-# notification.py - исправленная функция
 async def check_new_appointments():
     """Проверка новых записей для уведомления клиентов (только созданные сегодня)"""
     try:
@@ -475,91 +464,6 @@ async def check_new_appointments():
     except Exception as e:
         logger.error(f"Ошибка проверки новых записей для клиентов: {e}")
 
-
-
-async def send_new_appointment_notification(appointment):
-    """Отправка уведомления о новой записи мастеру"""
-    try:
-        message = (
-            "🔔 Новая запись!\n\n"
-            f"👤 Клиент: {appointment['клиент_имя']} ({appointment['клиент_телефон']})\n"
-            f"🎯 Услуга: {appointment['услуга_название']}\n"
-            f"📅 Дата: {appointment['дата']}\n"
-            f"⏰ Время: {appointment['время']}\n"
-            f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            f"🕐 Создано: {appointment.get('created_at', 'только что')}"
-        )
-        
-        await bot.send_message(chat_id=appointment['мастер_tg_id'], text=message)
-        
-        # Отмечаем уведомление как отправленное
-        mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
-            'запись_id': appointment['id'],
-            'тип': 'new'
-        })
-        
-        if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
-            logger.info(f"✅ Отправлено уведомление о новой записи мастеру {appointment['мастер_tg_id']}")
-        else:
-            logger.error(f"❌ Ошибка отметки уведомления как отправленного: {mark_response.text}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка отправки уведомления о новой записи: {e}")
-
-
-
-async def check_master_new_appointments(master_id, tg_id):
-    """Проверка новых записей для конкретного мастера"""
-    global last_check_time
-    
-    try:
-        # Форматируем время с учетом часового пояса
-        since_time = last_check_time.strftime('%Y-%m-%d %H:%M:%S')
-        logger.info(f"Проверка записей для мастера {master_id} с createdSince: {since_time}")
-        
-        response = requests.get(
-            f"{API_BASE_URL}/api/appointments",
-            params={
-                'specialistId': master_id,
-                'createdSince': since_time
-            }
-        )
-        
-        if response.json()['message'] != 'success':
-            logger.error(f"Ошибка API appointments для мастера {master_id}: {response.json()}")
-            return
-            
-        appointments = response.json()['data']
-        logger.info(f"Найдено {len(appointments)} записей для мастера {master_id}")
-        
-        for app in appointments:
-            # Проверяем, что запись действительно новая
-            created_at = app.get('created_at')
-            if created_at:
-                created_at_dt = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S').replace(tzinfo=TIMEZONE)
-                if created_at_dt <= last_check_time:
-                    logger.info(f"Пропущена старая запись для мастера {master_id}: {created_at}")
-                    continue
-                
-            message = (
-                "🔔 Новая запись!\n\n"
-                f"👤 Клиент: {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                f"🎯 Услуга: {app['услуга_название']}\n"
-                f"≣ Дата: {app['дата']}\n"
-                f"⏰ Время: {app['время']}\n"
-                f"💵 Стоимость: {app['цена']}₽\n"
-                f"🕐 Создано: {app['created_at']}"
-            )
-            
-            await bot.send_message(chat_id=tg_id, text=message)
-            logger.info(f"✅ Отправлено уведомление о новой записи мастеру {master_id}, created_at: {app['created_at']}")
-            
-            await asyncio.sleep(1)
-            
-    except Exception as e:
-        logger.error(f"Ошибка проверки новых записей для мастера {master_id}: {e}")
-
-
 async def send_immediate_client_notification(appointment):
     """Немедленная отправка уведомления клиенту о successful записи"""
     try:
@@ -596,41 +500,21 @@ async def send_immediate_client_notification(appointment):
     except Exception as e:
         logger.error(f"Ошибка отправки немедленного уведомления клиенту: {e}")
 
-
-
-async def send_immediate_notification(master_id, appointment_data):
-    """Немедленная отправка уведомления о новой записи"""
-    try:
-        response = requests.get(f"{API_BASE_URL}/api/specialist/{master_id}")
-        if response.json()['message'] != 'success':
-            logger.error(f"Ошибка API specialist/{master_id}: {response.json()}")
-            return
-            
-        master = response.json()['data']
-        
-        if not master.get('tg_id'):
-            logger.info(f"Мастер {master_id} не имеет tg_id")
-            return
-            
-        message = (
-            "🔔 Новая запись!\n\n"
-            f"👤 Клиент: {appointment_data['clientName']} ({appointment_data['clientPhone']})\n"
-            f"🎯 Услуга: {appointment_data['serviceName']}\n"
-            f"≣ Дата: {appointment_data['date']}\n"
-            f"⏰ Время: {appointment_data['time']}\n"
-            f"💵 Стоимость: {appointment_data['price']}₽"
-        )
-        
-        await bot.send_message(chat_id=master['tg_id'], text=message)
-        logger.info(f"✅ Отправлено немедленное уведомление мастеру {master_id}")
-        
-    except Exception as e:
-        logger.error(f"Ошибка отправки немедленного уведомления: {e}")
-
 def shutdown_notifications():
     """Остановка системы уведомлений"""
-    global scheduler
+    global scheduler, notification_loop
     
     if scheduler:
-        scheduler.shutdown()
-        logger.info("✅ Система уведомлений остановлена")
+        try:
+            scheduler.shutdown()
+            logger.info("✅ Система уведомлений остановлена")
+        except Exception as e:
+            logger.error(f"❌ Ошибка остановки планировщика: {e}")
+    
+    if notification_loop:
+        try:
+            notification_loop.stop()
+            notification_loop.close()
+            logger.info("✅ Event loop уведомлений остановлен")
+        except Exception as e:
+            logger.error(f"❌ Ошибка остановки event loop: {e}")
