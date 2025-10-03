@@ -9,6 +9,7 @@ const sharp = require('sharp');
 const app = express();
 const PORT = 3011;
 
+process.env.TZ = "Europe/Moscow";
 
 // Middleware
 app.use(cors());
@@ -370,7 +371,7 @@ function initializeDatabase() {
                 дата TEXT NOT NULL,
                 время TEXT NOT NULL,
                 цена REAL NOT NULL,
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                created_at DATETIME DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (клиент_id) REFERENCES клиенты(id),
                 FOREIGN KEY (услуга_id) REFERENCES услуги(id),
                 FOREIGN KEY (мастер_id) REFERENCES мастера(id)
@@ -407,7 +408,7 @@ function initializeDatabase() {
                 запись_id INTEGER NOT NULL,
                 тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew', 'immediate')),
                 отправлено INTEGER DEFAULT 0,
-                время_отправки DATETIME DEFAULT CURRENT_TIMESTAMP,
+                время_отправки DATETIME DEFAULT (datetime('now', 'localtime')),
                 FOREIGN KEY (запись_id) REFERENCES записи(id),
                 UNIQUE(запись_id, тип)
             )
@@ -1500,7 +1501,7 @@ app.post('/api/admin/appointment', (req, res) => {
                     // 3. Create appointment record
                     const insertAppointmentSql = `
                         INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                     `;                    
                     db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
                         if (err) {
@@ -2597,7 +2598,7 @@ app.post('/api/notification-sent', (req, res) => {
         INSERT INTO уведомления (запись_id, тип, отправлено) 
         VALUES (?, ?, 1)
         ON CONFLICT(запись_id, тип) 
-        DO UPDATE SET отправлено = 1, время_отправки = CURRENT_TIMESTAMP
+        DO UPDATE SET отправлено = 1, время_отправки = datetime('now', 'localtime')
     `;
     
     db.run(sql, [запись_id, тип], function(err) {
@@ -2908,7 +2909,7 @@ app.post('/api/appointment', (req, res) => {
                             // 5. Create appointment record
                             const insertAppointmentSql = `
                                 INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
                             `;
                             
                             db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
@@ -2972,6 +2973,171 @@ app.get('/api/page-content-full/:pageName', (req, res) => {
             data: rows
         });
     });
+});
+
+// server.js - добавьте этот endpoint после существующих
+app.get('/api/appointments-for-hourly-simple', (req, res) => {
+    try {
+        // Получаем текущее время и время через час
+        const now = new Date();
+        const oneHourLater = new Date(now.getTime() + 60 * 60 * 1000);
+        
+        // Форматируем для SQL
+        const currentTimeStr = now.toISOString().replace('T', ' ').substring(0, 19);
+        const oneHourLaterStr = oneHourLater.toISOString().replace('T', ' ').substring(0, 19);
+        
+        console.log('Поиск записей для hourly уведомлений:');
+        console.log('Текущее время:', currentTimeStr);
+        console.log('Через час:', oneHourLaterStr);
+        
+        const sql = `
+            SELECT 
+                з.id,
+                з.дата,
+                з.время,
+                з.цена,
+                к.имя as клиент_имя,
+                к.телефон as клиент_телефон,
+                к.tg_id as клиент_tg_id,
+                у.название as услуга_название,
+                м.имя as мастер_имя,
+                м.tg_id as мастер_tg_id
+            FROM записи з
+            JOIN клиенты к ON з.клиент_id = к.id
+            JOIN услуги у ON з.услуга_id = у.id
+            JOIN мастера м ON з.мастер_id = м.id
+            WHERE CONCAT(з.дата, ' ', з.время) BETWEEN ? AND ?
+            AND к.tg_id IS NOT NULL 
+            AND к.tg_id != ''
+            AND NOT EXISTS (
+                SELECT 1 FROM уведомления 
+                WHERE запись_id = з.id AND тип = 'hourly' AND отправлено = 1
+            )
+            ORDER BY з.дата, з.время
+        `;
+        
+        db.all(sql, [currentTimeStr, oneHourLaterStr], (err, rows) => {
+            if (err) {
+                console.error('Ошибка SQL:', err);
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            console.log(`Найдено ${rows.length} записей для hourly уведомлений`);
+            
+            res.json({
+                message: "success",
+                data: rows
+            });
+        });
+        
+    } catch (error) {
+        console.error('Ошибка в appointments-for-hourly-simple:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
+// server.js - добавьте этот endpoint
+app.get('/api/appointments-for-daily-simple', (req, res) => {
+    try {
+        // Получаем завтрашнюю дату
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowDate = tomorrow.toISOString().split('T')[0];
+        
+        console.log('Поиск записей для daily уведомлений на дату:', tomorrowDate);
+        
+        const sql = `
+            SELECT 
+                з.id,
+                з.дата,
+                з.время,
+                з.цена,
+                к.имя as клиент_имя,
+                к.телефон as клиент_телефон,
+                к.tg_id as клиент_tg_id,
+                у.название as услуга_название,
+                м.имя as мастер_имя,
+                м.tg_id as мастер_tg_id
+            FROM записи з
+            JOIN клиенты к ON з.клиент_id = к.id
+            JOIN услуги у ON з.услуга_id = у.id
+            JOIN мастера м ON з.мастер_id = м.id
+            WHERE з.дата = ?
+            AND к.tg_id IS NOT NULL 
+            AND к.tg_id != ''
+            AND NOT EXISTS (
+                SELECT 1 FROM уведомления 
+                WHERE запись_id = з.id AND тип = 'daily' AND отправлено = 1
+            )
+            ORDER BY з.время
+        `;
+        
+        db.all(sql, [tomorrowDate], (err, rows) => {
+            if (err) {
+                console.error('Ошибка SQL:', err);
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            console.log(`Найдено ${rows.length} записей для daily уведомлений на ${tomorrowDate}`);
+            
+            res.json({
+                message: "success",
+                data: rows
+            });
+        });
+        
+    } catch (error) {
+        console.error('Ошибка в appointments-for-daily-simple:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+});
+
+// server.js - endpoint для суточных уведомлений мастерам
+app.get('/api/appointments-for-master-daily', (req, res) => {
+    try {
+        const masterId = req.query.masterId;
+        const date = req.query.date;
+        
+        if (!masterId || !date) {
+            return res.status(400).json({ error: 'masterId и date обязательны' });
+        }
+        
+        const sql = `
+            SELECT 
+                з.id,
+                з.дата,
+                з.время,
+                з.цена,
+                к.имя as клиент_имя,
+                к.телефон as клиент_телефон,
+                у.название as услуга_название
+            FROM записи з
+            JOIN клиенты к ON з.клиент_id = к.id
+            JOIN услуги у ON з.услуга_id = у.id
+            WHERE з.мастер_id = ? 
+            AND з.дата = ?
+            ORDER BY з.время
+        `;
+        
+        db.all(sql, [masterId, date], (err, rows) => {
+            if (err) {
+                console.error('Ошибка SQL:', err);
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: rows
+            });
+        });
+        
+    } catch (error) {
+        console.error('Ошибка в appointments-for-master-daily:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
 });
 
 // API endpoint для обновления порядка элементов

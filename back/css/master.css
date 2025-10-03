@@ -390,6 +390,10 @@ input[type="file"] {
     cursor: pointer;
 }
 
+input[type="file"].form-control {
+display: block;
+}
+
 input[type="file"]:hover {
     background: #e3f2fd;
     border-color: #2980b9;

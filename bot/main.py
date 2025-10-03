@@ -173,7 +173,7 @@ async def show_booking_options(query):
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = "Как вы хотите записаться?"
     
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     
     try:
         # Скачиваем фото
@@ -190,7 +190,7 @@ async def show_booking_options(query):
 
 async def show_services(query):
     """Показать список услуг с доступным временем (в будущем)"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/services")
         data = response.json()
@@ -286,7 +286,7 @@ async def show_services(query):
 
 async def show_specialists(query):
     """Показать список мастеров с доступным временем (в будущем)"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialists")
         data = response.json()
@@ -388,7 +388,7 @@ async def handle_cancel_to_main(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def show_specialists_for_service(query, service_id):
     """Показать мастеров для выбранной услуги (проверяя доступное время в будущем)"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/service/{service_id}/specialists")
         data = response.json()
@@ -489,7 +489,7 @@ async def show_specialists_for_service(query, service_id):
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialist/{specialist_id}/services")
         data = response.json()
@@ -588,7 +588,7 @@ async def show_date_selection(query, specialist_id, service_id, target_date_str=
         'service_id': service_id
     }
     
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         today = datetime.now().date()
         
@@ -666,7 +666,7 @@ async def show_date_selection(query, specialist_id, service_id, target_date_str=
 
 async def show_time_slots(query, date_str):
     """Показать доступное время на выбранную дату"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     user_id = query.from_user.id
     user_data = user_states.get(user_id, {})
     specialist_id = user_data.get('specialist_id')
@@ -802,7 +802,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+                photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
                 try:
                     photo_response = requests.get(photo_url)
                     if photo_response.status_code == 200:
@@ -840,7 +840,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 
-                photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+                photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
                 try:
                     photo_response = requests.get(photo_url)
                     if photo_response.status_code == 200:
@@ -875,7 +875,7 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_week_schedule(query, target_date_str=None):
     """Показать свободное время на неделю с навигацией"""
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     try:
         today = datetime.now().date()
         
@@ -969,7 +969,7 @@ async def show_week_schedule(query, target_date_str=None):
 
 async def show_all_specialists_schedule(query, service_id, target_date_str=None):
 
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     
     try:
         today = datetime.now().date()
@@ -1196,7 +1196,7 @@ async def process_confirmed_appointment(update: Update, context: ContextTypes.DE
                     ]
                     reply_markup = InlineKeyboardMarkup(keyboard)
                     
-                    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+                    photo_url = f"{API_BASE_URL}/photo/images/pusto.jpg"
                     try:
                         photo_response = requests.get(photo_url)
                         if photo_response.status_code == 200:

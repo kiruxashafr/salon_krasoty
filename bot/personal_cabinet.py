@@ -65,7 +65,7 @@ async def show_personal_cabinet(update: Update, context: ContextTypes.DEFAULT_TY
 async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
     """Показать меню личного кабинета"""
     query = update.callback_query if update.callback_query else None
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/lk.jpg"
 
     keyboard = [
         [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
@@ -194,7 +194,7 @@ async def show_current_appointments(update: Update, context: ContextTypes.DEFAUL
 async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, is_history: bool):
     """Общий метод для показа записей"""
     query = update.callback_query
-    photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
+    photo_url = f"{API_BASE_URL}/photo/images/lk.jpg"
 
     try:
         # Сначала находим client_id по tg_id

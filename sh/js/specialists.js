@@ -327,6 +327,7 @@ function showSpecialistModal(specialistId, services) {
         servicesHTML = '<p>Нет доступных услуг для этого специалиста</p>';
     }
     
+    // ИСПРАВЛЕННЫЙ HTML - убрал "-specialist" из ID шагов
     modalContent.innerHTML = `
         <button class="close-modal-btn" onclick="closeSpecialistModal()">⨉</button>
         <div class="modal-step" id="step-services">
@@ -336,7 +337,7 @@ function showSpecialistModal(specialistId, services) {
             </div>
         </div>
         
-        <div class="modal-step" id="step-dates-specialist" style="display: none;">
+        <div class="modal-step" id="step-dates" style="display: none;">
             <div class="step-header">
                 <button class="back-btn" onclick="backToServices()">← Назад</button>
                 <h2>Выберите дату</h2>
@@ -387,12 +388,13 @@ function showStepSpecialist(step) {
     modal.querySelectorAll('.modal-step').forEach(stepEl => {
         stepEl.style.display = 'none';
     });
+    
+    // Исправляем ID шагов - убираем "-specialist" из ID
     let stepId = `step-${step}`;
-    if (step === 'dates' || step === 'times') {
-        stepId = `step-${step}-specialist`;
-    }
     const stepEl = document.getElementById(stepId);
-    if (stepEl) stepEl.style.display = 'block';
+    if (stepEl) {
+        stepEl.style.display = 'block';
+    }
     window.currentStep = step;
 }
 
@@ -648,7 +650,7 @@ function showConfirmationStepSpecialist(time, scheduleId) {
 function showConfirmationStepContentSpecialist() {
     const stepContent = document.createElement('div');
     stepContent.className = 'modal-step';
-    stepContent.id = 'step-confirmation-specialist';
+    stepContent.id = 'step-confirmation'; // Убрал "-specialist"
     
     const masterPhoto = window.currentSpecialist?.фото || 'photo/работники/default.jpg';
     const formattedDate = formatDateSpecialist(window.selectedDate);
@@ -697,21 +699,12 @@ function showConfirmationStepContentSpecialist() {
     `;
     
     document.querySelector('.specialist-modal-content').appendChild(stepContent);
-    showStepSpecialist('confirmation-specialist');
-    
-    const phoneInput = document.getElementById('client-phone-specialist');
-    phoneInput.addEventListener('input', function(e) {
-        this.value = this.value.replace(/\D/g, '');
-        if (this.value.length > 10) {
-            this.value = this.value.slice(0, 10);
-        }
-        validatePhoneSpecialist();
-    });
+    showStepSpecialist('confirmation');
 }
 
 function backToTimesSpecialist() {
     showStepSpecialist('times');
-    const confirmationStep = document.getElementById('step-confirmation-specialist');
+    const confirmationStep = document.getElementById('step-confirmation');
     if (confirmationStep) {
         confirmationStep.remove();
     }
@@ -802,7 +795,7 @@ function submitBookingSpecialist() {
 function showBookingSuccessSpecialist() {
     const stepContent = document.createElement('div');
     stepContent.className = 'modal-step';
-    stepContent.id = 'step-success-specialist';
+    stepContent.id = 'step-success'; // Убрал "-specialist"
     
     const masterPhoto = window.currentSpecialist?.фото || 'photo/работники/default.jpg';
     const formattedDate = formatDateSpecialist(window.selectedDate);
@@ -845,7 +838,7 @@ function showBookingSuccessSpecialist() {
     document.querySelector('.specialist-modal-content').appendChild(stepContent);
     
     // Устанавливаем текущий шаг как успешное бронирование
-    window.currentStep = 'success-specialist';
+    window.currentStep = 'success';
 }
 
 function showNoServicesMessage() {

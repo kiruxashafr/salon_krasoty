@@ -1,9 +1,10 @@
+
 import os
 import logging
 import asyncio
 import requests
 from datetime import datetime, timedelta
-from telegram import Bot
+from telegram import Bot, InputMediaPhoto
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
@@ -34,19 +35,19 @@ def initialize_notifications():
         notification_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(notification_loop)
         
-        scheduler = AsyncIOScheduler(event_loop=notification_loop, timezone=TIMEZONE)
+        # УБЕРИТЕ timezone=TIMEZONE - используем системное время сервера
+        scheduler = AsyncIOScheduler(event_loop=notification_loop)
         
-        # Ежедневное уведомление мастерам в 18:00 по MSK
+        # Уведомления будут срабатывать в 18:00 по времени сервера
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=0, timezone=TIMEZONE),
+            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
             id='daily_master_notifications'
         )
         
-        # Ежедневное уведомление пользователям в 18:00 по MSK
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=0, timezone=TIMEZONE),
+            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
             id='daily_user_notifications'
         )
         
@@ -54,7 +55,7 @@ def initialize_notifications():
         scheduler.add_job(
             send_hourly_notifications,
             'interval',
-            minutes=1,
+            minutes=5,
             id='hourly_notifications_check'
         )
         
@@ -62,7 +63,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_appointments,
             'interval',
-            minutes=1,
+            minutes=3,
             id='new_appointments_check'
         )
         
@@ -70,7 +71,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_master_appointments,
             'interval',
-            minutes=1,
+            minutes=5,
             id='new_master_appointments_check'
         )
         
@@ -79,6 +80,34 @@ def initialize_notifications():
         
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
+
+async def send_notification_with_photo(chat_id: int, message: str):
+    """Отправка уведомления с фотографией"""
+    try:
+        # URL для получения фотографии
+        photo_url = f"{API_BASE_URL}/photo/images/notif.jpg"
+        
+        # Загружаем фотографию
+        photo_response = requests.get(photo_url)
+        if photo_response.status_code == 200:
+            photo_data = photo_response.content
+            await bot.send_photo(chat_id=chat_id, photo=photo_data, caption=message)
+            return True
+        else:
+            # Если фото не найдено, отправляем только текст
+            await bot.send_message(chat_id=chat_id, text=message)
+            logger.warning(f"Фото notif.jpg не найдено, отправлено текстовое уведомление")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления с фото: {e}")
+        # В случае ошибки отправляем только текст
+        try:
+            await bot.send_message(chat_id=chat_id, text=message)
+            return True
+        except Exception as text_error:
+            logger.error(f"Ошибка отправки текстового уведомления: {text_error}")
+            return False
 
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
@@ -158,134 +187,65 @@ async def send_master_new_appointment_notification(appointment):
             f"🕐 Создано: {appointment.get('created_at', 'только что')}"
         )
         
-        await bot.send_message(chat_id=appointment['мастер_tg_id'], text=message)
+        # Используем новую функцию с фото
+        success = await send_notification_with_photo(
+            chat_id=appointment['мастер_tg_id'], 
+            message=message
+        )
         
-        # Отмечаем уведомление как отправленное
-        mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
-            'запись_id': appointment['id'],
-            'тип': 'masternew'
-        })
-        
-        if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
-            logger.info(f"✅ Отправлено уведомление о новой записи мастеру {appointment['мастер_tg_id']}")
-        else:
-            logger.error(f"❌ Ошибка отметки уведомления как отправленного: {mark_response.text}")
+        if success:
+            # Отмечаем уведомление как отправленное
+            mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
+                'запись_id': appointment['id'],
+                'тип': 'masternew'
+            })
+            
+            if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
+                logger.info(f"✅ Отправлено уведомление о новой записи мастеру {appointment['мастер_tg_id']}")
+            else:
+                logger.error(f"❌ Ошибка отметки уведомления как отправленного: {mark_response.text}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления о новой записи мастеру: {e}")
 
 async def send_daily_user_notifications():
-    """Отправка ежедневных уведомлений пользователям о записях на завтра"""
+    """Упрощенная версия отправки ежедневных уведомлений пользователям"""
     try:
-        logger.info("🔄 Начало отправки ежедневных уведомлений пользователям")
+        logger.info("🔄 Проверка ежедневных уведомлений пользователям (упрощенная версия)")
         
-        # Получаем завтрашнюю дату
-        tomorrow = (datetime.now(TIMEZONE) + timedelta(days=1)).strftime('%Y-%m-%d')
+        # Используем новый упрощенный endpoint
+        response = requests.get(f"{API_BASE_URL}/api/appointments-for-daily-simple")
         
-        # Получаем все записи на завтра
-        response = requests.get(
-            f"{API_BASE_URL}/api/appointments-with-notifications",
-            params={'startDate': tomorrow, 'endDate': tomorrow}
-        )
-        
-        if response.status_code != 200 or response.json().get('message') != 'success':
-            logger.error(f"Ошибка API appointments: {response.status_code} - {response.text}")
+        if response.status_code != 200:
+            logger.error(f"Ошибка API: {response.status_code} - {response.text}")
             return
             
-        appointments = response.json().get('data', [])
+        result = response.json()
+        if result.get('message') != 'success':
+            logger.error(f"Ошибка в ответе API: {result}")
+            return
+            
+        appointments = result.get('data', [])
         
-        user_notifications_sent = 0
+        daily_notifications_sent = 0
         
         for appointment in appointments:
             try:
-                # Проверяем, отправлено ли уже daily уведомление для этой записи
-                check_notification_response = requests.get(
-                    f"{API_BASE_URL}/api/check-notification",
-                    params={
-                        'запись_id': appointment['id'],
-                        'тип': 'daily'
-                    }
-                )
-                
-                # Если уведомление еще не отправлено или произошла ошибка при проверке
-                should_send = True
-                if (check_notification_response.status_code == 200 and 
-                    check_notification_response.json().get('message') == 'success' and 
-                    check_notification_response.json().get('sent', False)):
-                    should_send = False
-                    logger.info(f"Уведомление daily для записи {appointment['id']} уже отправлено")
-                
-                if should_send and appointment.get('клиент_tg_id'):
-                    await send_user_daily_notification(appointment)
-                    user_notifications_sent += 1
-                    await asyncio.sleep(0.5)  # Задержка между отправками
+                await send_user_daily_notification(appointment)
+                daily_notifications_sent += 1
+                await asyncio.sleep(0.5)  # Задержка между отправками
                     
             except Exception as e:
                 logger.error(f"Ошибка обработки записи {appointment.get('id')}: {e}")
                 continue
                 
-        logger.info(f"✅ Отправлено {user_notifications_sent} ежедневных уведомлений пользователям")
+        if daily_notifications_sent > 0:
+            logger.info(f"✅ Отправлено {daily_notifications_sent} ежедневных уведомлений пользователям")
+        else:
+            logger.info("ℹ️ Не найдено записей для daily уведомлений")
         
     except Exception as e:
-        logger.error(f"Ошибка отправки ежедневных уведомлений пользователям: {e}")
-
-async def send_hourly_notifications():
-    """Отправка уведомлений пользователям за час до записи"""
-    try:
-        logger.info("🔄 Проверка уведомлений за час до записи")
-        
-        # Получаем текущее время + 1 час
-        one_hour_later = datetime.now(TIMEZONE) + timedelta(hours=1)
-        current_time_str = datetime.now(TIMEZONE).strftime('%Y-%m-%d %H:%M:%S')
-        one_hour_later_str = one_hour_later.strftime('%Y-%m-%d %H:%M:%S')
-        
-        # Получаем записи в интервале текущее время + 1 час
-        response = requests.get(
-            f"{API_BASE_URL}/api/appointments-for-hourly",
-            params={
-                'startTime': current_time_str,
-                'endTime': one_hour_later_str
-            }
-        )
-        
-        if response.json()['message'] != 'success':
-            logger.error(f"Ошибка API appointments-for-hourly: {response.json()}")
-            return
-            
-        appointments = response.json()['data']
-        
-        hourly_notifications_sent = 0
-        
-        for appointment in appointments:
-            try:
-                # Проверяем, отправлено ли уже hourly уведомление
-                check_notification_response = requests.get(
-                    f"{API_BASE_URL}/api/check-notification",
-                    params={
-                        'запись_id': appointment['id'],
-                        'тип': 'hourly'
-                    }
-                )
-                
-                # Если уведомление еще не отправлено
-                should_send = True
-                if (check_notification_response.json().get('message') == 'success' and 
-                    check_notification_response.json().get('sent', False)):
-                    should_send = False
-                
-                if should_send and appointment.get('клиент_tg_id'):
-                    await send_user_hourly_notification(appointment)
-                    hourly_notifications_sent += 1
-                    await asyncio.sleep(0.5)
-                    
-            except Exception as e:
-                logger.error(f"Ошибка обработки записи {appointment.get('id')}: {e}")
-                continue
-                
-        logger.info(f"✅ Отправлено {hourly_notifications_sent} уведомлений за час до записи")
-        
-    except Exception as e:
-        logger.error(f"Ошибка отправки уведомлений за час до записи: {e}")
+        logger.error(f"Ошибка отправки ежедневных уведомлений: {e}")
 
 async def send_user_daily_notification(appointment):
     """Отправка ежедневного уведомления пользователю"""
@@ -295,78 +255,205 @@ async def send_user_daily_notification(appointment):
         formatted_date = appointment_date.strftime('%d.%m.%Y')
         
         message = (
-            "🔔 Напоминание о записи!\n\n"
-            f"📅 У вас запись на завтра ({formatted_date})\n"
+            "🔔 НАПОМИНАНИЕ: ЗАВТРА У ВАС ЗАПИСЬ!\n\n"
+            f"📅 Дата: {formatted_date}\n"
             f"⏰ Время: {appointment['время']}\n"
             f"🎯 Услуга: {appointment['услуга_название']}\n"
             f"👨‍💼 Мастер: {appointment['мастер_имя']}\n"
             f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            "⚠️ Пожалуйста, не опаздывайте!"
+            "📌 Мы также напомним вам:\n"
+            "• За 1 час до записи\n\n"
+            "⚠️ Пожалуйста, не опаздывайте!\n"
+            "📞 Контакты салона: +7 (XXX) XXX-XX-XX"
         )
         
-        await bot.send_message(chat_id=appointment['клиент_tg_id'], text=message)
+        # Используем функцию с фото
+        success = await send_notification_with_photo(
+            chat_id=appointment['клиент_tg_id'], 
+            message=message
+        )
         
-        # Отмечаем уведомление как отправленное
-        mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
-            'запись_id': appointment['id'],
-            'тип': 'daily'
-        })
-        
-        if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
-            logger.info(f"✅ Отправлено ежедневное уведомление пользователю {appointment['клиент_tg_id']}")
+        if success:
+            # Отмечаем уведомление как отправленное
+            mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
+                'запись_id': appointment['id'],
+                'тип': 'daily'
+            })
+            
+            if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
+                logger.info(f"✅ Отправлено daily уведомление клиенту {appointment['клиент_tg_id']} для записи {appointment['id']}")
+            else:
+                logger.error(f"❌ Ошибка отметки daily уведомления: {mark_response.text}")
         else:
-            logger.error(f"❌ Ошибка отметки уведомления как отправленного: {mark_response.text}")
+            logger.error(f"❌ Не удалось отправить daily уведомление клиенту {appointment['клиент_tg_id']}")
         
     except Exception as e:
-        logger.error(f"Ошибка отправки ежедневного уведомления пользователю: {e}")
+        logger.error(f"Ошибка отправки daily уведомления: {e}")
+
+
+
+async def send_hourly_notifications():
+    """Упрощенная версия отправки уведомлений за час до записи"""
+    try:
+        logger.info("🔄 Проверка уведомлений за час до записи (упрощенная версия)")
+        
+        # Используем новый упрощенный endpoint
+        response = requests.get(f"{API_BASE_URL}/api/appointments-for-hourly-simple")
+        
+        if response.status_code != 200:
+            logger.error(f"Ошибка API: {response.status_code} - {response.text}")
+            return
+            
+        result = response.json()
+        if result.get('message') != 'success':
+            logger.error(f"Ошибка в ответе API: {result}")
+            return
+            
+        appointments = result.get('data', [])
+        
+        hourly_notifications_sent = 0
+        
+        for appointment in appointments:
+            try:
+                await send_user_hourly_notification(appointment)
+                hourly_notifications_sent += 1
+                await asyncio.sleep(0.5)  # Задержка между отправками
+                    
+            except Exception as e:
+                logger.error(f"Ошибка обработки записи {appointment.get('id')}: {e}")
+                continue
+                
+        if hourly_notifications_sent > 0:
+            logger.info(f"✅ Отправлено {hourly_notifications_sent} уведомлений за час до записи")
+        else:
+            logger.info("ℹ️ Не найдено записей для hourly уведомлений")
+        
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомлений за час до записи: {e}")
 
 async def send_user_hourly_notification(appointment):
     """Отправка уведомления пользователю за час до записи"""
     try:
+        # Форматируем дату в понятный формат
+        appointment_date = datetime.strptime(appointment['дата'], '%Y-%m-%d')
+        formatted_date = appointment_date.strftime('%d.%m.%Y')
+        
         message = (
-            "⏰ Скоро запись!\n\n"
-            f"📅 У вас запись сегодня в {appointment['время']}\n"
+            "⏰ ЧАС ДО ЗАПИСИ!\n\n"
+            f"📅 Сегодня в {appointment['время']}\n"
             f"🎯 Услуга: {appointment['услуга_название']}\n"
             f"👨‍💼 Мастер: {appointment['мастер_имя']}\n"
             f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            "🚗 Рекомендуем выезжать заранее!"
+            "🚗 Рекомендуем выезжать заранее!\n"
+            "📞 Контакты салона: +7 (XXX) XXX-XX-XX"
         )
         
-        await bot.send_message(chat_id=appointment['клиент_tg_id'], text=message)
+        # Используем функцию с фото
+        success = await send_notification_with_photo(
+            chat_id=appointment['клиент_tg_id'], 
+            message=message
+        )
         
-        # Отмечаем уведомление как отправленное
-        requests.post(f"{API_BASE_URL}/api/notification-sent", json={
-            'запись_id': appointment['id'],
-            'тип': 'hourly'
-        })
-        
-        logger.info(f"✅ Отправлено уведомление за час пользователю {appointment['клиент_tg_id']}")
+        if success:
+            # Отмечаем уведомление как отправленное
+            mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
+                'запись_id': appointment['id'],
+                'тип': 'hourly'
+            })
+            
+            if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
+                logger.info(f"✅ Отправлено hourly уведомление клиенту {appointment['клиент_tg_id']} для записи {appointment['id']}")
+            else:
+                logger.error(f"❌ Ошибка отметки hourly уведомления: {mark_response.text}")
+        else:
+            logger.error(f"❌ Не удалось отправить hourly уведомление клиенту {appointment['клиент_tg_id']}")
         
     except Exception as e:
-        logger.error(f"Ошибка отправки уведомления за час пользователю: {e}")
-        
+        logger.error(f"Ошибка отправки hourly уведомления: {e}")
+
+
+
 async def send_daily_master_notifications():
-    """Отправка ежедневных уведомлений мастерам о записях на завтра"""
+    """Упрощенная версия отправки ежедневных уведомлений мастерам"""
     try:
-        now = datetime.now(TIMEZONE)
-        tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+        logger.info("🔄 Проверка ежедневных уведомлений мастерам")
         
+        # Получаем завтрашнюю дату
+        tomorrow = (datetime.now(TIMEZONE) + timedelta(days=1)).strftime('%Y-%m-%d')
+        
+        # Получаем всех мастеров
         response = requests.get(f"{API_BASE_URL}/api/specialists-all")
-        if response.json()['message'] != 'success':
+        if response.json().get('message') != 'success':
             logger.error(f"Ошибка API specialists-all: {response.json()}")
             return
             
-        masters = response.json()['data']
+        masters = response.json().get('data', [])
+        
+        master_notifications_sent = 0
         
         for master in masters:
             if master.get('tg_id'):
-                await send_master_daily_notification(master['id'], master['tg_id'], tomorrow)
+                try:
+                    # Получаем записи мастера на завтра
+                    appointments_response = requests.get(
+                        f"{API_BASE_URL}/api/appointments",
+                        params={
+                            'specialistId': master['id'],
+                            'startDate': tomorrow,
+                            'endDate': tomorrow
+                        }
+                    )
+                    
+                    if appointments_response.json().get('message') != 'success':
+                        logger.error(f"Ошибка получения записей для мастера {master['id']}")
+                        continue
+                    
+                    appointments = appointments_response.json().get('data', [])
+                    
+                    if not appointments:
+                        message = f"≣ На завтра ({tomorrow}) у вас нет записей"
+                    else:
+                        message = f"≣ Ваши записи на завтра ({tomorrow}):\n\n"
+                        
+                        # Сортируем записи по времени
+                        appointments.sort(key=lambda x: x['время'])
+                        
+                        for app in appointments:
+                            message += (
+                                f"⏰ {app['время']}\n"
+                                f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                                f"🎯 {app['услуга_название']}\n"
+                                f"💵 {app['цена']}₽\n"
+                                f"────────────────\n"
+                            )
+                    
+                    # Используем функцию с фото для мастеров
+                    success = await send_notification_with_photo(
+                        chat_id=master['tg_id'], 
+                        message=message
+                    )
+                    
+                    if success:
+                        master_notifications_sent += 1
+                        logger.info(f"✅ Отправлено ежедневное уведомление мастеру {master['id']}")
+                    
+                    await asyncio.sleep(0.5)
+                    
+                except Exception as e:
+                    logger.error(f"Ошибка отправки уведомления мастеру {master.get('id')}: {e}")
+                    continue
                 
+        if master_notifications_sent > 0:
+            logger.info(f"✅ Отправлено {master_notifications_sent} ежедневных уведомлений мастерам")
+        else:
+            logger.info("ℹ️ Не найдено мастеров для daily уведомлений")
+        
     except Exception as e:
         logger.error(f"Ошибка отправки ежедневных уведомлений мастерам: {e}")
 
+
 async def send_master_daily_notification(master_id, tg_id, date):
-    """Отправка уведомления конкретному мастеру"""
+    """Отправка уведомления конкретному мастеру о записях на указанную дату"""
     try:
         response = requests.get(
             f"{API_BASE_URL}/api/appointments",
@@ -388,7 +475,10 @@ async def send_master_daily_notification(master_id, tg_id, date):
         else:
             message = f"≣ Ваши записи на {datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')}:\n\n"
             
-            for app in sorted(appointments, key=lambda x: x['время']):
+            # Сортируем по времени
+            appointments.sort(key=lambda x: x['время'])
+            
+            for app in appointments:
                 message += (
                     f"⏰ {app['время']}\n"
                     f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
@@ -397,11 +487,17 @@ async def send_master_daily_notification(master_id, tg_id, date):
                     f"────────────────\n"
                 )
         
-        await bot.send_message(chat_id=tg_id, text=message)
-        logger.info(f"✅ Отправлено ежедневное уведомление мастеру {master_id}")
+        # Используем новую функцию с фото для мастеров
+        success = await send_notification_with_photo(chat_id=tg_id, message=message)
+        
+        if success:
+            logger.info(f"✅ Отправлено ежедневное уведомление мастеру {master_id}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления мастеру {master_id}: {e}")
+
+
+
 
 async def check_new_appointments():
     """Проверка новых записей для уведомления клиентов (только созданные сегодня)"""
@@ -484,18 +580,23 @@ async def send_immediate_client_notification(appointment):
             "📋 Все ваши записи можно посмотреть в личном кабинете"
         )
         
-        await bot.send_message(chat_id=appointment['клиент_tg_id'], text=message)
+        # Используем новую функцию с фото
+        success = await send_notification_with_photo(
+            chat_id=appointment['клиент_tg_id'], 
+            message=message
+        )
         
-        # Отмечаем уведомление как отправленное
-        mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
-            'запись_id': appointment['id'],
-            'тип': 'immediate'
-        })
-        
-        if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
-            logger.info(f"✅ Отправлено немедленное уведомление клиенту {appointment['клиент_tg_id']}")
-        else:
-            logger.error(f"❌ Ошибка отметки immediate уведомления: {mark_response.text}")
+        if success:
+            # Отмечаем уведомление как отправленное
+            mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
+                'запись_id': appointment['id'],
+                'тип': 'immediate'
+            })
+            
+            if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
+                logger.info(f"✅ Отправлено немедленное уведомление клиенту {appointment['клиент_tg_id']}")
+            else:
+                logger.error(f"❌ Ошибка отметки immediate уведомления: {mark_response.text}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки немедленного уведомления клиенту: {e}")
