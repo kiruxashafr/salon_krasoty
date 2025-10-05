@@ -371,7 +371,7 @@ function initializeDatabase() {
                 дата TEXT NOT NULL,
                 время TEXT NOT NULL,
                 цена REAL NOT NULL,
-                created_at DATETIME DEFAULT (datetime('now', 'localtime')),
+                created_at DATETIME DEFAULT (datetime('now', '+3 hours')),
                 FOREIGN KEY (клиент_id) REFERENCES клиенты(id),
                 FOREIGN KEY (услуга_id) REFERENCES услуги(id),
                 FOREIGN KEY (мастер_id) REFERENCES мастера(id)
@@ -401,18 +401,17 @@ function initializeDatabase() {
         `);
 
 
-        // server.js - в схеме таблицы уведомлений добавить 'immediate'
-        db.run(`
-            CREATE TABLE IF NOT EXISTS уведомления (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                запись_id INTEGER NOT NULL,
-                тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew', 'immediate')),
-                отправлено INTEGER DEFAULT 0,
-                время_отправки DATETIME DEFAULT (datetime('now', 'localtime')),
-                FOREIGN KEY (запись_id) REFERENCES записи(id),
-                UNIQUE(запись_id, тип)
-            )
-        `);
+db.run(`
+    CREATE TABLE IF NOT EXISTS уведомления (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        запись_id INTEGER NOT NULL,
+        тип TEXT NOT NULL CHECK(тип IN ('daily', 'hourly', 'new', 'masternew', 'immediate')),
+        отправлено INTEGER DEFAULT 0,
+        время_отправки DATETIME DEFAULT (datetime('now', '+3 hours')),
+        FOREIGN KEY (запись_id) REFERENCES записи(id),
+        UNIQUE(запись_id, тип)
+    )
+`);
 
 
         db.run(`
@@ -572,6 +571,78 @@ app.put('/api/pages/:pageName/:element', (req, res) => {
             }
         });
     });
+});
+
+// Добавьте этот endpoint в server.js после других schedule endpoints
+// server.js - исправленный endpoint для batch создания расписания
+app.post('/api/schedule/batch', async (req, res) => {
+    try {
+        const { serviceId, specialistIds, startDate, endDate, includeWorkdays, includeWeekends, timeSlots } = req.body;
+
+        // Валидация
+        if (!serviceId || !specialistIds || !startDate || !endDate || !timeSlots) {
+            return res.status(400).json({ error: 'Все обязательные поля должны быть заполнены' });
+        }
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        const createdSlots = [];
+
+        // Перебираем каждый день в диапазоне
+        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+            const dayOfWeek = date.getDay(); // 0 - воскресенье, 6 - суббота
+            
+            // Проверяем, подходит ли день по настройкам
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const shouldInclude = (isWeekend && includeWeekends) || (!isWeekend && includeWorkdays);
+            
+            if (!shouldInclude) continue;
+
+            const dateStr = date.toISOString().split('T')[0];
+
+            // Для каждого мастера и каждого временного слота создаем запись
+            for (const specialistId of specialistIds) {
+                for (const time of timeSlots) {
+                    try {
+                        // Используем db.run вместо db.execute для SQLite3
+                        await new Promise((resolve, reject) => {
+                            db.run(
+                                'INSERT INTO расписание (дата, время, мастер_id, услуга_id, доступно) VALUES (?, ?, ?, ?, ?)',
+                                [dateStr, time, specialistId, serviceId, 1],
+                                function(err) {
+                                    if (err) {
+                                        reject(err);
+                                    } else {
+                                        createdSlots.push({ 
+                                            date: dateStr, 
+                                            time, 
+                                            specialistId, 
+                                            id: this.lastID 
+                                        });
+                                        resolve();
+                                    }
+                                }
+                            );
+                        });
+                    } catch (error) {
+                        console.error(`Ошибка создания слота ${dateStr} ${time} для мастера ${specialistId}:`, error);
+                        // Продолжаем создание остальных слотов
+                    }
+                }
+            }
+        }
+
+        res.json({ 
+            message: 'success', 
+            data: { 
+                created: createdSlots.length,
+                slots: createdSlots 
+            } 
+        });
+    } catch (error) {
+        console.error('Ошибка создания расписания на несколько дней:', error);
+        res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
 });
 
 // Serve main page
@@ -1501,8 +1572,8 @@ app.post('/api/admin/appointment', (req, res) => {
                     // 3. Create appointment record
                     const insertAppointmentSql = `
                         INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                        VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
-                    `;                    
+                        VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
+                    `;                 
                     db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {
                         if (err) {
                             db.run("ROLLBACK");
@@ -2909,7 +2980,7 @@ app.post('/api/appointment', (req, res) => {
                             // 5. Create appointment record
                             const insertAppointmentSql = `
                                 INSERT INTO записи (клиент_id, услуга_id, мастер_id, дата, время, цена, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, datetime('now', 'localtime'))
+                                VALUES (?, ?, ?, ?, ?, ?, datetime('now', '+3 hours'))
                             `;
                             
                             db.run(insertAppointmentSql, [clientId, serviceId, specialistId, date, time, price], function(err) {

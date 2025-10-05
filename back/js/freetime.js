@@ -5,6 +5,7 @@ class FreeTimeManager {
         this.isEditMode = false;
         this.specialists = [];
         this.services = [];
+        this.multipleDaysTimes = []; // Массив для хранения временных слотов
         this.init();
     }
 
@@ -13,33 +14,28 @@ class FreeTimeManager {
         this.setupEventListeners();
     }
 
-// freetime.js - обновите метод loadFreeTime
-
-async loadFreeTime() {
-    try {
-        this.showLoading();
-        
-        // Получаем текущую дату для фильтрации
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Загружаем свободное время только начиная с сегодняшнего дня
-        // Используем новый endpoint
-        const response = await fetch(`/api/freetime-available?fromDate=${today}`);
-        
-        if (!response.ok) {
-            throw new Error('Ошибка загрузки свободного времени');
+    async loadFreeTime() {
+        try {
+            this.showLoading();
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            const response = await fetch(`/api/freetime-available?fromDate=${today}`);
+            
+            if (!response.ok) {
+                throw new Error('Ошибка загрузки свободного времени');
+            }
+            
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                this.displayFreeTime(data.data);
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            this.showError('Не удалось загрузить свободное время');
         }
-        
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            this.displayFreeTime(data.data);
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        this.showError('Не удалось загрузить свободное время');
     }
-}
 
     displayFreeTime(scheduleData) {
         const container = document.getElementById('freeTimeContainer');
@@ -54,7 +50,6 @@ async loadFreeTime() {
             return;
         }
 
-        // Группируем по датам
         const groupedByDate = this.groupScheduleByDate(scheduleData);
         container.innerHTML = this.createScheduleCalendar(groupedByDate);
     }
@@ -141,6 +136,231 @@ async loadFreeTime() {
         this.renderScheduleForm(null, date);
     }
 
+    // НОВЫЙ МЕТОД: Показать форму для нескольких дней
+    showMultipleDaysForm() {
+        this.isEditMode = false;
+        this.currentScheduleId = null;
+        this.multipleDaysTimes = [{ hours: '09', minutes: '00' }]; // Начальное время
+        this.renderMultipleDaysForm();
+    }
+
+    async renderMultipleDaysForm() {
+        await this.loadSpecialistsAndServices();
+        
+        const today = new Date().toISOString().split('T')[0];
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        const nextWeekStr = nextWeek.toISOString().split('T')[0];
+
+        const formHTML = `
+            <div class="modal-overlay" id="multipleDaysModal">
+                <div class="modal-content multiple-days-modal">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Добавить свободное время на несколько дней</h3>
+                        <button class="close-modal-btn" onclick="freeTimeManager.closeMultipleDaysModal()">
+                            ✕
+                        </button>
+                    </div>
+                    
+                    <form class="schedule-form" id="multipleDaysForm" onsubmit="freeTimeManager.handleMultipleDaysSubmit(event)">
+                        <div class="form-group">
+                            <label for="multipleDaysService">Услуга *</label>
+                            <select id="multipleDaysService" name="serviceId" class="form-control" required>
+                                <option value="">Выберите услугу</option>
+                                ${this.services.map(service => `
+                                    <option value="${service.id}">
+                                        ${service.название} - ${service.цена} ₽
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Мастера *</label>
+                            <div class="masters-checkbox-group">
+                                ${this.specialists.map(spec => `
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" name="specialistIds" value="${spec.id}" class="specialist-checkbox">
+                                        <span class="checkmark"></span>
+                                        ${spec.имя}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Период *</label>
+                            <div class="date-range-inputs">
+                                <input type="date" id="startDate" name="startDate" class="form-control" 
+                                       value="${today}" min="${today}" required>
+                                <span>по</span>
+                                <input type="date" id="endDate" name="endDate" class="form-control" 
+                                       value="${nextWeekStr}" min="${today}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Дни недели</label>
+                            <div class="days-checkbox-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="weekdays" value="workdays" class="days-checkbox" checked>
+                                    <span class="checkmark"></span>
+                                    Будни (Пн-Пт)
+                                </label>
+                                <label class="checkbox-label">
+                                    <input type="checkbox" name="weekdays" value="weekends" class="days-checkbox" checked>
+                                    <span class="checkmark"></span>
+                                    Выходные (Сб-Вс)
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Время *</label>
+                            <div id="timeSlotsContainer" class="time-slots-container">
+                                ${this.multipleDaysTimes.map((time, index) => this.createTimeSlotInput(index, time)).join('')}
+                            </div>
+                            <button type="button" class="btn btn-secondary add-time-btn" onclick="freeTimeManager.addTimeSlot()">
+                                ✚ Добавить время
+                            </button>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="freeTimeManager.closeMultipleDaysModal()">
+                                Отмена
+                            </button>
+                            <button type="submit" class="btn btn-primary submit-btn">
+                                Добавить на несколько дней
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+
+        document.body.insertAdjacentHTML('beforeend', formHTML);
+    }
+
+    createTimeSlotInput(index, time = { hours: '09', minutes: '00' }) {
+        return `
+            <div class="time-slot" data-index="${index}">
+                <div class="time-inputs">
+                    <select name="hours[]" class="form-control time-select" required>
+                        ${this.generateTimeOptions(5, 23, time.hours, 'часы')}
+                    </select>
+                    <span>:</span>
+                    <select name="minutes[]" class="form-control time-select" required>
+                        ${this.generateTimeOptions(0, 55, time.minutes, 'минуты', 5)}
+                    </select>
+                </div>
+                <button type="button" class="btn btn-danger remove-time-btn" 
+                        onclick="freeTimeManager.removeTimeSlot(${index})" 
+                        ${this.multipleDaysTimes.length <= 1 ? 'disabled' : ''}>
+                    🗑️
+                </button>
+            </div>
+        `;
+    }
+
+    addTimeSlot() {
+        const newTime = { hours: '09', minutes: '00' };
+        this.multipleDaysTimes.push(newTime);
+        
+        const container = document.getElementById('timeSlotsContainer');
+        container.insertAdjacentHTML('beforeend', this.createTimeSlotInput(this.multipleDaysTimes.length - 1, newTime));
+        
+        // Активируем кнопки удаления, если слотов больше одного
+        if (this.multipleDaysTimes.length > 1) {
+            document.querySelectorAll('.remove-time-btn').forEach(btn => {
+                btn.disabled = false;
+            });
+        }
+    }
+
+    removeTimeSlot(index) {
+        if (this.multipleDaysTimes.length <= 1) return;
+        
+        this.multipleDaysTimes.splice(index, 1);
+        this.renderTimeSlots();
+    }
+
+    renderTimeSlots() {
+        const container = document.getElementById('timeSlotsContainer');
+        container.innerHTML = this.multipleDaysTimes.map((time, index) => 
+            this.createTimeSlotInput(index, time)
+        ).join('');
+    }
+
+    async handleMultipleDaysSubmit(event) {
+        event.preventDefault();
+        
+        const formData = new FormData(event.target);
+        const serviceId = formData.get('serviceId');
+        const specialistIds = formData.getAll('specialistIds');
+        const startDate = formData.get('startDate');
+        const endDate = formData.get('endDate');
+        const weekdays = formData.getAll('weekdays');
+        const hours = formData.getAll('hours[]');
+        const minutes = formData.getAll('minutes[]');
+
+        // Валидация
+        if (!serviceId || specialistIds.length === 0 || !startDate || !endDate || 
+            weekdays.length === 0 || hours.length === 0) {
+            showError('Пожалуйста, заполните все обязательные поля');
+            return;
+        }
+
+        try {
+            this.showFormLoading('multipleDaysForm');
+            
+            // Создаем временные слоты
+            const timeSlots = hours.map((hour, index) => `${hour}:${minutes[index]}`);
+            
+            const scheduleData = {
+                serviceId: parseInt(serviceId),
+                specialistIds: specialistIds.map(id => parseInt(id)),
+                startDate,
+                endDate,
+                includeWorkdays: weekdays.includes('workdays'),
+                includeWeekends: weekdays.includes('weekends'),
+                timeSlots
+            };
+
+            const response = await fetch('/api/schedule/batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сохранения');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(`Успешно добавлено ${data.data.created} временных слотов!`);
+                this.closeMultipleDaysModal();
+                this.loadFreeTime();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading('multipleDaysForm');
+        }
+    }
+
+    closeMultipleDaysModal() {
+        const modal = document.getElementById('multipleDaysModal');
+        if (modal) {
+            modal.remove();
+        }
+    }
+
     async editSchedule(scheduleId) {
         try {
             this.showFormLoading();
@@ -164,14 +384,11 @@ async loadFreeTime() {
     }
 
     async renderScheduleForm(scheduleData = null, presetDate = null) {
-        // Загружаем мастеров и услуги
         await this.loadSpecialistsAndServices();
         
-        // Получаем текущую дату для минимального значения
         const today = new Date().toISOString().split('T')[0];
         const dateValue = presetDate || scheduleData?.дата || today;
         
-        // Разбиваем время на часы и минуты если есть
         let hours = '09';
         let minutes = '00';
         
@@ -263,7 +480,6 @@ async loadFreeTime() {
 
     async loadSpecialistsAndServices() {
         try {
-            // Загружаем мастеров
             const specResponse = await fetch('/api/specialists');
             if (specResponse.ok) {
                 const specData = await specResponse.json();
@@ -272,7 +488,6 @@ async loadFreeTime() {
                 }
             }
             
-            // Загружаем услуги
             const servResponse = await fetch('/api/services');
             if (servResponse.ok) {
                 const servData = await servResponse.json();
@@ -284,104 +499,121 @@ async loadFreeTime() {
             console.error('Ошибка загрузки данных:', error);
         }
     }
-// В методе handleSubmit
-async handleSubmit(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const date = formData.get('date');
-    const hours = formData.get('hours');
-    const minutes = formData.get('minutes');
-    const specialistId = formData.get('specialistId');
-    const serviceId = formData.get('serviceId');
 
-    if (!date || !hours || !minutes || !specialistId || !serviceId) {
-        showError('Пожалуйста, заполните все обязательные поля');
-        return;
-    }
-
-    const time = `${hours}:${minutes}`;
-
-    try {
-        this.showFormLoading();
+    async handleSubmit(event) {
+        event.preventDefault();
         
-        const scheduleData = {
-            дата: date,
-            время: time,
-            мастер_id: parseInt(specialistId),
-            услуга_id: parseInt(serviceId),
-            доступно: 1
-        };
+        const formData = new FormData(event.target);
+        const date = formData.get('date');
+        const hours = formData.get('hours');
+        const minutes = formData.get('minutes');
+        const specialistId = formData.get('specialistId');
+        const serviceId = formData.get('serviceId');
 
-        const url = this.isEditMode 
-            ? `/api/schedule/${this.currentScheduleId}` 
-            : '/api/schedule';
+        if (!date || !hours || !minutes || !specialistId || !serviceId) {
+            showError('Пожалуйста, заполните все обязательные поля');
+            return;
+        }
+
+        const time = `${hours}:${minutes}`;
+
+        try {
+            this.showFormLoading();
             
-        const method = this.isEditMode ? 'PUT' : 'POST';
-        
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(scheduleData)
-        });
+            const scheduleData = {
+                дата: date,
+                время: time,
+                мастер_id: parseInt(specialistId),
+                услуга_id: parseInt(serviceId),
+                доступно: 1
+            };
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка сохранения');
-        }
+            const url = this.isEditMode 
+                ? `/api/schedule/${this.currentScheduleId}` 
+                : '/api/schedule';
+                
+            const method = this.isEditMode ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(scheduleData)
+            });
 
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
-            this.closeModal();
-            this.loadFreeTime();
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сохранения');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
+                this.closeModal();
+                this.loadFreeTime();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading();
         }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось сохранить: ' + error.message);
-    } finally {
-        this.hideFormLoading();
     }
-}
 
-// В методе deleteSchedule
-async deleteSchedule(scheduleId) {
-    showConfirm('Вы уверены, что хотите удалить это свободное время?', (confirmed) => {
-        if (confirmed) {
-            this.performDelete(scheduleId);
-        }
-    });
-}
-
-async performDelete(scheduleId) {
-    try {
-        const response = await fetch(`/api/schedule/${scheduleId}`, {
-            method: 'DELETE'
+    async deleteSchedule(scheduleId) {
+        showConfirm('Вы уверены, что хотите удалить это свободное время?', (confirmed) => {
+            if (confirmed) {
+                this.performDelete(scheduleId);
+            }
         });
-
-        if (!response.ok) {
-            throw new Error('Ошибка удаления свободного времени');
-        }
-
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess('Свободное время успешно удалено!');
-            this.loadFreeTime();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось удалить свободное время');
     }
-}
+
+    async performDelete(scheduleId) {
+        try {
+            const response = await fetch(`/api/schedule/${scheduleId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка удаления свободного времени');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess('Свободное время успешно удалено!');
+                this.loadFreeTime();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось удалить свободное время');
+        }
+    }
 
     closeModal() {
         const modal = document.getElementById('scheduleModal');
         if (modal) {
             modal.remove();
+        }
+    }
+
+    showFormLoading(formId = 'scheduleForm') {
+        const form = document.getElementById(formId);
+        if (form) {
+            const submitBtn = form.querySelector('.submit-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px;"></div> Сохранение...';
+        }
+    }
+
+    hideFormLoading(formId = 'scheduleForm') {
+        const form = document.getElementById(formId);
+        if (form) {
+            const submitBtn = form.querySelector('.submit-btn');
+            submitBtn.disabled = false;
+            submitBtn.textContent = this.isEditMode ? 'Сохранить изменения' : 'Добавить';
         }
     }
 
@@ -393,24 +625,6 @@ async performDelete(scheduleId) {
                 <p>Загрузка свободного времени...</p>
             </div>
         `;
-    }
-
-    showFormLoading() {
-        const form = document.getElementById('scheduleForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px;"></div> Сохранение...';
-        }
-    }
-
-    hideFormLoading() {
-        const form = document.getElementById('scheduleForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
-            submitBtn.disabled = false;
-            submitBtn.textContent = this.isEditMode ? 'Сохранить изменения' : 'Добавить';
-        }
     }
 
     showError(message) {
@@ -443,9 +657,14 @@ function loadFreeTimeSection() {
         <div class="free-time-management">
             <div class="free-time-header">
                 <h2>Управление свободным временем</h2>
-                <button id="addFreeTimeBtn" class="add-free-time-btn">
-                    ✚ Добавить свободное время
-                </button>
+                <div class="free-time-buttons">
+                    <button id="addFreeTimeBtn" class="add-free-time-btn">
+                        ✚ Добавить свободное время
+                    </button>
+                    <button id="addMultipleDaysBtn" class="add-free-time-btn multiple-days-btn">
+                        📅 Добавить на несколько дней
+                    </button>
+                </div>
             </div>
             
             <div id="freeTimeContainer">
@@ -459,4 +678,9 @@ function loadFreeTimeSection() {
 
     // Инициализируем менеджер свободного времени
     freeTimeManager = new FreeTimeManager();
+    
+    // Добавляем обработчик для кнопки "на несколько дней"
+    document.getElementById('addMultipleDaysBtn')?.addEventListener('click', () => {
+        freeTimeManager.showMultipleDaysForm();
+    });
 }

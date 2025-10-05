@@ -107,7 +107,7 @@ body {
 .specialist-image {
     width: 60px;
     height: 60px;
-    border-radius: 50%;
+    border-radius: 10px;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
