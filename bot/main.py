@@ -92,7 +92,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # ... (остальной код без изменений)
-    
+    if data == 'view_week_schedule':
+        await show_week_calendar(query)
+    elif data.startswith('week_calendar_nav_'):
+        parts = data.split('_')
+        direction = parts[3]
+        target_date_str = parts[4]
+        await show_week_calendar(query, target_date_str)
+    elif data.startswith('view_day_schedule_'):
+        date_str = data.split('_')[3]
+        await show_day_schedule(query, date_str)
     if data == 'book_appointment':
         await show_booking_options(query)
     elif data == 'choose_service':
@@ -166,12 +175,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
         
+# В функции show_booking_options заменить кнопку:
+
 async def show_booking_options(query):
     """Показать варианты записи"""
     keyboard = [
         [InlineKeyboardButton("Выбрать услугу", callback_data='choose_service')],
         [InlineKeyboardButton("Выбрать мастера", callback_data='choose_specialist')],
-        [InlineKeyboardButton("Посмотреть свободное время на неделю", callback_data='view_week_schedule')],
+        [InlineKeyboardButton("🗓️ Все свободное время", callback_data='view_week_schedule')],  # Обновленная кнопка
         [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -180,7 +191,6 @@ async def show_booking_options(query):
     photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
     
     try:
-        # Скачиваем фото
         photo_response = requests.get(photo_url)
         if photo_response.status_code == 200:
             photo_data = photo_response.content
@@ -191,6 +201,7 @@ async def show_booking_options(query):
     except Exception as e:
         logger.error(f"Error in show_booking_options: {e}")
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+
 
 async def show_services(query):
     """Показать список услуг с доступным временем (в будущем)"""
@@ -894,143 +905,12 @@ async def confirm_booking(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+# Заменить старую функцию show_week_schedule на более простую версию:
+
 async def show_week_schedule(query, target_date_str=None):
-    """Показать свободное время на неделю с навигацией (только будущее время +2 часа)"""
-    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
-    try:
-        today = datetime.now().date()
-        
-        if target_date_str:
-            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-        else:
-            target_date = today
-        
-        start_of_week = target_date - timedelta(days=target_date.weekday())
-        end_of_week = start_of_week + timedelta(days=6)
-        
-        from_date = max(start_of_week, today)
-        to_date = end_of_week
-        
-        from_date_str = from_date.strftime('%Y-%m-%d')
-        to_date_str = to_date.strftime('%Y-%m-%d')
-        
-        response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={from_date_str}&toDate={to_date_str}")
-        data = response.json()
-        
-        # Создаем короткое сообщение
-        message = f"≣ Свободное время на неделю ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
-        keyboard = []
-        
-        if data['message'] == 'success':
-            schedule = data['data']
-            
-            # Фильтруем слоты: показываем только те, которые не прошли более чем на 2 часа
-            current_datetime = datetime.now()
-            filtered_schedule = []
-            
-            for item in schedule:
-                slot_datetime_str = f"{item['дата']} {item['время']}"
-                try:
-                    slot_datetime = datetime.strptime(slot_datetime_str, '%Y-%m-%d %H:%M')
-                    # Проверяем, что время не прошло более чем на 2 часа
-                    time_difference = slot_datetime - current_datetime
-                    if time_difference.total_seconds() > -7200:  # 7200 секунд = 2 часа
-                        filtered_schedule.append(item)
-                except ValueError:
-                    continue
-            
-            if filtered_schedule:
-                # Группируем по датам для более компактного отображения
-                schedule_by_date = {}
-                for item in filtered_schedule:
-                    date = item['дата']
-                    if date not in schedule_by_date:
-                        schedule_by_date[date] = []
-                    schedule_by_date[date].append(item)
-                
-                # Показываем только количество слотов на каждую дату
-                for date, items in sorted(schedule_by_date.items()):
-                    date_obj = datetime.strptime(date, '%Y-%m-%d')
-                    formatted_date = date_obj.strftime('%d.%m')
-                    weekday = WEEKDAY_MAP.get(date_obj.strftime('%a'), date_obj.strftime('%a'))
-                    message += f"📆 {formatted_date} ({weekday}): {len(items)} слотов\n"
-                
-                # Добавляем кнопки для каждого слота
-                for item in filtered_schedule:
-                    date_obj = datetime.strptime(item['дата'], '%Y-%m-%d')
-                    formatted_date = date_obj.strftime('%d.%m')
-                    weekday = WEEKDAY_MAP.get(date_obj.strftime('%a'), date_obj.strftime('%a'))
-                    
-                    button_text = f"{formatted_date} {item['время']} - {item['мастер_имя']}"
-                    # Обрезаем текст если слишком длинный
-                    if len(button_text) > 30:
-                        button_text = f"{formatted_date} {item['время']} - {item['мастер_имя'][:15]}..."
-                    
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            button_text,
-                            callback_data=f'time_slot_{item["id"]}'
-                        )
-                    ])
-            else:
-                message += "❌ Нет свободного времени на этой неделе\n"
-                keyboard.append([InlineKeyboardButton("Нет доступных слотов", callback_data='no_available_options')])
-        
-        else:
-            message += "❌ Ошибка загрузки расписания\n"
-            keyboard.append([InlineKeyboardButton("Ошибка загрузки", callback_data='no_available_options')])
-        
-        # Добавляем навигацию
-        prev_week_start = start_of_week - timedelta(days=7)
-        next_week_start = start_of_week + timedelta(days=7)
-        
-        nav_buttons = [
-            InlineKeyboardButton("⬅️ Пред. неделя", callback_data=f'week_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}'),
-            InlineKeyboardButton("След. неделя ➡️", callback_data=f'week_nav_next_{next_week_start.strftime("%Y-%m-%d")}')
-        ]
-        keyboard.append(nav_buttons)
-        
-        keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='book_appointment')])
-        keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        # Обрезаем сообщение если оно слишком длинное
-        if len(message) > 1024:
-            message = message[:1000] + "...\n\n(сообщение обрезано)"
-        
-        try:
-            photo_response = requests.get(photo_url)
-            if photo_response.status_code == 200:
-                photo_data = photo_response.content
-                media = InputMediaPhoto(media=photo_data, caption=message)
-                await query.edit_message_media(media=media, reply_markup=reply_markup)
-            else:
-                # Если фото не загрузилось, отправляем только текст
-                if len(message) > 4096:
-                    message = message[:4000] + "...\n\n(сообщение обрезано)"
-                await query.edit_message_text(text=message, reply_markup=reply_markup)
-        except Exception as e:
-            logger.error(f"Error in show_week_schedule: {e}")
-            # Если не удалось отправить с фото, пробуем отправить только текст
-            try:
-                if len(message) > 4096:
-                    message = message[:4000] + "...\n\n(сообщение обрезано)"
-                await query.edit_message_text(text=message, reply_markup=reply_markup)
-            except Exception as e2:
-                logger.error(f"Error sending text only in show_week_schedule: {e2}")
-                # Последняя попытка - очень короткое сообщение
-                error_message = "📅 Выберите неделю для просмотра расписания:"
-                await query.edit_message_text(text=error_message, reply_markup=reply_markup)
-            
-    except Exception as e:
-        logger.error(f"Error fetching week schedule: {e}")
-        message_text = "❌ Ошибка подключения к серверу"
-        keyboard = [
-            [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
-            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+    """Альтернативный просмотр недельного расписания (простой список)"""
+    await show_week_calendar(query, target_date_str)
+
 
 async def show_all_specialists_schedule(query, service_id, target_date_str=None):
     """Показать расписание всех мастеров для услуги (только будущее время +2 часа)"""
@@ -1120,7 +1000,7 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
                         schedule_by_date[date] = []
                     schedule_by_date[date].append(item)
             
-            # Формирование текста сообщения
+            # Формирование текста сообщения и кнопок
             for date, items in sorted(schedule_by_date.items()):
                 try:
                     formatted_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m')
@@ -1133,11 +1013,26 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
                     time = item.get('время')
                     master_name = item.get('мастер_имя', 'Неизвестный мастер')
                     item_id = item.get('id')
+                    service_name_item = item.get('услуга_название', 'Услуга')
+                    
                     if time and item_id:
                         message += f"    {time} - {master_name}\n"
+                        
+                        # Создаем текст для кнопки с услугой
+                        button_text = f"{formatted_date} {time} - {master_name} - {service_name_item}"
+                        
+                        # Обрезаем длинные названия
+                        if len(button_text) > 40:
+                            if len(master_name) > 12:
+                                master_short = master_name[:10] + "..."
+                                button_text = f"{formatted_date} {time} - {master_short} - {service_name_item}"
+                            if len(button_text) > 40:
+                                service_short = service_name_item[:15] + "..." if len(service_name_item) > 15 else service_name_item
+                                button_text = f"{formatted_date} {time} - {master_name[:10]}... - {service_short}"
+                        
                         keyboard.append([
                             InlineKeyboardButton(
-                                f"{formatted_date} {time} - {master_name}",
+                                button_text,
                                 callback_data=f'time_slot_{item_id}'
                             )
                         ])
@@ -1192,7 +1087,6 @@ async def show_all_specialists_schedule(query, service_id, target_date_str=None)
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-
         
 # main.py - в функции process_confirmed_appointment обновим создание клиента
 
@@ -1293,6 +1187,230 @@ def validate_phone(phone):
     pattern = r'^\+7\d{10}$'
     return re.match(pattern, phone) is not None
 
+# main.py - добавить после существующих функций
+
+async def show_week_calendar(query, target_date_str=None):
+    """Показать календарь на неделю для просмотра свободного времени"""
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
+    try:
+        today = datetime.now().date()
+        
+        if target_date_str:
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        else:
+            target_date = today
+        
+        start_of_week = target_date - timedelta(days=target_date.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        # Получаем все свободные слоты на неделю
+        from_date_str = start_of_week.strftime('%Y-%m-%d')
+        to_date_str = end_of_week.strftime('%Y-%m-%d')
+        
+        response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={from_date_str}&toDate={to_date_str}")
+        data = response.json()
+        
+        # Формируем сообщение с календарем
+        message = f"🗓️ Календарь свободного времени\n({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')})\n\n"
+        
+        keyboard = []
+        
+        if data['message'] == 'success' and data['data']:
+            # Группируем слоты по датам
+            schedule_by_date = {}
+            current_datetime = datetime.now()
+            
+            for item in data['data']:
+                # Фильтруем прошедшее время (+2 часа)
+                slot_datetime_str = f"{item['дата']} {item['время']}"
+                try:
+                    slot_datetime = datetime.strptime(slot_datetime_str, '%Y-%m-%d %H:%M')
+                    time_difference = slot_datetime - current_datetime
+                    if time_difference.total_seconds() > -7200:
+                        date = item['дата']
+                        if date not in schedule_by_date:
+                            schedule_by_date[date] = []
+                        schedule_by_date[date].append(item)
+                except ValueError:
+                    continue
+            
+            # Создаем кнопки для каждой даты
+            current_date = start_of_week
+            while current_date <= end_of_week:
+                date_str = current_date.strftime('%Y-%m-%d')
+                date_display = current_date.strftime('%d.%m')
+                weekday = WEEKDAY_MAP.get(current_date.strftime('%a'), current_date.strftime('%a'))
+                
+                slots_count = len(schedule_by_date.get(date_str, []))
+                
+                if slots_count > 0:
+                    button_text = f"📅 {date_display} ({weekday}) - {slots_count} слотов"
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            button_text,
+                            callback_data=f'view_day_schedule_{date_str}'
+                        )
+                    ])
+                else:
+                    button_text = f"❌ {date_display} ({weekday}) - нет мест"
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            button_text,
+                            callback_data='no_date_available'
+                        )
+                    ])
+                
+                current_date += timedelta(days=1)
+        else:
+            message += "❌ На этой неделе нет свободного времени\n"
+            keyboard.append([InlineKeyboardButton("Нет доступных дат", callback_data='no_available_options')])
+        
+        # Навигация по неделям
+        prev_week_start = start_of_week - timedelta(days=7)
+        next_week_start = start_of_week + timedelta(days=7)
+        
+        nav_buttons = [
+            InlineKeyboardButton("⬅️ Пред. неделя", callback_data=f'week_calendar_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}'),
+            InlineKeyboardButton("След. неделя ➡️", callback_data=f'week_calendar_nav_next_{next_week_start.strftime("%Y-%m-%d")}')
+        ]
+        keyboard.append(nav_buttons)
+        
+        keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='book_appointment')])
+        keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                media = InputMediaPhoto(media=photo_data, caption=message)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in show_week_calendar: {e}")
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
+            
+    except Exception as e:
+        logger.error(f"Error showing week calendar: {e}")
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='book_appointment')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+
+async def show_day_schedule(query, date_str):
+    """Показать все свободное время на конкретный день"""
+    photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
+    try:
+        # Получаем все свободные слоты на выбранную дату
+        response = requests.get(f"{API_BASE_URL}/api/freetime-available?fromDate={date_str}&toDate={date_str}")
+        data = response.json()
+        
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        formatted_date = date_obj.strftime('%d.%m.%Y')
+        weekday = WEEKDAY_MAP.get(date_obj.strftime('%a'), date_obj.strftime('%a'))
+        
+        message = f"🗓️ Свободное время на {formatted_date} ({weekday}):\n\n"
+        
+        keyboard = []
+        
+        if data['message'] == 'success' and data['data']:
+            # Фильтруем прошедшее время (+2 часа)
+            current_datetime = datetime.now()
+            available_slots = []
+            
+            for item in data['data']:
+                slot_datetime_str = f"{item['дата']} {item['время']}"
+                try:
+                    slot_datetime = datetime.strptime(slot_datetime_str, '%Y-%m-%d %H:%M')
+                    time_difference = slot_datetime - current_datetime
+                    if time_difference.total_seconds() > -7200:
+                        available_slots.append(item)
+                except ValueError:
+                    continue
+            
+            if available_slots:
+                # Сортируем по времени
+                available_slots.sort(key=lambda x: x['время'])
+                
+                for slot in available_slots:
+                    service_name = slot.get('услуга_название', 'Услуга')
+                    master_name = slot.get('мастер_имя', 'Мастер')
+                    time = slot['время']
+                    price = slot.get('услуга_цена', '?')
+                    
+                    # Создаем текст для кнопки с услугой
+                    button_text = f"{time} - {master_name} - {service_name}"
+                    
+                    # Обрезаем длинные названия для лучшего отображения
+                    if len(button_text) > 40:
+                        # Сокращаем название услуги если нужно
+                        if len(service_name) > 15:
+                            service_short = service_name[:12] + "..."
+                            button_text = f"{time} - {master_name} - {service_short}"
+                        elif len(button_text) > 40:
+                            button_text = f"{time} - {master_name[:12]}... - {service_name[:15]}..."
+                    
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            button_text,
+                            callback_data=f'time_slot_{slot["id"]}'
+                        )
+                    ])
+                    
+                    message += f"⏰ {time} - {master_name}\n"
+                    message += f"   ✮ {service_name} - {price}₽\n\n"
+            else:
+                message += "❌ Нет свободного времени на этот день\n"
+        else:
+            message += "❌ Нет свободного времени на этот день\n"
+        
+        # Навигация по дням
+        current_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        prev_day = current_date - timedelta(days=1)
+        next_day = current_date + timedelta(days=1)
+        
+        today = datetime.now().date()
+        
+        nav_buttons = []
+        if prev_day >= today:  # Показываем только будущие и текущие дни
+            nav_buttons.append(InlineKeyboardButton("⬅️ Пред. день", callback_data=f'view_day_schedule_{prev_day.strftime("%Y-%m-%d")}'))
+        
+        nav_buttons.append(InlineKeyboardButton("➡️ След. день", callback_data=f'view_day_schedule_{next_day.strftime("%Y-%m-%d")}'))
+        
+        if nav_buttons:
+            keyboard.append(nav_buttons)
+        
+        keyboard.append([InlineKeyboardButton("↲ Назад к календарю", callback_data='view_week_schedule')])
+        keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        try:
+            photo_response = requests.get(photo_url)
+            if photo_response.status_code == 200:
+                photo_data = photo_response.content
+                media = InputMediaPhoto(media=photo_data, caption=message)
+                await query.edit_message_media(media=media, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Error in show_day_schedule: {e}")
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
+            
+    except Exception as e:
+        logger.error(f"Error showing day schedule: {e}")
+        message_text = "❌ Ошибка подключения к серверу"
+        keyboard = [
+            [InlineKeyboardButton("↲ Назад", callback_data='view_week_schedule')],
+            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений"""
