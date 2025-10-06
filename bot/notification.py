@@ -1,10 +1,9 @@
-
 import os
 import logging
 import asyncio
 import requests
 from datetime import datetime, timedelta
-from telegram import Bot, InputMediaPhoto
+from telegram import Bot, InputMediaPhoto, InlineKeyboardButton, InlineKeyboardMarkup
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 import pytz
@@ -41,13 +40,13 @@ def initialize_notifications():
         # Уведомления будут срабатывать в 18:00 по времени сервера
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=15, minute=38),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
             id='daily_master_notifications'
         )
         
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=15, minute=38),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
             id='daily_user_notifications'
         )
         
@@ -82,8 +81,13 @@ def initialize_notifications():
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
 
 async def send_notification_with_photo(chat_id: int, message: str):
-    """Отправка уведомления с фотографией"""
+    """Отправка уведомления с фотографией и кнопкой Главное меню"""
     try:
+        # Создаем клавиатуру с кнопкой "Главное меню"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+        ])
+        
         # URL для получения фотографии
         photo_url = f"{API_BASE_URL}/photo/images/notif.jpg"
         
@@ -91,23 +95,58 @@ async def send_notification_with_photo(chat_id: int, message: str):
         photo_response = requests.get(photo_url)
         if photo_response.status_code == 200:
             photo_data = photo_response.content
-            await bot.send_photo(chat_id=chat_id, photo=photo_data, caption=message)
+            await bot.send_photo(
+                chat_id=chat_id, 
+                photo=photo_data, 
+                caption=message,
+                reply_markup=keyboard
+            )
             return True
         else:
-            # Если фото не найдено, отправляем только текст
-            await bot.send_message(chat_id=chat_id, text=message)
+            # Если фото не найдено, отправляем только текст с кнопкой
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=message,
+                reply_markup=keyboard
+            )
             logger.warning(f"Фото notif.jpg не найдено, отправлено текстовое уведомление")
             return False
             
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления с фото: {e}")
-        # В случае ошибки отправляем только текст
+        # В случае ошибки отправляем только текст с кнопкой
         try:
-            await bot.send_message(chat_id=chat_id, text=message)
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data="main_menu")]
+            ])
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=message,
+                reply_markup=keyboard
+            )
             return True
         except Exception as text_error:
             logger.error(f"Ошибка отправки текстового уведомления: {text_error}")
             return False
+
+async def send_notification_without_photo(chat_id: int, message: str):
+    """Отправка уведомления без фото с кнопкой Главное меню"""
+    try:
+        # Создаем клавиатуру с кнопкой "Главное меню"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("☰ Главное меню", callback_data="main_menu")]
+        ])
+        
+        await bot.send_message(
+            chat_id=chat_id, 
+            text=message,
+            reply_markup=keyboard
+        )
+        return True
+            
+    except Exception as e:
+        logger.error(f"Ошибка отправки текстового уведомления: {e}")
+        return False
 
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
@@ -290,8 +329,6 @@ async def send_user_daily_notification(appointment):
     except Exception as e:
         logger.error(f"Ошибка отправки daily уведомления: {e}")
 
-
-
 async def send_hourly_notifications():
     """Упрощенная версия отправки уведомлений за час до записи"""
     try:
@@ -370,8 +407,6 @@ async def send_user_hourly_notification(appointment):
         
     except Exception as e:
         logger.error(f"Ошибка отправки hourly уведомления: {e}")
-
-
 
 async def send_daily_master_notifications():
     """Упрощенная версия отправки ежедневных уведомлений мастерам"""
@@ -497,9 +532,6 @@ async def send_master_daily_notification(master_id, tg_id, date):
         
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления мастеру {master_id}: {e}")
-
-
-
 
 async def check_new_appointments():
     """Проверка новых записей для уведомления клиентов (только созданные сегодня)"""
