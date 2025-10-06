@@ -1613,3 +1613,26 @@ body {
         justify-content: center;
     }
 }
+
+
+/* Увеличиваем z-index для модальных окон ошибок и уведомлений */
+.modal-overlay[class*="modal-success"],
+.modal-overlay[class*="modal-error"], 
+.modal-overlay[class*="modal-info"],
+.modal-overlay[class*="modal-confirm"] {
+    z-index: 3000; /* Больше чем у обычных модальных окон */
+}
+
+/* Обычные модальные окна (добавление записи, редактирование и т.д.) */
+.modal-overlay:not([class*="modal-success"]):not([class*="modal-error"]):not([class*="modal-info"]):not([class*="modal-confirm"]) {
+    z-index: 2000;
+}
+
+/* Убедимся, что modal-dialog (уведомления) всегда выше modal-content (формы) */
+.modal-dialog {
+    z-index: 3001;
+}
+
+.modal-content {
+    z-index: 2001;
+}

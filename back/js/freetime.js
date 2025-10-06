@@ -36,6 +36,7 @@ class FreeTimeManager {
             this.showError('Не удалось загрузить свободное время');
         }
     }
+    
 
     displayFreeTime(scheduleData) {
         const container = document.getElementById('freeTimeContainer');
@@ -336,6 +337,8 @@ class FreeTimeManager {
     }
 }
 
+// В методе handleMultipleDaysSubmit замените формирование сообщения о конфликтах:
+
 async handleMultipleDaysSubmit(event) {
     event.preventDefault();
     
@@ -361,6 +364,14 @@ async handleMultipleDaysSubmit(event) {
         // Создаем временные слоты
         const timeSlots = hours.map((hour, index) => `${hour}:${minutes[index]}`);
         
+        // Получаем имена мастеров для отображения
+        const specialistNames = {};
+        this.specialists.forEach(spec => {
+            if (specialistIds.includes(spec.id.toString())) {
+                specialistNames[spec.id] = spec.имя;
+            }
+        });
+        
         // Проверяем конфликты для каждого временного слота
         const conflictingSlots = [];
         const start = new Date(startDate);
@@ -381,10 +392,12 @@ async handleMultipleDaysSubmit(event) {
                 for (const time of timeSlots) {
                     const conflictCheck = await this.checkTimeSlotConflict(dateStr, time, specialistId, serviceId);
                     if (conflictCheck.conflict) {
+                        const specialistName = specialistNames[specialistId] || `Мастер ID: ${specialistId}`;
                         conflictingSlots.push({
                             date: dateStr,
                             time: time,
                             specialistId: specialistId,
+                            specialistName: specialistName,
                             message: conflictCheck.message
                         });
                     }
@@ -394,12 +407,22 @@ async handleMultipleDaysSubmit(event) {
         
         // Если есть конфликты, показываем предупреждение
         if (conflictingSlots.length > 0) {
-            const conflictMessage = `Найдено ${conflictingSlots.length} конфликтующих временных слотов:\n\n` +
-                conflictingSlots.slice(0, 5).map(slot => 
-                    `${slot.date} ${slot.time} (мастер ID: ${slot.specialistId})`
-                ).join('\n') +
-                (conflictingSlots.length > 5 ? `\n... и еще ${conflictingSlots.length - 5} конфликтов` : '') +
-                `\n\nПродолжить создание остальных слотов?`;
+            // Форматируем дату для красивого отображения
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('ru-RU', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric'
+                });
+            };
+            
+            // Создаем список конфликтов в столбик
+            const conflictList = conflictingSlots.map(slot => 
+                `• ${formatDate(slot.date)} ${slot.time} - ${slot.specialistName}`
+            ).join('\n');
+            
+            const conflictMessage = `Найдено ${conflictingSlots.length} конфликтующих временных слотов:\n\n${conflictList}\n\nПродолжить создание остальных слотов?`;
             
             showConfirm(conflictMessage, async (confirmed) => {
                 if (confirmed) {
@@ -425,7 +448,11 @@ async handleMultipleDaysSubmit(event) {
         }
     }
 
-
+// Добавьте этот метод в класс FreeTimeManager
+getSpecialistNameById(specialistId) {
+    const specialist = this.specialists.find(spec => spec.id == specialistId);
+    return specialist ? specialist.имя : `Мастер ID: ${specialistId}`;
+}
 
     async createMultipleDaysSchedule(serviceId, specialistIds, startDate, endDate, weekdays, timeSlots, conflictingSlots) {
     try {

@@ -1531,12 +1531,17 @@ function showModal(type, message, callback = null) {
         messageElement.textContent = message;
         modal.style.display = 'block';
         
+        // Убедимся, что модальное окно уведомления всегда поверх других
+        if (type === 'success' || type === 'error' || type === 'info' || type === 'confirm') {
+            modal.style.zIndex = '3000';
+        }
+        
         if (type === 'confirm' && callback) {
             // Клонируем кнопку Да
             const confirmYes = document.getElementById('confirmYes').cloneNode(true);
             document.getElementById('confirmYes').replaceWith(confirmYes);
             
-            // Ищем кнопку Нет по классу (исправление)
+            // Ищем кнопку Нет по классу
             const confirmNo = document.querySelector('#confirmModal .modal-btn-secondary');
             if (confirmNo) {
                 const newConfirmNo = confirmNo.cloneNode(true);
