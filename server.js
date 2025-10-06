@@ -575,9 +575,11 @@ app.put('/api/pages/:pageName/:element', (req, res) => {
 
 // Добавьте этот endpoint в server.js после других schedule endpoints
 // server.js - исправленный endpoint для batch создания расписания
+// server.js - обновить endpoint /api/schedule/batch
+
 app.post('/api/schedule/batch', async (req, res) => {
     try {
-        const { serviceId, specialistIds, startDate, endDate, includeWorkdays, includeWeekends, timeSlots } = req.body;
+        const { serviceId, specialistIds, startDate, endDate, includeWorkdays, includeWeekends, timeSlots, excludeConflicts = [] } = req.body;
 
         // Валидация
         if (!serviceId || !specialistIds || !startDate || !endDate || !timeSlots) {
@@ -587,6 +589,53 @@ app.post('/api/schedule/batch', async (req, res) => {
         const start = new Date(startDate);
         const end = new Date(endDate);
         const createdSlots = [];
+
+        // Функция для проверки конфликта
+        const checkTimeConflict = async (dateStr, time, specialistId) => {
+            return new Promise((resolve) => {
+                // Проверяем в списке исключений
+                const isExcluded = excludeConflicts.some(conflict => 
+                    conflict.date === dateStr && 
+                    conflict.time === time && 
+                    conflict.specialistId === specialistId
+                );
+                
+                if (isExcluded) {
+                    resolve(true); // Пропускаем этот слот
+                    return;
+                }
+                
+                // Проверяем в базе данных
+                const conflictSql = `
+                    SELECT id, время 
+                    FROM расписание 
+                    WHERE мастер_id = ? 
+                    AND услуга_id = ?
+                    AND дата = ? 
+                    AND доступно = 1
+                `;
+                
+                db.all(conflictSql, [specialistId, serviceId, dateStr], (err, rows) => {
+                    if (err) {
+                        resolve(false); // В случае ошибки продолжаем
+                        return;
+                    }
+                    
+                    // Проверяем конфликты по времени (интервал 5 минут)
+                    const hasConflict = rows.some(row => {
+                        const [existingHours, existingMinutes] = row.время.split(':').map(Number);
+                        const [newHours, newMinutes] = time.split(':').map(Number);
+                        
+                        const existingTotalMinutes = existingHours * 60 + existingMinutes;
+                        const newTotalMinutes = newHours * 60 + newMinutes;
+                        
+                        return Math.abs(existingTotalMinutes - newTotalMinutes) < 5;
+                    });
+                    
+                    resolve(hasConflict);
+                });
+            });
+        };
 
         // Перебираем каждый день в диапазоне
         for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
@@ -604,7 +653,14 @@ app.post('/api/schedule/batch', async (req, res) => {
             for (const specialistId of specialistIds) {
                 for (const time of timeSlots) {
                     try {
-                        // Используем db.run вместо db.execute для SQLite3
+                        // Проверяем конфликт
+                        const hasConflict = await checkTimeConflict(dateStr, time, specialistId);
+                        if (hasConflict) {
+                            console.log(`Пропущен конфликтующий слот: ${dateStr} ${time} для мастера ${specialistId}`);
+                            continue;
+                        }
+                        
+                        // Создаем слот
                         await new Promise((resolve, reject) => {
                             db.run(
                                 'INSERT INTO расписание (дата, время, мастер_id, услуга_id, доступно) VALUES (?, ?, ?, ?, ?)',
@@ -1782,6 +1838,8 @@ app.get('/api/schedule/:id', (req, res) => {
 });
 
 // API endpoint to add schedule
+// server.js - обновить endpoint /api/schedule (POST)
+
 app.post('/api/schedule', (req, res) => {
     const { дата, время, мастер_id, услуга_id, доступно } = req.body;
     
@@ -1789,47 +1847,80 @@ app.post('/api/schedule', (req, res) => {
         return res.status(400).json({ error: 'Все поля обязательны' });
     }
     
-    // Проверяем, не существует ли уже такой записи
-    const checkSql = `
-        SELECT id FROM расписание 
+    // Проверяем конфликт по времени (интервал 5 минут)
+    const checkConflictSql = `
+        SELECT id, время 
+        FROM расписание 
         WHERE мастер_id = ? 
         AND услуга_id = ?
-        AND дата = ?
-        AND время = ?
+        AND дата = ? 
+        AND доступно = 1
     `;
     
-    db.get(checkSql, [мастер_id, услуга_id, дата, время], (err, row) => {
+    db.all(checkConflictSql, [мастер_id, услуга_id, дата], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
         
-        if (row) {
-            res.status(409).json({ error: 'Такое время уже существует для этого мастера и услуги' });
+        // Проверяем конфликты по времени
+        const hasConflict = rows.some(row => {
+            const [existingHours, existingMinutes] = row.время.split(':').map(Number);
+            const [newHours, newMinutes] = время.split(':').map(Number);
+            
+            const existingTotalMinutes = existingHours * 60 + existingMinutes;
+            const newTotalMinutes = newHours * 60 + newMinutes;
+            
+            return Math.abs(existingTotalMinutes - newTotalMinutes) < 5;
+        });
+        
+        if (hasConflict) {
+            res.status(409).json({ error: 'Время конфликтует с существующим слотом (минимальный интервал 5 минут)' });
             return;
         }
         
-        const insertSql = `
-            INSERT INTO расписание (дата, время, мастер_id, услуга_id, доступно)
-            VALUES (?, ?, ?, ?, ?)
+        // Проверяем, не существует ли уже точно такая же запись
+        const checkExactSql = `
+            SELECT id FROM расписание 
+            WHERE мастер_id = ? 
+            AND услуга_id = ?
+            AND дата = ?
+            AND время = ?
         `;
         
-        db.run(insertSql, [дата, время, мастер_id, услуга_id, доступно || 1], function(err) {
+        db.get(checkExactSql, [мастер_id, услуга_id, дата, время], (err, row) => {
             if (err) {
                 res.status(500).json({ error: err.message });
                 return;
             }
             
-            res.json({
-                message: "success",
-                data: {
-                    id: this.lastID,
-                    дата,
-                    время,
-                    мастер_id,
-                    услуга_id,
-                    доступно: доступно || 1
+            if (row) {
+                res.status(409).json({ error: 'Такое время уже существует для этого мастера и услуги' });
+                return;
+            }
+            
+            const insertSql = `
+                INSERT INTO расписание (дата, время, мастер_id, услуга_id, доступно)
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            
+            db.run(insertSql, [дата, время, мастер_id, услуга_id, доступно || 1], function(err) {
+                if (err) {
+                    res.status(500).json({ error: err.message });
+                    return;
                 }
+                
+                res.json({
+                    message: "success",
+                    data: {
+                        id: this.lastID,
+                        дата,
+                        время,
+                        мастер_id,
+                        услуга_id,
+                        доступно: доступно || 1
+                    }
+                });
             });
         });
     });

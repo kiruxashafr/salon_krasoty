@@ -41,13 +41,13 @@ def initialize_notifications():
         # Уведомления будут срабатывать в 18:00 по времени сервера
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
+            CronTrigger(hour=15, minute=38),  # БЕЗ timezone
             id='daily_master_notifications'
         )
         
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
+            CronTrigger(hour=15, minute=38),  # БЕЗ timezone
             id='daily_user_notifications'
         )
         
@@ -410,22 +410,25 @@ async def send_daily_master_notifications():
                     
                     appointments = appointments_response.json().get('data', [])
                     
+                    # ЕСЛИ НЕТ ЗАПИСЕЙ - ПРОПУСТИТЬ ЭТОГО МАСТЕРА
                     if not appointments:
-                        message = f"≣ На завтра ({tomorrow}) у вас нет записей"
-                    else:
-                        message = f"≣ Ваши записи на завтра ({tomorrow}):\n\n"
-                        
-                        # Сортируем записи по времени
-                        appointments.sort(key=lambda x: x['время'])
-                        
-                        for app in appointments:
-                            message += (
-                                f"⏰ {app['время']}\n"
-                                f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                                f"🎯 {app['услуга_название']}\n"
-                                f"💵 {app['цена']}₽\n"
-                                f"────────────────\n"
-                            )
+                        logger.info(f"ℹ️ У мастера {master['id']} нет записей на завтра, уведомление не отправляется")
+                        continue
+                    
+                    # Есть записи - формируем сообщение
+                    message = f"≣ Ваши записи на завтра ({tomorrow}):\n\n"
+                    
+                    # Сортируем записи по времени
+                    appointments.sort(key=lambda x: x['время'])
+                    
+                    for app in appointments:
+                        message += (
+                            f"⏰ {app['время']}\n"
+                            f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                            f"🎯 {app['услуга_название']}\n"
+                            f"💵 {app['цена']}₽\n"
+                            f"────────────────\n"
+                        )
                     
                     # Используем функцию с фото для мастеров
                     success = await send_notification_with_photo(
@@ -446,11 +449,10 @@ async def send_daily_master_notifications():
         if master_notifications_sent > 0:
             logger.info(f"✅ Отправлено {master_notifications_sent} ежедневных уведомлений мастерам")
         else:
-            logger.info("ℹ️ Не найдено мастеров для daily уведомлений")
+            logger.info("ℹ️ Не найдено мастеров с записями для daily уведомлений")
         
     except Exception as e:
         logger.error(f"Ошибка отправки ежедневных уведомлений мастерам: {e}")
-
 
 async def send_master_daily_notification(master_id, tg_id, date):
     """Отправка уведомления конкретному мастеру о записях на указанную дату"""

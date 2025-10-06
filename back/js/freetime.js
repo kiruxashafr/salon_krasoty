@@ -291,68 +291,132 @@ class FreeTimeManager {
         ).join('');
     }
 
-    async handleMultipleDaysSubmit(event) {
-        event.preventDefault();
+
+    async checkTimeSlotConflict(date, time, specialistId, serviceId, excludeScheduleId = null) {
+    try {
+        const response = await fetch(`/api/schedule-available?specialistId=${specialistId}&startDate=${date}&endDate=${date}`);
         
-        const formData = new FormData(event.target);
-        const serviceId = formData.get('serviceId');
-        const specialistIds = formData.getAll('specialistIds');
-        const startDate = formData.get('startDate');
-        const endDate = formData.get('endDate');
-        const weekdays = formData.getAll('weekdays');
-        const hours = formData.getAll('hours[]');
-        const minutes = formData.getAll('minutes[]');
-
-        // Валидация
-        if (!serviceId || specialistIds.length === 0 || !startDate || !endDate || 
-            weekdays.length === 0 || hours.length === 0) {
-            showError('Пожалуйста, заполните все обязательные поля');
-            return;
+        if (!response.ok) {
+            throw new Error('Ошибка проверки расписания');
         }
-
-        try {
-            this.showFormLoading('multipleDaysForm');
+        
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            const existingSlots = data.data.filter(slot => 
+                slot.дата === date && 
+                slot.мастер_id === parseInt(specialistId) &&
+                (excludeScheduleId ? slot.id !== excludeScheduleId : true)
+            );
             
-            // Создаем временные слоты
-            const timeSlots = hours.map((hour, index) => `${hour}:${minutes[index]}`);
-            
-            const scheduleData = {
-                serviceId: parseInt(serviceId),
-                specialistIds: specialistIds.map(id => parseInt(id)),
-                startDate,
-                endDate,
-                includeWorkdays: weekdays.includes('workdays'),
-                includeWeekends: weekdays.includes('weekends'),
-                timeSlots
-            };
-
-            const response = await fetch('/api/schedule/batch', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(scheduleData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
+            // Проверяем конфликты по времени (интервал минимум 5 минут)
+            for (const slot of existingSlots) {
+                const existingTime = slot.время;
+                const [existingHours, existingMinutes] = existingTime.split(':').map(Number);
+                const [newHours, newMinutes] = time.split(':').map(Number);
+                
+                const existingTotalMinutes = existingHours * 60 + existingMinutes;
+                const newTotalMinutes = newHours * 60 + newMinutes;
+                
+                // Проверяем разницу менее 5 минут
+                if (Math.abs(existingTotalMinutes - newTotalMinutes) < 5) {
+                    return {
+                        conflict: true,
+                        existingSlot: slot,
+                        message: `Время конфликтует с существующим слотом: ${existingTime}`
+                    };
+                }
             }
-
-            const data = await response.json();
             
-            if (data.message === 'success') {
-                showSuccess(`Успешно добавлено ${data.data.created} временных слотов!`);
-                this.closeMultipleDaysModal();
-                this.loadFreeTime();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            showError('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading('multipleDaysForm');
+            return { conflict: false };
         }
+    } catch (error) {
+        console.error('Ошибка проверки конфликта:', error);
+        return { conflict: false, error: 'Ошибка проверки' };
     }
+}
+
+async handleMultipleDaysSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const serviceId = formData.get('serviceId');
+    const specialistIds = formData.getAll('specialistIds');
+    const startDate = formData.get('startDate');
+    const endDate = formData.get('endDate');
+    const weekdays = formData.getAll('weekdays');
+    const hours = formData.getAll('hours[]');
+    const minutes = formData.getAll('minutes[]');
+
+    // Валидация
+    if (!serviceId || specialistIds.length === 0 || !startDate || !endDate || 
+        weekdays.length === 0 || hours.length === 0) {
+        showError('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+
+    try {
+        this.showFormLoading('multipleDaysForm');
+        
+        // Создаем временные слоты
+        const timeSlots = hours.map((hour, index) => `${hour}:${minutes[index]}`);
+        
+        // Проверяем конфликты для каждого временного слота
+        const conflictingSlots = [];
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        // Перебираем каждый день в диапазоне
+        for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
+            const dayOfWeek = date.getDay();
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            const shouldInclude = (isWeekend && weekdays.includes('weekends')) || (!isWeekend && weekdays.includes('workdays'));
+            
+            if (!shouldInclude) continue;
+
+            const dateStr = date.toISOString().split('T')[0];
+
+            // Для каждого мастера и каждого временного слота проверяем конфликты
+            for (const specialistId of specialistIds) {
+                for (const time of timeSlots) {
+                    const conflictCheck = await this.checkTimeSlotConflict(dateStr, time, specialistId, serviceId);
+                    if (conflictCheck.conflict) {
+                        conflictingSlots.push({
+                            date: dateStr,
+                            time: time,
+                            specialistId: specialistId,
+                            message: conflictCheck.message
+                        });
+                    }
+                }
+            }
+        }
+        
+        // Если есть конфликты, показываем предупреждение
+        if (conflictingSlots.length > 0) {
+            const conflictMessage = `Найдено ${conflictingSlots.length} конфликтующих временных слотов:\n\n` +
+                conflictingSlots.slice(0, 5).map(slot => 
+                    `${slot.date} ${slot.time} (мастер ID: ${slot.specialistId})`
+                ).join('\n') +
+                (conflictingSlots.length > 5 ? `\n... и еще ${conflictingSlots.length - 5} конфликтов` : '') +
+                `\n\nПродолжить создание остальных слотов?`;
+            
+            showConfirm(conflictMessage, async (confirmed) => {
+                if (confirmed) {
+                    await this.createMultipleDaysSchedule(serviceId, specialistIds, startDate, endDate, weekdays, timeSlots, conflictingSlots);
+                } else {
+                    this.hideFormLoading('multipleDaysForm');
+                }
+            });
+        } else {
+            await this.createMultipleDaysSchedule(serviceId, specialistIds, startDate, endDate, weekdays, timeSlots, []);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось сохранить: ' + error.message);
+        this.hideFormLoading('multipleDaysForm');
+    }
+}
 
     closeMultipleDaysModal() {
         const modal = document.getElementById('multipleDaysModal');
@@ -360,6 +424,58 @@ class FreeTimeManager {
             modal.remove();
         }
     }
+
+
+
+    async createMultipleDaysSchedule(serviceId, specialistIds, startDate, endDate, weekdays, timeSlots, conflictingSlots) {
+    try {
+        const scheduleData = {
+            serviceId: parseInt(serviceId),
+            specialistIds: specialistIds.map(id => parseInt(id)),
+            startDate,
+            endDate,
+            includeWorkdays: weekdays.includes('workdays'),
+            includeWeekends: weekdays.includes('weekends'),
+            timeSlots,
+            excludeConflicts: conflictingSlots.map(slot => ({
+                date: slot.date,
+                time: slot.time,
+                specialistId: slot.specialistId
+            }))
+        };
+
+        const response = await fetch('/api/schedule/batch', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(scheduleData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            const skippedCount = conflictingSlots.length;
+            const successMessage = `Успешно добавлено ${data.data.created} временных слотов!` +
+                (skippedCount > 0 ? ` Пропущено ${skippedCount} конфликтующих слотов.` : '');
+            
+            showSuccess(successMessage);
+            this.closeMultipleDaysModal();
+            this.loadFreeTime();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading('multipleDaysForm');
+    }
+}
+
 
     async editSchedule(scheduleId) {
         try {
@@ -500,67 +616,82 @@ class FreeTimeManager {
         }
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
-        
-        const formData = new FormData(event.target);
-        const date = formData.get('date');
-        const hours = formData.get('hours');
-        const minutes = formData.get('minutes');
-        const specialistId = formData.get('specialistId');
-        const serviceId = formData.get('serviceId');
+async handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const date = formData.get('date');
+    const hours = formData.get('hours');
+    const minutes = formData.get('minutes');
+    const specialistId = formData.get('specialistId');
+    const serviceId = formData.get('serviceId');
 
-        if (!date || !hours || !minutes || !specialistId || !serviceId) {
-            showError('Пожалуйста, заполните все обязательные поля');
+    if (!date || !hours || !minutes || !specialistId || !serviceId) {
+        showError('Пожалуйста, заполните все обязательные поля');
+        return;
+    }
+
+    const time = `${hours}:${minutes}`;
+
+    try {
+        this.showFormLoading();
+        
+        // Проверяем конфликт
+        const conflictCheck = await this.checkTimeSlotConflict(
+            date, 
+            time, 
+            specialistId, 
+            serviceId,
+            this.isEditMode ? this.currentScheduleId : null
+        );
+        
+        if (conflictCheck.conflict) {
+            showError(conflictCheck.message);
+            this.hideFormLoading();
             return;
         }
+        
+        const scheduleData = {
+            дата: date,
+            время: time,
+            мастер_id: parseInt(specialistId),
+            услуга_id: parseInt(serviceId),
+            доступно: 1
+        };
 
-        const time = `${hours}:${minutes}`;
-
-        try {
-            this.showFormLoading();
+        const url = this.isEditMode 
+            ? `/api/schedule/${this.currentScheduleId}` 
+            : '/api/schedule';
             
-            const scheduleData = {
-                дата: date,
-                время: time,
-                мастер_id: parseInt(specialistId),
-                услуга_id: parseInt(serviceId),
-                доступно: 1
-            };
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(scheduleData)
+        });
 
-            const url = this.isEditMode 
-                ? `/api/schedule/${this.currentScheduleId}` 
-                : '/api/schedule';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(scheduleData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
-
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                showSuccess(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
-                this.closeModal();
-                this.loadFreeTime();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            showError('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
         }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Свободное время успешно обновлено!' : 'Свободное время успешно добавлено!');
+            this.closeModal();
+            this.loadFreeTime();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
     }
+}
 
     async deleteSchedule(scheduleId) {
         showConfirm('Вы уверены, что хотите удалить это свободное время?', (confirmed) => {
