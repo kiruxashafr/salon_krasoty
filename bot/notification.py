@@ -40,13 +40,13 @@ def initialize_notifications():
         # Уведомления будут срабатывать в 18:00 по времени сервера
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=9),  # БЕЗ timezone
             id='daily_master_notifications'
         )
         
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=00),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=9),  # БЕЗ timezone
             id='daily_user_notifications'
         )
         
@@ -85,7 +85,7 @@ async def send_notification_with_photo(chat_id: int, message: str):
     try:
         # Создаем клавиатуру с кнопкой "Главное меню"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🏠 Главное меню", callback_data="main_menu")]
+            [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
         ])
         
         # URL для получения фотографии
@@ -117,6 +117,23 @@ async def send_notification_with_photo(chat_id: int, message: str):
         # В случае ошибки отправляем только текст с кнопкой
         try:
             keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
+            ])
+            await bot.send_message(
+                chat_id=chat_id, 
+                text=message,
+                reply_markup=keyboard
+            )
+            return True
+        except Exception as text_error:
+            logger.error(f"Ошибка отправки текстового уведомления: {text_error}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Ошибка отправки уведомления с фото: {e}")
+        # В случае ошибки отправляем только текст с кнопкой
+        try:
+            keyboard = InlineKeyboardMarkup([
                 [InlineKeyboardButton("☰ Главное меню", callback_data="main_menu")]
             ])
             await bot.send_message(
@@ -134,7 +151,7 @@ async def send_notification_without_photo(chat_id: int, message: str):
     try:
         # Создаем клавиатуру с кнопкой "Главное меню"
         keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("☰ Главное меню", callback_data="main_menu")]
+            [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
         ])
         
         await bot.send_message(

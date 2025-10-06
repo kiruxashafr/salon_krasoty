@@ -91,6 +91,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_personal_callback(update, context)
         return
     
+    # ДОБАВИТЬ ЭТУ СТРОКУ - обработка кнопки "Главное меню" из уведомлений
+    if data == 'main_menu':
+        await show_main_menu(update, context)
+        return
+    
+    # ... (остальной код без изменений)
+    
     # ... (остальной код без изменений)
     if data == 'view_week_schedule':
         await show_week_calendar(query)
