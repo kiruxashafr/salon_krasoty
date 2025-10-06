@@ -470,6 +470,11 @@ function generateDateGridService(availableDates) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
+    // Получаем текущее время для проверки прошедших временных слотов
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
     for (let day = 1; day <= daysInMonth; day++) {
         const dateCell = document.createElement('div');
         dateCell.className = 'date-cell';
@@ -477,14 +482,26 @@ function generateDateGridService(availableDates) {
         const currentDate = new Date(window.currentYearService, window.currentMonthService, day);
         const formattedDate = `${window.currentYearService}-${(window.currentMonthService + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         
+        // Проверяем, является ли дата сегодняшним днем
+        const isToday = currentDate.toDateString() === today.toDateString();
+        
         if (currentDate < today) {
             dateCell.classList.add('past-date');
             dateCell.textContent = day;
         } else if (availableDates.includes(formattedDate)) {
-            dateCell.classList.add('available-date');
-            dateCell.textContent = day;
-            dateCell.onclick = () => selectDateService(day);
-            dateCell.title = 'Есть доступное время';
+            // Если это сегодня, нужно дополнительно проверять время
+            if (isToday) {
+                dateCell.classList.add('available-date');
+                dateCell.textContent = day;
+                dateCell.onclick = () => selectDateService(day);
+                dateCell.title = 'Есть доступное время';
+            } else {
+                // Для будущих дней просто показываем как доступные
+                dateCell.classList.add('available-date');
+                dateCell.textContent = day;
+                dateCell.onclick = () => selectDateService(day);
+                dateCell.title = 'Есть доступное время';
+            }
         } else {
             dateCell.classList.add('no-availability');
             dateCell.textContent = day;
@@ -543,14 +560,42 @@ function displayTimeSlotsService(timeSlots) {
         return;
     }
     
+    // Получаем текущее время
+    const now = new Date();
+    const currentHours = now.getHours();
+    const currentMinutes = now.getMinutes();
+    
+    // Проверяем, является ли выбранная дата сегодняшним днем
+    const today = new Date();
+    const isToday = window.selectedDate === today.toISOString().split('T')[0];
+    
     console.log('Displaying time slots:', timeSlots);
     timeSlots.forEach(slot => {
+        const [hours, minutes] = slot.время.split(':').map(Number);
+        
+        // Если это сегодня, проверяем не прошло ли время более 2 часов
+        if (isToday) {
+            const slotTotalMinutes = hours * 60 + minutes;
+            const currentTotalMinutes = currentHours * 60 + currentMinutes;
+            
+            // Если время прошло более 2 часов назад (120 минут), пропускаем
+            if (slotTotalMinutes < currentTotalMinutes - 120) {
+                console.log(`Skipping past time slot: ${slot.время}`);
+                return; // пропускаем этот слот
+            }
+        }
+        
         const timeBtn = document.createElement('button');
         timeBtn.className = 'time-slot-btn';
         timeBtn.textContent = slot.время;
         timeBtn.onclick = () => bookAppointmentService(slot.id, slot.время);
         timeSlotsContainer.appendChild(timeBtn);
     });
+    
+    // Если после фильтрации не осталось слотов
+    if (timeSlotsContainer.children.length === 0) {
+        timeSlotsContainer.innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
+    }
 }
 
 function bookAppointmentService(scheduleId, time) {
