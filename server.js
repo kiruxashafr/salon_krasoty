@@ -6,8 +6,12 @@ const multer = require('multer');
 const fs = require('fs');
 const sharp = require('sharp');
 
+// Загружаем переменные окружения из .env файла
+require('dotenv').config();
+
 const app = express();
-const PORT = 3011;
+
+const PORT = process.env.PORT;
 
 process.env.TZ = "Europe/Moscow";
 

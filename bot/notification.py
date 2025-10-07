@@ -11,9 +11,19 @@ import pytz
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
+# Загружаем переменные окружения
+from dotenv import load_dotenv
+load_dotenv('.env')
+
 # Конфигурация
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8456369002:AAFaxelo1bXHy2hzv5vUwwt8pMAUVu5SHlM')
+API_BASE_URL = os.getenv('API_BASE_URL')
+BOT_TOKEN = os.getenv('BOT_TOKEN')
+
+# Проверяем наличие переменных
+if not API_BASE_URL:
+    logger.error("❌ API_BASE_URL не установлен в .env файле")
+if not BOT_TOKEN:
+    logger.error("❌ BOT_TOKEN не установлен в .env файле")
 
 # Установите часовой пояс Moscow (UTC+3)
 TIMEZONE = pytz.timezone('Europe/Moscow')
@@ -28,7 +38,11 @@ def initialize_notifications():
     global bot, scheduler, notification_loop
     
     try:
-        bot = Bot(token=BOT_TOKEN)
+        bot_token = os.getenv('BOT_TOKEN')
+        print(f"DEBUG: Initializing notifications with BOT_TOKEN = {bot_token}")
+        if not bot_token:
+            raise ValueError("BOT_TOKEN is not set or empty")
+        bot = Bot(token=bot_token.strip())  # Strip to remove any whitespace
         
         # Создаем отдельный event loop для уведомлений
         notification_loop = asyncio.new_event_loop()

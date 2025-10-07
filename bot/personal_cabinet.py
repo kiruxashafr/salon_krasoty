@@ -5,13 +5,19 @@ import requests
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 from datetime import datetime
+from dotenv import load_dotenv
+# Загружаем переменные окружения
+load_dotenv('.env')
 
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
+API_BASE_URL = os.getenv('API_BASE_URL')
 
+# Проверка наличия переменной
+if not API_BASE_URL:
+    logger.error("❌ API_BASE_URL не установлен в .env файле")
 # Состояния пользователей для личного кабинета
 personal_states = {}
 

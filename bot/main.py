@@ -11,6 +11,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Cont
 from admin import handle_admin_message, admin_states
 from admin import show_admin_panel, handle_admin_callback, handle_admin_message, admin_states
 from personal_cabinet import handle_personal_message, personal_states
+from dotenv import load_dotenv
 bot = None
 
 # Настройка логирования
@@ -19,10 +20,20 @@ logging.basicConfig(
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+# Загружаем переменные окружения
+load_dotenv('.env')
+
+
 
 # Конфигурация
-BOT_TOKEN = os.getenv('BOT_TOKEN', '8456369002:AAFaxelo1bXHy2hzv5vUwwt8pMAUVu5SHlM')
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
+API_BASE_URL = os.getenv('API_BASE_URL')
+
+# Проверка наличия переменной
+if not API_BASE_URL:
+    logger.error("❌ API_BASE_URL не установлен в .env файле")
+
+
+
 
 # Состояния пользователей
 user_states = {}
@@ -1544,7 +1555,11 @@ async def start_callback(query):
 def main():
     """Запуск бота"""
     global bot
-    application = Application.builder().token(BOT_TOKEN).build()
+    bot_token = os.getenv('BOT_TOKEN')
+    print(f"DEBUG: Initializing bot with BOT_TOKEN = {bot_token}")
+    if not bot_token:
+        raise ValueError("BOT_TOKEN is not set or empty in main.py")
+    application = Application.builder().token(bot_token.strip()).build()  # Strip to remove any whitespace
     bot = application.bot  # Сохраняем экземпляр бота
     
     application.add_handler(CommandHandler("start", start))

@@ -7,11 +7,19 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram import InputMediaPhoto
 
+from dotenv import load_dotenv
+# Загружаем переменные окружения
+load_dotenv('.env')
+
 # Настройка логирования
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-API_BASE_URL = os.getenv('API_BASE_URL', 'http://localhost:3011')
+API_BASE_URL = os.getenv('API_BASE_URL')
+
+# Проверка наличия переменной
+if not API_BASE_URL:
+    logger.error("❌ API_BASE_URL не установлен в .env файле")
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать главное меню с мастерами и услугами"""
