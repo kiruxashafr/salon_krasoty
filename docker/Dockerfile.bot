@@ -21,6 +21,7 @@ RUN pip install --no-cache-dir \
 # Копируем файлы бота
 COPY . .
 
+
 # Создаем пользователя для безопасности
 RUN groupadd -r botuser && useradd -r -g botuser botuser
 RUN chown -R botuser:botuser /app

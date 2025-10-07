@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.server
     ports:
-      - "${PORT}:3011"
+      - "${PORT}:${PORT}"
     volumes:
       - ../database.db:/app/database.db
       - ../photo:/app/photo
@@ -14,12 +14,12 @@ services:
       - NODE_ENV=production
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "--max-time", "10", "-f", "http://localhost:3011"]
-      interval: 30s
+      test: ["CMD", "curl", "--max-time", "10", "-f", "http://localhost:${PORT}"]
+      interval: 5s
       timeout: 10s
       retries: 1
     env_file:
-      - ../.env
+      - .env
 
   bot:
     build:
@@ -28,8 +28,10 @@ services:
     volumes:
       - ../bot:/app
     environment:
-      - API_BASE_URL=http://server:3011
+      - API_BASE_URL=http://server:${PORT}
     depends_on:
       server:
         condition: service_healthy
     restart: unless-stopped
+    env_file:
+      - .env  # Добавьте эту строку
