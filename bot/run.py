@@ -18,7 +18,7 @@ def signal_handler(sig, frame):
 
 if __name__ == '__main__':
     # Загружаем переменные окружения из текущей директории
-    load_dotenv('.env')
+    load_dotenv('../.env')
     
     # Проверяем загрузку переменных
     print("BOT_TOKEN:", os.getenv('BOT_TOKEN'))

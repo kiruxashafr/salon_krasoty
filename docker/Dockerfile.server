@@ -15,6 +15,6 @@ RUN apk add --no-cache --virtual .build-deps build-base python3 make g++ \
 COPY server.js ./
 COPY config/ ./config/
 
-EXPOSE ${PORT}
+EXPOSE 3011
 
 CMD ["node", "server.js"]
