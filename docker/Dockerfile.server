@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Копируем package.json отдельно для кэширования
+COPY package*.json ./
+
+# Устанавливаем зависимости с поддержкой sharp и добавляем curl
+RUN apk add --no-cache --virtual .build-deps build-base python3 make g++ \
+    && apk add --no-cache curl \
+    && npm install --include=optional --production --verbose \
+    && apk del .build-deps
+
+# Копируем остальные файлы
+COPY server.js ./
+COPY config/ ./config/
+
+EXPOSE 3011
+
+CMD ["node", "server.js"]

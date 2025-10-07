@@ -106,7 +106,6 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await show_master_appointments(update, context, user_id)
     elif data == 'admin_my_freetime':
         await show_master_freetime(update, context, user_id)
-    # ДОБАВЬТЕ ЭТИ ОБРАБОТЧИКИ ДЛЯ РАССЫЛКИ:
     elif data == 'admin_broadcast':
         await show_broadcast_menu(update, context, user_id)
     elif data == 'admin_broadcast_menu':
@@ -117,10 +116,24 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await show_clients_list(update, context, user_id)
     elif data == 'admin_confirm_broadcast':
         await confirm_and_send_broadcast(update, context, user_id)
+    # ДОБАВЬТЕ ЭТИ ОБРАБОТЧИКИ:
+    elif data.startswith('admin_select_service_'):
+        service_id = data.split('_')[3]
+        await select_date_for_freetime(update, context, service_id)
+    elif data.startswith('admin_select_date_'):
+        date_str = data.split('_')[3]
+        await enter_time_for_freetime(update, context, date_str)
+    elif data == 'admin_back_to_services':
+        await select_service_for_freetime(update, context)
+    elif data == 'admin_back_to_records':
+        await show_my_records_menu(update, context, user_id)
     else:
         # Если callback не распознан, показываем админ-панель
         logger.warning(f"Неизвестный callback: {data}")
         await show_admin_panel(update, context)
+
+
+
 async def show_my_records_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
     """Показать меню 'Мои записи' с выбором типа"""
     query = update.callback_query
@@ -380,16 +393,20 @@ async def enter_time_for_freetime(update: Update, context: ContextTypes.DEFAULT_
     admin_states[user_id] = user_data
     
     # Отправляем новое сообщение с инструкцией
-    await query.message.reply_text(
+    instruction_message = await query.message.reply_text(
         f"⏰ Введите время для {formatted_date} в формате ЧЧ:ММ\n\n"
         "Пример: 14:30 или 09:00\n"
         "Время должно быть кратно 5 минутам (00, 05, 10, ..., 55)\n\n"
         "Для отмены нажмите /cancel",
         reply_markup=InlineKeyboardMarkup([
-            [InlineKeyboardButton("↲ Назад", callback_data=f'admin_select_service_{user_data["service_id"]}')],
+            [InlineKeyboardButton("↲ Назад к выбору даты", callback_data=f'admin_select_service_{user_data["service_id"]}')],
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ])
     )
+    
+    # Сохраняем ID сообщения с инструкцией
+    user_data['instruction_message_id'] = instruction_message.message_id
+    admin_states[user_id] = user_data
 
 
 async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -409,7 +426,7 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
         state = admin_states[user_id]
 
         if state['step'] == 'enter_time':
-            # Обработка добавления времени (существующий код)
+            # Обработка добавления времени
             time_str = text
             if not validate_time(time_str):
                 await update.message.reply_text(
@@ -427,15 +444,19 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
             date_str = state['date']
 
             try:
-                # Создаем свободное время
-                response = requests.post(f"{API_BASE_URL}/api/freetime", json={
-                    'specialistId': master_id,
-                    'serviceId': service_id,
-                    'date': date_str,
-                    'time': time_str
-                })
+                # Создаем свободное время через API
+                schedule_data = {
+                    'дата': date_str,
+                    'время': time_str,
+                    'мастер_id': int(master_id),
+                    'услуга_id': int(service_id),
+                    'доступно': 1
+                }
 
-                if response.json().get('message') == 'success':
+                response = requests.post(f"{API_BASE_URL}/api/schedule", 
+                                       json=schedule_data)
+
+                if response.status_code == 200 and response.json().get('message') == 'success':
                     await update.message.reply_text("✅ Свободное время успешно добавлено!")
                     
                     # Очищаем состояние
@@ -445,14 +466,13 @@ async def handle_admin_message(update: Update, context: ContextTypes.DEFAULT_TYP
                     # Возвращаем в админ-панель
                     await show_admin_panel(update, context)
                 else:
-                    await update.message.reply_text("❌ Ошибка при добавлении свободного времени")
+                    error_msg = response.json().get('error', 'Неизвестная ошибка')
+                    await update.message.reply_text(f"❌ Ошибка при добавлении свободного времени: {error_msg}")
 
             except Exception as e:
                 logger.error(f"Error adding free time: {e}")
                 await update.message.reply_text("❌ Ошибка подключения к серверу")
                 
-            pass
-            
         elif state['step'] == 'broadcast_message':
             # Обработчик для сообщения рассылки
             await process_broadcast_message(update, context, user_id)

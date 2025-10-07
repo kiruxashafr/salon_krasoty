@@ -1,0 +1,29 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Устанавливаем системные зависимости
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Копируем requirements.txt если есть, или устанавливаем зависимости напрямую
+COPY requirements.txt ./
+
+# Если нет requirements.txt, установим зависимости напрямую
+RUN pip install --no-cache-dir \
+    python-telegram-bot==20.7 \
+    python-dotenv==1.0.0 \
+    requests==2.31.0 \
+    APScheduler==3.10.4 \
+    pytz==2023.3
+
+# Копируем файлы бота
+COPY . .
+
+# Создаем пользователя для безопасности
+RUN groupadd -r botuser && useradd -r -g botuser botuser
+RUN chown -R botuser:botuser /app
+USER botuser
+
+CMD ["python", "run.py"]

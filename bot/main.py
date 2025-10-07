@@ -1439,90 +1439,101 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "📞 Теперь введите ваш телефон в формате +7XXXXXXXXXX:\n\n"
                 "Пример: +79255355278"
             )
+            return  # Добавляем return чтобы избежать выполнения дальнейшего кода
             
-    elif user_data.get('step') == 'phone':
-        if not validate_phone(text):
-            await update.message.reply_text(
-                "❌ Неверный формат телефона!\n\n"
-                "Пожалуйста, введите телефон в формате +7XXXXXXXXXX\n"
-                "Пример: +79255355278"
-            )
-            return
-        
-        user_data['client_phone'] = text
-        
-        try:
-            # Сначала проверяем есть ли клиент с таким телефоном
-            client_check_response = requests.get(f"{API_BASE_URL}/api/client/by-phone/{user_data['client_phone']}")
-            client_data = client_check_response.json()
+        elif user_data.get('step') == 'phone':
+            if not validate_phone(text):
+                await update.message.reply_text(
+                    "❌ Неверный формат телефона!\n\n"
+                    "Пожалуйста, введите телефон в формате +7XXXXXXXXXX\n"
+                    "Пример: +79255355278"
+                )
+                return
             
-            client_id = None
-            if client_data['message'] == 'success' and client_data['data']:
-                # Клиент существует - обновляем tg_id
-                client_id = client_data['data']['id']
-                update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={
-                    'tg_id': str(user_id)
-                })
-            else:
-                # Создаем нового клиента с tg_id
-                create_response = requests.post(f"{API_BASE_URL}/api/client", json={
-                    'имя': user_data['client_name'],
-                    'телефон': user_data['client_phone'],
-                    'tg_id': str(user_id)
-                })
-                if create_response.json()['message'] == 'success':
-                    client_id = create_response.json()['data']['id']
+            user_data['client_phone'] = text
             
-            if client_id:
-                # Создаем запись
-                response = requests.post(f"{API_BASE_URL}/api/appointment", json={
-                    'specialistId': user_data['specialist_id'],
-                    'serviceId': user_data['service_id'],
-                    'date': user_data['date'],
-                    'time': user_data['time'],
-                    'clientName': user_data['client_name'],
-                    'clientPhone': user_data['client_phone']
-                })
+            try:
+                # Сначала проверяем есть ли клиент с таким телефоном
+                client_check_response = requests.get(f"{API_BASE_URL}/api/client/by-phone/{user_data['client_phone']}")
+                client_data = client_check_response.json()
                 
-                if response.json().get('message') == 'success':
-                    keyboard = [
-                        [InlineKeyboardButton("📋 Личный кабинет", callback_data='personal_cabinet')],
-                        [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                    ]
-                    reply_markup = InlineKeyboardMarkup(keyboard)
-                    
-                    await update.message.reply_text(
-                        "✅ Запись успешно создана!\n\n"
-                        "📌 Мы напомним вам о записи:\n"
-                        "• За день до визита (в 18:00)\n"
-                        "• За час до записи\n\n"
-                        "📋 Все ваши записи можно посмотреть в личном кабинете",
-                        reply_markup=reply_markup
-                    )
-                    
-                    requests.patch(f"{API_BASE_URL}/api/schedule/{user_data['schedule_id']}", json={
-                        'доступно': 0
+                client_id = None
+                if client_data['message'] == 'success' and client_data['data']:
+                    # Клиент существует - обновляем tg_id
+                    client_id = client_data['data']['id']
+                    update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={
+                        'tg_id': str(user_id)
+                    })
+                else:
+                    # Создаем нового клиента с tg_id
+                    create_response = requests.post(f"{API_BASE_URL}/api/client", json={
+                        'имя': user_data['client_name'],
+                        'телефон': user_data['client_phone'],
+                        'tg_id': str(user_id)
+                    })
+                    if create_response.json()['message'] == 'success':
+                        client_id = create_response.json()['data']['id']
+                
+                if client_id:
+                    # Создаем запись
+                    response = requests.post(f"{API_BASE_URL}/api/appointment", json={
+                        'specialistId': user_data['specialist_id'],
+                        'serviceId': user_data['service_id'],
+                        'date': user_data['date'],
+                        'time': user_data['time'],
+                        'clientName': user_data['client_name'],
+                        'clientPhone': user_data['client_phone']
                     })
                     
+                    if response.json().get('message') == 'success':
+                        keyboard = [
+                            [InlineKeyboardButton("📋 Личный кабинет", callback_data='personal_cabinet')],
+                            [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                        ]
+                        reply_markup = InlineKeyboardMarkup(keyboard)
+                        
+                        await update.message.reply_text(
+                            "✅ Запись успешно создана!\n\n"
+                            "📌 Мы напомним вам о записи:\n"
+                            "• За день до визита (в 18:00)\n"
+                            "• За час до записи\n\n"
+                            "📋 Все ваши записи можно посмотреть в личном кабинете",
+                            reply_markup=reply_markup
+                        )
+                        
+                        requests.patch(f"{API_BASE_URL}/api/schedule/{user_data['schedule_id']}", json={
+                            'доступно': 0
+                        })
+                        
+                    else:
+                        await update.message.reply_text("❌ Ошибка при создании записи")
                 else:
-                    await update.message.reply_text("❌ Ошибка при создании записи")
-            else:
-                await update.message.reply_text("❌ Ошибка при создании клиента")
-                
-        except Exception as e:
-            logger.error(f"Error creating appointment: {e}")
-            await update.message.reply_text("❌ Ошибка подключения к серверу")
-        
-        del user_states[user_id]
+                    await update.message.reply_text("❌ Ошибка при создании клиента")
+                    
+            except Exception as e:
+                logger.error(f"Error creating appointment: {e}")
+                await update.message.reply_text("❌ Ошибка подключения к серверу")
+            
+            del user_states[user_id]
+            return  # Добавляем return чтобы избежать выполнения дальнейшего кода
     
     # Проверяем для личного кабинета
     elif user_id in personal_states:
         await handle_personal_message(update, context)
+        return  # Добавляем return
     
     # Проверяем для админ панели
     elif user_id in admin_states:
         await handle_admin_message(update, context)
-
+        return  # Добавляем return
+    
+    # Если сообщение не обработано ни одним из обработчиков
+    await update.message.reply_text(
+        "Я не понимаю эту команду. Используйте кнопки меню для навигации.",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+        ])
+    )
 
 
 async def start_callback(query):
