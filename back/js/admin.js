@@ -933,68 +933,7 @@ function cancelAddAppointment() {
     isAddFormOpen = false;
 }
 
-// Обновленный обработчик добавления записи
-async function handleAddAppointment(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const phoneDigits = formData.get('clientPhone');
-    const hours = parseInt(formData.get('hours'));
-    const minutes = parseInt(formData.get('minutes'));
-    
-    // Валидация времени
-    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        showError('Пожалуйста, введите корректное время');
-        return;
-    }
-    
-    // Форматируем время в формат HH:MM
-    const time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    
-    // Валидация телефона
-    if (phoneDigits.length !== 10 || !/^\d+$/.test(phoneDigits)) {
-        showError('Пожалуйста, введите корректный номер телефона (10 цифр)');
-        return;
-    }
-    
-    const appointmentData = {
-        specialistId: window.currentSpecialistId,
-        serviceId: formData.get('serviceId'),
-        date: window.selectedDate,
-        time: time,
-        clientName: formData.get('clientName'),
-        clientPhone: '+7' + phoneDigits
-    };
-    
-  try {
-        const response = await fetch('/api/admin/appointment', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(appointmentData)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка добавления записи');
-        }
-        
-        const data = await response.json();
-        if (data.message === 'success') {
-            showSuccess('Запись успешно добавлена!');
-            // Закрываем форму
-            cancelAddAppointment();
-            // Перезагружаем записи
-            loadAppointmentsForDate(window.selectedDate);
-            // Обновляем календарь
-            generateCalendar();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось добавить запись: ' + error.message);
-    }
-}
+
 // Обработчик изменения ориентации устройства
 window.addEventListener('orientationchange', function() {
     setTimeout(function() {
@@ -1021,8 +960,6 @@ function selectDate(date, day) {
         year: 'numeric'
     });
     
-
-    
     // Показываем список записей
     const appointmentsList = document.getElementById('appointmentsList');
     appointmentsList.style.display = 'block';
@@ -1040,12 +977,14 @@ function selectDate(date, day) {
     today.setHours(0, 0, 0, 0);
     const selectedDateObj = new Date(date);
     
-    if (selectedDateObj >= today && !document.querySelector('.add-appointment-btn')) {
+    // ИСПРАВЛЕНИЕ: Проверяем существование элемента перед использованием
+    const appointmentsHeader = appointmentsList.querySelector('h3');
+    if (appointmentsHeader && !document.querySelector('.add-appointment-btn')) {
         const addBtn = document.createElement('button');
         addBtn.className = 'btn btn-primary add-appointment-btn';
         addBtn.textContent = '✚ Добавить запись';
         addBtn.onclick = showAddAppointmentForm;
-        appointmentsList.querySelector('h3').after(addBtn);
+        appointmentsHeader.after(addBtn);
     } else {
         // Удаляем кнопку, если она есть для прошедших дат
         const existingBtn = document.querySelector('.add-appointment-btn');
@@ -1253,6 +1192,7 @@ async function handleEditAppointment(e) {
     const phoneDigits = formData.get('clientPhone');
     const hours = parseInt(formData.get('hours'));
     const minutes = parseInt(formData.get('minutes'));
+    const newDate = formData.get('date');
     
     // Получаем выбранную услугу из формы
     const selectedServiceId = formData.get('serviceId');
@@ -1264,18 +1204,50 @@ async function handleEditAppointment(e) {
     
     // Валидация
     if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
-        alert('Пожалуйста, введите корректное время');
+        showError('Пожалуйста, введите корректное время');
         return;
     }
     
     if (phoneDigits.length !== 10 || !/^\d+$/.test(phoneDigits)) {
-        alert('Пожалуйста, введите корректный номер телефона (10 цифр)');
+        showError('Пожалуйста, введите корректный номер телефона (10 цифр)');
         return;
     }
     
+    const newTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    // Получаем текущие данные записи для сравнения
+    const originalDate = window.originalAppointmentData.дата;
+    const originalTime = window.originalAppointmentData.время;
+    
+    // Проверяем, изменились ли дата или время
+    const dateChanged = originalDate !== newDate;
+    const timeChanged = originalTime !== newTime;
+    
+    // Проверяем доступность времени только если дата или время изменились
+    if (dateChanged || timeChanged) {
+        try {
+            const availabilityCheck = await checkTimeAvailability(
+                window.currentSpecialistId, 
+                newDate,
+                newTime, 
+                appointmentId
+            );
+            
+            if (availabilityCheck && !availabilityCheck.available) {
+                showError(`Время ${newTime} уже занято. Выберите другое время.`);
+                return;
+            }
+            
+        } catch (error) {
+            console.error('Ошибка проверки доступности:', error);
+            // Продолжаем без блокировки, но с предупреждением
+            showInfo('Не удалось проверить доступность времени. Пожалуйста, убедитесь, что время свободно.');
+        }
+    }
+    
     const appointmentData = {
-        date: formData.get('date'),
-        time: `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`,
+        date: newDate,
+        time: newTime,
         clientName: formData.get('clientName'),
         clientPhone: '+7' + phoneDigits
     };
@@ -1301,14 +1273,148 @@ async function handleEditAppointment(e) {
         
         const data = await response.json();
         if (data.message === 'success') {
-            alert('Запись успешно обновлена!');
+            showSuccess('Запись успешно обновлена!');
             cancelEditAppointment();
             loadAppointmentsForDate(window.selectedDate);
             generateCalendar();
         }
     } catch (error) {
         console.error('Ошибка:', error);
-        alert('Не удалось обновить запись: ' + error.message);
+        showError('Не удалось обновить запись: ' + error.message);
+    }
+}
+
+// Обновленная функция handleAddAppointment
+async function handleAddAppointment(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const phoneDigits = formData.get('clientPhone');
+    const hours = parseInt(formData.get('hours'));
+    const minutes = parseInt(formData.get('minutes'));
+    const date = formData.get('date'); // ДОБАВЬТЕ ЭТУ СТРОКУ
+    
+    // Валидация времени
+    if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
+        showError('Пожалуйста, введите корректное время');
+        return;
+    }
+    
+    // Форматируем время в формат HH:MM
+    const time = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    
+    // Валидация телефона
+    if (phoneDigits.length !== 10 || !/^\d+$/.test(phoneDigits)) {
+        showError('Пожалуйста, введите корректный номер телефона (10 цифр)');
+        return;
+    }
+    
+    // Исправленная проверка доступности
+    try {
+        const availabilityCheck = await checkTimeAvailability(
+            window.currentSpecialistId, 
+            date, // ИСПРАВЛЕНО: используем date вместо newDate
+            time, // ИСПРАВЛЕНО: используем time вместо newTime
+            null // Для новой записи нет appointmentId для исключения
+        );
+        
+        if (availabilityCheck && !availabilityCheck.available) {
+            showError(`Время ${time} уже занято. Выберите другое время.`);
+            return;
+        }
+        
+    } catch (error) {
+        console.error('Ошибка проверки доступности:', error);
+        // Продолжаем без блокировки, но с предупреждением
+        showInfo('Не удалось проверить доступность времени. Пожалуйста, убедитесь, что время свободно.');
+    }
+    
+    const appointmentData = {
+        specialistId: window.currentSpecialistId,
+        serviceId: formData.get('serviceId'),
+        date: date,
+        time: time,
+        clientName: formData.get('clientName'),
+        clientPhone: '+7' + phoneDigits
+    };
+    
+    try {
+        const response = await fetch('/api/admin/appointment', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(appointmentData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка добавления записи');
+        }
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            showSuccess('Запись успешно добавлена!');
+            // Закрываем форму
+            cancelAddAppointment();
+            // Перезагружаем записи
+            loadAppointmentsForDate(window.selectedDate);
+            // Обновляем календарь
+            generateCalendar();
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Не удалось добавить запись: ' + error.message);
+    }
+}
+
+// Улучшенная функция для проверки доступности времени
+async function checkTimeAvailability(specialistId, date, time, excludeAppointmentId = null) {
+    try {
+        const params = new URLSearchParams({
+            specialistId: specialistId,
+            date: date,
+            time: time
+        });
+        
+        if (excludeAppointmentId) {
+            params.append('excludeAppointmentId', excludeAppointmentId);
+        }
+        
+        console.log('Проверка доступности времени:', { specialistId, date, time, excludeAppointmentId });
+        
+        const response = await fetch(`/api/check-time-availability?${params}`);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Результат проверки:', data);
+        return data;
+    } catch (error) {
+        console.error('Ошибка проверки доступности времени:', error);
+        // В случае ошибки считаем время доступным, чтобы не блокировать пользователя
+        return { available: true, conflictingAppointments: 0 };
+    }
+}
+// Добавьте эту функцию для показа загрузки при проверке
+async function checkTimeAvailabilityWithLoading(specialistId, date, time, excludeAppointmentId = null) {
+    // Показываем индикатор загрузки
+    const submitBtn = document.querySelector('#editAppointmentForm button[type="submit"]') || 
+                     document.querySelector('#addAppointmentForm button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Проверка времени...';
+    submitBtn.disabled = true;
+    
+    try {
+        const result = await checkTimeAvailability(specialistId, date, time, excludeAppointmentId);
+        return result;
+    } finally {
+        // Восстанавливаем кнопку
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
     }
 }
 

@@ -15,7 +15,7 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "--max-time", "10", "-f", "http://localhost:${PORT}"]
-      interval: 5s
+      interval: 1s
       timeout: 10s
       retries: 1
     env_file:
