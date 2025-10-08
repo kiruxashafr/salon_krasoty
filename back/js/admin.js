@@ -1018,8 +1018,11 @@ function showEditAppointmentForm(appointment) {
         <div class="edit-appointment-form" id="editAppointmentFormContainer">
             <h3>Редактировать запись</h3>
             <button class="btn btn-danger btn-sm" onclick="cancelEditAppointment()" style="margin-bottom: 1rem;">
-                ✖ Отменить
+                ✖ Отменить редактирование
             </button>
+            
+
+            
             <form id="editAppointmentForm" data-appointment-id="${appointment.id}">
                 <div class="form-row">
                     <div class="form-group">
@@ -1040,21 +1043,36 @@ function showEditAppointmentForm(appointment) {
                         </div>
                     </div>
                 </div>
-                
-                <div class="form-group">
-                    <label>Имя клиента:</label>
-                    <input type="text" class="form-control" name="clientName" value="${appointment.клиент_имя}" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Текущая услуга:</label>
-                    <div class="current-service-display" style="padding: 10px; background: #f0f8ff; border-radius: 5px; margin-bottom: 10px;">
-                        <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
-                        <input type="hidden" id="originalServiceId" value="${appointment.услуга_id}">
+
+                <div class="current-info-section">
+                    <div class="current-info-group">
+                        <label>Текущий мастер:</label>
+                        <div class="current-info-display">
+                            <strong>${appointment.мастер_имя}</strong>
+                            <input type="hidden" id="originalMasterId" value="${appointment.мастер_id}">
+                        </div>
                     </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
-                        ✏️ Изменить услугу
-                    </button>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleMasterSelection()" id="toggleMasterBtn">
+                    🔄 Сменить мастера
+                </button>
+                                <div class="form-group service-selection" id="masterSelection" style="display: none;">
+                    <label>Выберите нового мастера:</label>
+                    <div class="masters-selection-compact" id="mastersSelectionCompact">
+                        <div class="loading">Загрузка списка мастеров...</div>
+                    </div>
+                    <small style="color: #666;">Выберите мастера из списка выше</small>
+                </div>
+                    
+                    <div class="current-info-group">
+                        <label>Текущая услуга:</label>
+                        <div class="current-info-display">
+                            <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
+                            <input type="hidden" id="originalServiceId" value="${appointment.услуга_id}">
+                        </div>
+                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
+                    ✏️ Изменить услугу
+                </button>
                 </div>
                 
                 <div class="form-group service-selection" id="serviceSelection" style="display: none;">
@@ -1065,6 +1083,13 @@ function showEditAppointmentForm(appointment) {
                     </select>
                     <small style="color: #666;">Оставьте "Выберите услугу" чтобы не менять услугу</small>
                 </div>
+                
+                <div class="form-group">
+                    <label>Имя клиента:</label>
+                    <input type="text" class="form-control" name="clientName" value="${appointment.клиент_имя}" required>
+                </div>
+                
+
                 
                 <div class="form-group">
                     <label>Телефон клиента:</label>
@@ -1091,6 +1116,9 @@ function showEditAppointmentForm(appointment) {
     
     // Загружаем услуги для выбора
     loadServicesForEditForm(appointment.услуга_id);
+    
+    // Загружаем мастеров для выбора
+    loadMastersForCompactSelection(appointment.мастер_id);
     
     // Прокручиваем к форме
     setTimeout(() => {
@@ -1131,7 +1159,6 @@ function showEditAppointmentForm(appointment) {
 }
 
 // Функция для переключения отображения выбора услуги
-// Обновленная функция для переключения отображения выбора услуги
 function toggleServiceSelection() {
     const serviceSelection = document.getElementById('serviceSelection');
     const toggleBtn = document.getElementById('toggleServiceBtn');
@@ -1141,6 +1168,12 @@ function toggleServiceSelection() {
         toggleBtn.textContent = '✖ Отменить изменение услуги';
         toggleBtn.classList.remove('btn-outline-primary');
         toggleBtn.classList.add('btn-outline-secondary');
+        
+        // Скрываем выбор мастера если он открыт
+        const masterSelection = document.getElementById('masterSelection');
+        if (masterSelection.style.display !== 'none') {
+            toggleMasterSelection();
+        }
     } else {
         serviceSelection.style.display = 'none';
         toggleBtn.textContent = '✏️ Изменить услугу';
@@ -1199,8 +1232,16 @@ async function handleEditAppointment(e) {
     // Получаем оригинальную услугу из скрытого поля
     const originalServiceId = document.getElementById('originalServiceId')?.value;
     
+    // Получаем выбранного мастера из компактной формы
+    const selectedMasterId = window.selectedNewMasterId;
+    // Получаем оригинального мастера из скрытого поля
+    const originalMasterId = document.getElementById('originalMasterId')?.value;
+    
     // Определяем, менялась ли услуга
     const serviceChanged = selectedServiceId && selectedServiceId !== '' && selectedServiceId !== originalServiceId;
+    
+    // Определяем, менялся ли мастер
+    const masterChanged = selectedMasterId && selectedMasterId !== originalMasterId;
     
     // Валидация
     if (isNaN(hours) || isNaN(minutes) || hours < 0 || hours > 23 || minutes < 0 || minutes > 59) {
@@ -1223,24 +1264,23 @@ async function handleEditAppointment(e) {
     const dateChanged = originalDate !== newDate;
     const timeChanged = originalTime !== newTime;
     
-    // Проверяем доступность времени только если дата или время изменились
-    if (dateChanged || timeChanged) {
+    // Если мастер изменился, проверяем доступность времени у нового мастера
+    if (masterChanged && (dateChanged || timeChanged)) {
         try {
             const availabilityCheck = await checkTimeAvailability(
-                window.currentSpecialistId, 
+                selectedMasterId, 
                 newDate,
                 newTime, 
                 appointmentId
             );
             
             if (availabilityCheck && !availabilityCheck.available) {
-                showError(`Время ${newTime} уже занято. Выберите другое время.`);
+                showError(`Время ${newTime} уже занято у выбранного мастера. Выберите другое время.`);
                 return;
             }
             
         } catch (error) {
             console.error('Ошибка проверки доступности:', error);
-            // Продолжаем без блокировки, но с предупреждением
             showInfo('Не удалось проверить доступность времени. Пожалуйста, убедитесь, что время свободно.');
         }
     }
@@ -1257,6 +1297,33 @@ async function handleEditAppointment(e) {
         appointmentData.serviceId = selectedServiceId;
     }
     
+    // Если мастер изменился, отправляем отдельный запрос на смену мастера
+    if (masterChanged) {
+        try {
+            const response = await fetch(`/api/appointment/${appointmentId}/change-master`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ newMasterId: selectedMasterId })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка смены мастера');
+            }
+            
+            const changeMasterData = await response.json();
+            console.log('Мастер успешно изменен:', changeMasterData);
+            
+        } catch (error) {
+            console.error('Ошибка смены мастера:', error);
+            showError('Не удалось сменить мастера: ' + error.message);
+            return;
+        }
+    }
+    
+    // Отправляем основные изменения записи
     try {
         const response = await fetch(`/api/appointment/${appointmentId}`, {
             method: 'PUT',
@@ -1273,7 +1340,7 @@ async function handleEditAppointment(e) {
         
         const data = await response.json();
         if (data.message === 'success') {
-            showSuccess('Запись успешно обновлена!');
+            showSuccess('Запись успешно обновлена!' + (masterChanged ? ' Мастер изменен.' : ''));
             cancelEditAppointment();
             loadAppointmentsForDate(window.selectedDate);
             generateCalendar();
@@ -1283,6 +1350,110 @@ async function handleEditAppointment(e) {
         showError('Не удалось обновить запись: ' + error.message);
     }
 }
+
+
+
+
+
+
+
+// Функция для переключения отображения выбора мастера
+function toggleMasterSelection() {
+    const masterSelection = document.getElementById('masterSelection');
+    const toggleBtn = document.getElementById('toggleMasterBtn');
+    
+    if (masterSelection.style.display === 'none') {
+        masterSelection.style.display = 'block';
+        toggleBtn.textContent = '✖ Отменить смену мастера';
+        toggleBtn.classList.remove('btn-outline-primary');
+        toggleBtn.classList.add('btn-outline-secondary');
+        
+        // Скрываем выбор услуги если он открыт
+        const serviceSelection = document.getElementById('serviceSelection');
+        if (serviceSelection.style.display !== 'none') {
+            toggleServiceSelection();
+        }
+    } else {
+        masterSelection.style.display = 'none';
+        toggleBtn.textContent = '🔄 Сменить мастера';
+        toggleBtn.classList.remove('btn-outline-secondary');
+        toggleBtn.classList.add('btn-outline-primary');
+        
+        // Сбрасываем выбор мастера при закрытии
+        document.querySelectorAll('.master-option-compact').forEach(option => {
+            option.classList.remove('selected');
+        });
+    }
+}
+
+// Функция для загрузки мастеров в компактную форму
+async function loadMastersForCompactSelection(currentMasterId) {
+    try {
+        const response = await fetch('/api/specialists');
+        if (!response.ok) throw new Error('Ошибка загрузки мастеров');
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            displayMastersForCompactSelection(data.data, currentMasterId);
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        document.getElementById('mastersSelectionCompact').innerHTML = 
+            '<div class="error">Не удалось загрузить список мастеров</div>';
+    }
+}
+
+// Функция для отображения мастеров в компактной форме
+function displayMastersForCompactSelection(masters, currentMasterId) {
+    const mastersContainer = document.getElementById('mastersSelectionCompact');
+    
+    if (!masters || masters.length === 0) {
+        mastersContainer.innerHTML = '<div class="error">Нет доступных мастеров</div>';
+        return;
+    }
+
+    let mastersHTML = '';
+    
+    masters.forEach(master => {
+        const isCurrentMaster = parseInt(master.id) === parseInt(currentMasterId);
+        const imageUrl = master.фото || 'photo/работники/default.jpg';
+        
+        mastersHTML += `
+            <div class="master-option-compact ${isCurrentMaster ? 'current' : ''}" 
+                 data-master-id="${master.id}" 
+                 onclick="${isCurrentMaster ? '' : `selectMasterOption(${master.id})`}">
+                <div class="master-option-image" style="background-image: url('${imageUrl}')"></div>
+                <div class="master-option-info">
+                    <h5>
+                        ${master.имя} 
+                        ${isCurrentMaster ? '<span class="current-badge-compact">(текущий)</span>' : ''}
+                    </h5>
+                    <p>${master.описание || 'Профессиональный мастер'}</p>
+                </div>
+            </div>
+        `;
+    });
+    
+    mastersContainer.innerHTML = mastersHTML;
+}
+
+// Функция для выбора мастера в компактной форме
+function selectMasterOption(masterId) {
+    // Снимаем выделение со всех опций
+    document.querySelectorAll('.master-option-compact').forEach(option => {
+        option.classList.remove('selected');
+    });
+    
+    // Выделяем выбранную опцию
+    const selectedOption = document.querySelector(`[data-master-id="${masterId}"]`);
+    if (selectedOption) {
+        selectedOption.classList.add('selected');
+    }
+    
+    // Сохраняем выбранного мастера в глобальной переменной
+    window.selectedNewMasterId = masterId;
+}
+
 
 // Обновленная функция handleAddAppointment
 async function handleAddAppointment(e) {

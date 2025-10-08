@@ -1235,9 +1235,6 @@ app.get('/api/appointments', (req, res) => {
     });
 });
 
-// API endpoint to cancel appointment
-// API endpoint to update appointment - ИСПРАВЛЕННАЯ ВЕРСИЯ
-// API endpoint to update appointment - УПРОЩЕННАЯ ВЕРСИЯ (без проверки расписания)
 app.put('/api/appointment/:id', (req, res) => {
     const appointmentId = req.params.id;
     const { date, time, clientName, clientPhone, serviceId } = req.body;
@@ -1372,6 +1369,107 @@ app.put('/api/appointment/:id', (req, res) => {
     });
 });
 
+
+
+// server.js - добавить после существующих endpoints
+
+// API endpoint для смены мастера у записи
+app.patch('/api/appointment/:id/change-master', (req, res) => {
+    const appointmentId = req.params.id;
+    const { newMasterId } = req.body;
+
+    if (!newMasterId) {
+        return res.status(400).json({ error: 'ID нового мастера обязателен' });
+    }
+
+    // Начинаем транзакцию
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+
+        // 1. Получаем текущие данные записи
+        const getAppointmentSql = `
+            SELECT дата, время, услуга_id, мастер_id 
+            FROM записи 
+            WHERE id = ?
+        `;
+
+        db.get(getAppointmentSql, [appointmentId], (err, appointment) => {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+
+            if (!appointment) {
+                db.run("ROLLBACK");
+                res.status(404).json({ error: 'Запись не найдена' });
+                return;
+            }
+
+            // 2. Проверяем, не занято ли время у нового мастера
+            const checkConflictSql = `
+                SELECT id FROM записи 
+                WHERE мастер_id = ? 
+                AND дата = ? 
+                AND время = ?
+                AND id != ?
+            `;
+
+            db.get(checkConflictSql, [newMasterId, appointment.дата, appointment.время, appointmentId], (err, conflictRow) => {
+                if (err) {
+                    db.run("ROLLBACK");
+                    res.status(500).json({ error: err.message });
+                    return;
+                }
+
+                if (conflictRow) {
+                    db.run("ROLLBACK");
+                    res.status(409).json({ error: 'У выбранного мастера уже есть запись на это время' });
+                    return;
+                }
+
+                // 3. Обновляем мастера у записи
+                const updateMasterSql = `UPDATE записи SET мастер_id = ? WHERE id = ?`;
+                
+                db.run(updateMasterSql, [newMasterId, appointmentId], function(err) {
+                    if (err) {
+                        db.run("ROLLBACK");
+                        res.status(500).json({ error: err.message });
+                        return;
+                    }
+
+                    // 4. Удаляем старые уведомления, так как запись изменилась
+                    const deleteNotificationsSql = "DELETE FROM уведомления WHERE запись_id = ?";
+                    db.run(deleteNotificationsSql, [appointmentId], function(err) {
+                        if (err) {
+                            db.run("ROLLBACK");
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+
+                        // Коммитим транзакцию
+                        db.run("COMMIT", function(err) {
+                            if (err) {
+                                db.run("ROLLBACK");
+                                res.status(500).json({ error: err.message });
+                                return;
+                            }
+
+                            res.json({
+                                message: "success",
+                                data: {
+                                    id: appointmentId,
+                                    newMasterId: newMasterId,
+                                    oldMasterId: appointment.мастер_id
+                                }
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    });
+});
 // API endpoint для проверки доступности времени - ДОБАВЬТЕ ЛОГИРОВАНИЕ
 app.get('/api/check-time-availability', (req, res) => {
     const { specialistId, date, time, excludeAppointmentId } = req.query;
