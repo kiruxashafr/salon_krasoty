@@ -103,12 +103,61 @@ function filterServicesWithAvailability(services) {
                 .map(result => result.service);
 
             console.log('Available services:', availableServices);
-            displayServices(availableServices);
+            
+            // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: проверяем есть ли хоть один специалист с валидными временными слотами
+            const servicesWithValidSpecialistsPromises = availableServices.map(service => {
+                return checkServiceHasValidSpecialists(service.id, startDate, endDate)
+                    .then(hasValidSpecialists => ({ service, hasValidSpecialists }));
+            });
+
+            return Promise.all(servicesWithValidSpecialistsPromises);
+        })
+        .then(servicesWithValidSpecialists => {
+            const validServices = servicesWithValidSpecialists
+                .filter(result => result.hasValidSpecialists)
+                .map(result => result.service);
+
+            console.log('Services with valid specialists:', validServices);
+            displayServices(validServices);
         })
         .catch(error => {
             console.error('Error filtering services:', error);
             displayServices([]);
         });
+}
+
+// Новая функция для проверки наличия валидных специалистов у услуги
+function checkServiceHasValidSpecialists(serviceId, startDate, endDate) {
+    return new Promise((resolve) => {
+        fetch(`/api/service/${serviceId}/specialists`)
+            .then(response => {
+                if (!response.ok) {
+                    resolve(false);
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    resolve(false);
+                    return;
+                }
+
+                // Проверяем каждого специалиста на наличие валидных временных слотов
+                const specialistPromises = data.data.map(specialist => {
+                    return checkSpecialistHasValidTimeSlots(serviceId, specialist.id, startDate, endDate);
+                });
+
+                Promise.all(specialistPromises)
+                    .then(results => {
+                        // Если есть хотя бы один специалист с валидными слотами
+                        const hasValidSpecialists = results.some(hasSlots => hasSlots === true);
+                        resolve(hasValidSpecialists);
+                    })
+                    .catch(() => resolve(false));
+            })
+            .catch(() => resolve(false));
+    });
 }
 
 function checkSpecialistsAvailability(serviceId, specialists, startDate, endDate) {
@@ -213,6 +262,7 @@ function openServiceModal(serviceId) {
                     })
                     .then(specialistsData => {
                         if (specialistsData.message === 'success') {
+                            // Используем существующую функцию с дополнительной проверкой
                             filterSpecialistsWithAvailableTime(serviceId, serviceData.data, specialistsData.data);
                         } else {
                             console.error('Error fetching specialists for service:', specialistsData.error);
@@ -269,8 +319,96 @@ function filterSpecialistsWithAvailableTime(serviceId, service, specialists) {
             
             if (availableSpecialists.length === 0) {
                 showNoSpecialistsMessage(service);
+                return;
+            }
+
+            // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: проверяем есть ли хоть одно валидное время у доступных специалистов
+            const specialistsWithValidTimePromises = availableSpecialists.map(specialist => {
+                return checkSpecialistHasValidTimeSlots(serviceId, specialist.id, startDate, endDate)
+                    .then(hasValidSlots => ({ specialist, hasValidSlots }));
+            });
+
+            return Promise.all(specialistsWithValidTimePromises);
+        })
+        .then(specialistsWithValidSlots => {
+            if (!specialistsWithValidSlots) return;
+            
+            const validSpecialists = specialistsWithValidSlots
+                .filter(result => result.hasValidSlots)
+                .map(result => result.specialist);
+
+            console.log(`Specialists with valid time slots for service ${serviceId}:`, validSpecialists);
+            
+            if (validSpecialists.length === 0) {
+                showNoSpecialistsMessage(service);
             } else {
-                showServiceModal(serviceId, service, availableSpecialists);
+                showServiceModal(serviceId, service, validSpecialists);
+            }
+        })
+        .catch(error => {
+            console.error('Error filtering specialists:', error);
+            showNoSpecialistsMessage(service);
+        });
+}
+function filterSpecialistsWithAvailableTime(serviceId, service, specialists) {
+    if (!specialists || specialists.length === 0) {
+        showNoSpecialistsMessage(service);
+        return;
+    }
+
+    const today = new Date();
+    const startDate = today.toISOString().split('T')[0];
+    const endDate = new Date(today.setMonth(today.getMonth() + 1)).toISOString().split('T')[0];
+
+    const specialistPromises = specialists.map(specialist => {
+        return fetch(`/api/specialist/${specialist.id}/service/${serviceId}/available-dates?start=${startDate}&end=${endDate}`)
+            .then(response => {
+                if (!response.ok) return { specialist, hasAvailableTime: false };
+                return response.json().then(data => ({
+                    specialist,
+                    hasAvailableTime: data.availableDates && data.availableDates.length > 0
+                }));
+            })
+            .catch(error => {
+                console.error(`Error checking available time for specialist ${specialist.id}:`, error);
+                return { specialist, hasAvailableTime: false };
+            });
+    });
+
+    Promise.all(specialistPromises)
+        .then(results => {
+            const availableSpecialists = results
+                .filter(result => result.hasAvailableTime)
+                .map(result => result.specialist);
+
+            console.log(`Available specialists with free time for service ${serviceId}:`, availableSpecialists);
+            
+            if (availableSpecialists.length === 0) {
+                showNoSpecialistsMessage(service);
+                return;
+            }
+
+            // ДОПОЛНИТЕЛЬНАЯ ПРОВЕРКА: проверяем есть ли хоть одно валидное время у доступных специалистов
+            const specialistsWithValidTimePromises = availableSpecialists.map(specialist => {
+                return checkSpecialistHasValidTimeSlots(serviceId, specialist.id, startDate, endDate)
+                    .then(hasValidSlots => ({ specialist, hasValidSlots }));
+            });
+
+            return Promise.all(specialistsWithValidTimePromises);
+        })
+        .then(specialistsWithValidSlots => {
+            if (!specialistsWithValidSlots) return;
+            
+            const validSpecialists = specialistsWithValidSlots
+                .filter(result => result.hasValidSlots)
+                .map(result => result.specialist);
+
+            console.log(`Specialists with valid time slots for service ${serviceId}:`, validSpecialists);
+            
+            if (validSpecialists.length === 0) {
+                showNoSpecialistsMessage(service);
+            } else {
+                showServiceModal(serviceId, service, validSpecialists);
             }
         })
         .catch(error => {
@@ -279,6 +417,82 @@ function filterSpecialistsWithAvailableTime(serviceId, service, specialists) {
         });
 }
 
+// Новая функция для проверки наличия валидных временных слотов
+function checkSpecialistHasValidTimeSlots(serviceId, specialistId, startDate, endDate) {
+    return new Promise((resolve) => {
+        // Получаем все доступные даты
+        fetch(`/api/specialist/${specialistId}/service/${serviceId}/available-dates?start=${startDate}&end=${endDate}`)
+            .then(response => {
+                if (!response.ok) {
+                    resolve(false);
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.availableDates || data.availableDates.length === 0) {
+                    resolve(false);
+                    return;
+                }
+
+                // Для каждой доступной даты проверяем есть ли валидные временные слоты
+                const datePromises = data.availableDates.map(date => {
+                    return checkDateHasValidTimeSlotsService(specialistId, serviceId, date);
+                });
+
+                Promise.all(datePromises)
+                    .then(results => {
+                        // Если есть хотя бы одна дата с валидными слотами
+                        const hasValidSlots = results.some(hasSlots => hasSlots === true);
+                        resolve(hasValidSlots);
+                    })
+                    .catch(() => resolve(false));
+            })
+            .catch(() => resolve(false));
+    });
+}
+function checkDateHasValidTimeSlotsService(specialistId, serviceId, date) {
+    return new Promise((resolve) => {
+        fetch(`/api/specialist/${specialistId}/service/${serviceId}/schedule/${date}`)
+            .then(response => {
+                if (!response.ok) {
+                    resolve(false);
+                    return;
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.data || data.data.length === 0) {
+                    resolve(false);
+                    return;
+                }
+
+                // Если дата не сегодня - все слоты валидны
+                const today = new Date().toISOString().split('T')[0];
+                if (date !== today) {
+                    resolve(true);
+                    return;
+                }
+
+                // Для сегодняшней даты проверяем временные слоты
+                const now = new Date();
+                const currentHours = now.getHours();
+                const currentMinutes = now.getMinutes();
+                const currentTotalMinutes = currentHours * 60 + currentMinutes;
+
+                const hasValidSlots = data.data.some(slot => {
+                    const [hours, minutes] = slot.время.split(':').map(Number);
+                    const slotTotalMinutes = hours * 60 + minutes;
+                    
+                    // Слот валиден если до него осталось менее 2 часов прошло
+                    return slotTotalMinutes >= currentTotalMinutes - 120;
+                });
+
+                resolve(hasValidSlots);
+            })
+            .catch(() => resolve(false));
+    });
+}
 function showServiceModal(serviceId, service, specialists) {
     const modal = document.getElementById('service-modal');
     const modalContent = modal.querySelector('.service-modal-content');
