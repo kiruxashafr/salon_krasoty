@@ -610,6 +610,33 @@ function changeMonthService(direction) {
     loadAvailableDatesService();
 }
 
+// services.js - добавьте эту функцию
+function checkNextMonthAvailability() {
+    const nextMonth = window.currentMonthService + 1;
+    const nextYear = window.currentYearService;
+    
+    const firstDayNextMonth = new Date(nextYear, nextMonth, 1);
+    const lastDayNextMonth = new Date(nextYear, nextMonth + 1, 0);
+    
+    const startDateNextMonth = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-01`;
+    const endDateNextMonth = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${lastDayNextMonth.getDate().toString().padStart(2, '0')}`;
+    
+    if (!window.currentSpecialistId || !window.currentServiceId) {
+        return Promise.resolve(false);
+    }
+    
+    return fetch(`/api/specialist/${window.currentSpecialistId}/service/${window.currentServiceId}/available-dates?start=${startDateNextMonth}&end=${endDateNextMonth}`)
+        .then(response => {
+            if (!response.ok) return false;
+            return response.json();
+        })
+        .then(data => {
+            return data.availableDates && data.availableDates.length > 0;
+        })
+        .catch(() => false);
+}
+
+// Обновите функцию loadAvailableDatesService
 function loadAvailableDatesService() {
     const monthKey = `${window.currentYearService}-${window.currentMonthService + 1}`;
     
@@ -619,11 +646,26 @@ function loadAvailableDatesService() {
     loadingElement.style.display = 'block';
     dateGridElement.innerHTML = '';
     
+    // Проверяем доступность следующего месяца
+    checkNextMonthAvailability().then(hasAvailability => {
+        const nextMonthBtn = document.querySelector('.month-nav-btn:last-child'); // кнопка "→"
+        if (nextMonthBtn) {
+            if (hasAvailability) {
+                nextMonthBtn.classList.add('has-availability');
+            } else {
+                nextMonthBtn.classList.remove('has-availability');
+            }
+        }
+    });
+    
     if (window.availableDatesService[monthKey]) {
         generateDateGridService(window.availableDatesService[monthKey]);
-        loadingElement.style.display = 'none'; // ← ДОБАВИТЬ ЭТУ СТРОКУ
+        loadingElement.style.display = 'none';
         return;
     }
+    
+    // ... остальной код функции без изменений
+
     
     const firstDay = new Date(window.currentYearService, window.currentMonthService, 1);
     const lastDay = new Date(window.currentYearService, window.currentMonthService + 1, 0);
@@ -654,6 +696,8 @@ function loadAvailableDatesService() {
             loadingElement.style.display = 'none'; // ← УБЕДИТЕСЬ ЧТО ЭТА СТРОКА ЕСТЬ
         });
 }
+
+
 
 function generateDateGridService(availableDates) {
     const dateGrid = document.getElementById('date-grid-service');

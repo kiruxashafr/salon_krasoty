@@ -373,3 +373,31 @@
     color: #ffffff;
     opacity: 0.9;
 }
+
+
+/* services.css и specialists.css - добавьте эти стили */
+.month-nav-btn {
+    position: relative;
+}
+
+.month-nav-btn.has-availability::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    background-color: #2e7d32;
+    border-radius: 50%;
+    border: 2px solid #ebebeb;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .month-nav-btn.has-availability::after {
+        width: 6px;
+        height: 6px;
+        top: 2px;
+        right: 2px;
+    }
+}

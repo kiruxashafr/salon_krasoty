@@ -76,7 +76,7 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     keyboard = [
         [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
         [InlineKeyboardButton("○ Актуальные записи", callback_data='cabinet_current')],
-        [InlineKeyboardButton("↲ Выйти", callback_data='back_to_main')]
+        [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = (
