@@ -513,12 +513,15 @@ function backToDates() {
 function loadAvailableDates() {
     const monthKey = `${window.currentSpecialistId}-${window.currentServiceId}-${window.currentYear}-${window.currentMonth + 1}`;
     
-    document.getElementById('loading-dates').style.display = 'block';
-    document.getElementById('date-grid').innerHTML = '';
+    const loadingElement = document.getElementById('loading-dates');
+    const dateGridElement = document.getElementById('date-grid');
+    
+    loadingElement.style.display = 'block';
+    dateGridElement.innerHTML = '';
     
     if (window.availableDates[monthKey]) {
         generateDateGrid(window.availableDates[monthKey]);
-        document.getElementById('loading-dates').style.display = 'none';
+        loadingElement.style.display = 'none'; // ← ДОБАВИТЬ ЭТУ СТРОКУ
         return;
     }
     
@@ -541,7 +544,6 @@ function loadAvailableDates() {
             console.log(`Available dates for month ${monthKey}:`, data);
             
             window.availableDates[monthKey] = data.availableDates || [];
-            
             generateDateGrid(window.availableDates[monthKey]);
         })
         .catch(error => {
@@ -549,7 +551,7 @@ function loadAvailableDates() {
             generateDateGrid([]);
         })
         .finally(() => {
-            document.getElementById('loading-dates').style.display = 'none';
+            loadingElement.style.display = 'none'; // ← УБЕДИТЕСЬ ЧТО ЭТА СТРОКА ЕСТЬ
         });
 }
 
@@ -570,6 +572,10 @@ function changeMonth(direction) {
 function generateDateGrid(availableDates) {
     const dateGrid = document.getElementById('date-grid');
     const currentMonthElement = document.getElementById('current-month');
+    const loadingElement = document.getElementById('loading-dates'); // ← ДОБАВИТЬ
+    
+    // Скрываем индикатор загрузки при генерации сетки
+    loadingElement.style.display = 'none'; // ← ДОБАВИТЬ ЭТУ СТРОКУ
     
     const monthNames = [
         'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',

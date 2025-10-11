@@ -613,11 +613,15 @@ function changeMonthService(direction) {
 function loadAvailableDatesService() {
     const monthKey = `${window.currentYearService}-${window.currentMonthService + 1}`;
     
-    document.getElementById('loading-dates-service').style.display = 'block';
-    document.getElementById('date-grid-service').innerHTML = '';
+    const loadingElement = document.getElementById('loading-dates-service');
+    const dateGridElement = document.getElementById('date-grid-service');
+    
+    loadingElement.style.display = 'block';
+    dateGridElement.innerHTML = '';
     
     if (window.availableDatesService[monthKey]) {
         generateDateGridService(window.availableDatesService[monthKey]);
+        loadingElement.style.display = 'none'; // ← ДОБАВИТЬ ЭТУ СТРОКУ
         return;
     }
     
@@ -647,13 +651,17 @@ function loadAvailableDatesService() {
             generateDateGridService([]);
         })
         .finally(() => {
-            document.getElementById('loading-dates-service').style.display = 'none';
+            loadingElement.style.display = 'none'; // ← УБЕДИТЕСЬ ЧТО ЭТА СТРОКА ЕСТЬ
         });
 }
 
 function generateDateGridService(availableDates) {
     const dateGrid = document.getElementById('date-grid-service');
     const currentMonthElement = document.getElementById('current-month-service');
+    const loadingElement = document.getElementById('loading-dates-service'); // ← ДОБАВИТЬ
+    
+    // Скрываем индикатор загрузки при генерации сетки
+    loadingElement.style.display = 'none'; // ← ДОБАВИТЬ ЭТУ СТРОКУ
     
     const monthNames = [
         'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
