@@ -34,27 +34,25 @@ body {
 
 /* Стили для header */
 .content-header {
-    position: relative;
+    position: fixed;
     display: flex;
     align-items: center;
     gap: 15px;
-    padding: 15px 20px;
-    background-color: white;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    width: 100%;
+    padding: 5px 20px;
+    background-color:#f5f5f5;
     z-index: 100;
 }
 
 .content-body {
     padding: 0 20px 20px 20px;
+    margin-top: 50px;
 }
 
 /* Контейнер контента */
 #contentContainer {
 
     border-radius: 8px;
-    margin-top: 2.5%;
-
-
     min-height: 400px;
     overflow-x: auto; /* Добавляем горизонтальную прокрутку если нужно */
 }
@@ -454,7 +452,7 @@ body {
         grid-template-columns: 70px 1fr;
         gap: 0.8rem;
     }
-    
+
 
     
     .appointment-time {
@@ -498,7 +496,11 @@ body {
         text-align: center;
     }
 }
-
+@media (max-width: 480px) {
+    .content-header{
+        font-size: 13px;
+    }
+}
 /* Анимации */
 @keyframes fadeIn {
     from {
@@ -980,9 +982,7 @@ body {
         padding: 0 10px 10px 10px;
     }
     
-    #contentContainer {
-        padding: 15px;
-    }
+
     
     .specialists-list {
         grid-template-columns: 1fr;
