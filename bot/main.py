@@ -614,82 +614,170 @@ async def show_services_for_specialist(query, specialist_id):
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
 
 async def show_date_selection(query, specialist_id, service_id, target_date_str=None):
-    """Показать выбор даты для записи"""
-    user_id = query.from_user.id
-    user_states[user_id] = {
-        'specialist_id': specialist_id,
-        'service_id': service_id
-    }
-    
+    """Показать выбор даты для бронирования с учетом свободного времени"""
     photo_url = f"{API_BASE_URL}/photo/images/zapis.jpg"
+    user_id = query.from_user.id
     try:
         today = datetime.now().date()
-        
+
+        # Если target_date_str не передан, начинаем с текущей недели или ищем первую с доступным временем
         if target_date_str:
             target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
         else:
             target_date = today
-        
+
+        # Определяем начало и конец текущей недели
         start_of_week = target_date - timedelta(days=target_date.weekday())
         end_of_week = start_of_week + timedelta(days=6)
-        
-        from_date = max(start_of_week, today)
-        to_date = end_of_week
-        
-        from_date_str = from_date.strftime('%Y-%m-%d')
-        to_date_str = to_date.strftime('%Y-%m-%d')
-        
+
+        # Сохраняем данные пользователя
+        if user_id not in user_states:
+            user_states[user_id] = {}
+        user_states[user_id].update({
+            'specialist_id': specialist_id,
+            'service_id': service_id
+        })
+
+        # Проверяем доступное время на текущую неделю
+        from_date_str = start_of_week.strftime('%Y-%m-%d')
+        to_date_str = end_of_week.strftime('%Y-%m-%d')
         response = requests.get(
             f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service_id}/available-dates",
             params={'start': from_date_str, 'end': to_date_str}
         )
         data = response.json()
-        
+
+        # Если на текущей неделе нет свободного времени, ищем следующую доступную неделю
+        if data['message'] != 'success' or not data['availableDates']:
+            # Ищем первую неделю с доступным временем (максимум 3 месяца вперед)
+            max_search_date = today + timedelta(days=90)
+            current_start = start_of_week
+            found_week = None
+
+            while current_start <= max_search_date and not found_week:
+                current_end = current_start + timedelta(days=6)
+                response = requests.get(
+                    f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service_id}/available-dates",
+                    params={
+                        'start': current_start.strftime('%Y-%m-%d'),
+                        'end': current_end.strftime('%Y-%m-%d')
+                    }
+                )
+                data = response.json()
+                if data['message'] == 'success' and data['availableDates']:
+                    found_week = current_start
+                current_start += timedelta(days=7)
+
+            if found_week:
+                # Если найдена неделя с доступным временем, обновляем даты
+                start_of_week = found_week
+                end_of_week = start_of_week + timedelta(days=6)
+                from_date_str = start_of_week.strftime('%Y-%m-%d')
+                to_date_str = end_of_week.strftime('%Y-%m-%d')
+                response = requests.get(
+                    f"{API_BASE_URL}/api/specialist/{specialist_id}/service/{service_id}/available-dates",
+                    params={'start': from_date_str, 'end': to_date_str}
+                )
+                data = response.json()
+            else:
+                # Если ничего не найдено в течение 3 месяцев
+                message_text = (
+                    "❌ На ближайшие 3 месяца нет доступного времени для этой услуги и мастера.\n"
+                    "Попробуйте выбрать другую услугу или мастера."
+                )
+                keyboard = [
+                    [InlineKeyboardButton("🎯 Выбрать услугу", callback_data='choose_service')],
+                    [InlineKeyboardButton("♢ Выбрать мастера", callback_data='choose_specialist')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_date_selection (no dates): {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                return
+
+        # Формируем сообщение с календарем
+        message = f"🗓️ Выберите дату ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):\n\n"
+
         keyboard = []
+
         if data['message'] == 'success' and data['availableDates']:
-            for date in data['availableDates']:
-                date_obj = datetime.strptime(date, '%Y-%m-%d')
-                formatted_date = date_obj.strftime('%d.%m (%a)')
-                formatted_date = formatted_date.replace(date_obj.strftime('%a'), WEEKDAY_MAP[date_obj.strftime('%a')])
-                keyboard.append([
-                    InlineKeyboardButton(
-                        formatted_date,
-                        callback_data=f'select_date_{date}'
-                    )
-                ])
+            current_date = start_of_week
+            while current_date <= end_of_week:
+                date_str = current_date.strftime('%Y-%m-%d')
+                date_display = current_date.strftime('%d.%m')
+                weekday = WEEKDAY_MAP.get(current_date.strftime('%a'), current_date.strftime('%a'))
+
+                # Проверяем, есть ли доступное время на эту дату
+                if date_str in data['availableDates']:
+                    button_text = f"📅 {date_display} ({weekday})"
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            button_text,
+                            callback_data=f'select_date_{date_str}'
+                        )
+                    ])
+                else:
+                    button_text = f"❌ {date_display} ({weekday}) - нет мест"
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            button_text,
+                            callback_data='no_date_available'
+                        )
+                    ])
+
+                current_date += timedelta(days=1)
         else:
-            keyboard.append([InlineKeyboardButton("Нет свободных дат", callback_data='no_date_available')])
-        
+            # Это состояние не должно возникнуть, так как мы уже нашли неделю с доступным временем
+            message += "❌ На этой неделе нет свободного времени\n"
+
+        # Навигация по неделям
         prev_week_start = start_of_week - timedelta(days=7)
         next_week_start = start_of_week + timedelta(days=7)
-        
-        nav_buttons = [
-            InlineKeyboardButton("⬅️ Пред. неделя", callback_data=f'date_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}'),
-            InlineKeyboardButton("След. неделя ➡️", callback_data=f'date_nav_next_{next_week_start.strftime("%Y-%m-%d")}')
-        ]
+
+        nav_buttons = []
+        if prev_week_start >= today:
+            nav_buttons.append(
+                InlineKeyboardButton(
+                    "⬅️ Пред. неделя",
+                    callback_data=f'date_nav_prev_{prev_week_start.strftime("%Y-%m-%d")}'
+                )
+            )
+        nav_buttons.append(
+            InlineKeyboardButton(
+                "След. неделя ➡️",
+                callback_data=f'date_nav_next_{next_week_start.strftime("%Y-%m-%d")}'
+            )
+        )
         keyboard.append(nav_buttons)
-        
-        # Используем back_to_selection вместо прямого возврата к выбору услуги/мастера
+
         keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')])
         keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')])
+
         reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        message_text = f"Выберите дату ({start_of_week.strftime('%d.%m')} - {end_of_week.strftime('%d.%m')}):"
-        
+
         try:
             photo_response = requests.get(photo_url)
             if photo_response.status_code == 200:
                 photo_data = photo_response.content
-                media = InputMediaPhoto(media=photo_data, caption=message_text)
+                media = InputMediaPhoto(media=photo_data, caption=message)
                 await query.edit_message_media(media=media, reply_markup=reply_markup)
             else:
-                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
         except Exception as e:
             logger.error(f"Error in show_date_selection: {e}")
-            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-            
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
+
     except Exception as e:
-        logger.error(f"Error showing date selection: {e}")
+        logger.error(f"Error in show_date_selection: {e}")
         message_text = "❌ Ошибка подключения к серверу"
         keyboard = [
             [InlineKeyboardButton("↲ Назад", callback_data='back_to_selection')],
@@ -697,7 +785,6 @@ async def show_date_selection(query, specialist_id, service_id, target_date_str=
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-
 
 async def show_time_slots(query, date_str):
     """Показать доступное время на выбранную дату (только будущее время +2 часа)"""
