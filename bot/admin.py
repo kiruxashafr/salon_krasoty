@@ -540,21 +540,21 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
             # Сортируем даты
             sorted_dates = sorted(grouped_by_date.keys())
             
-            message_text = "📋 Ваши записи:\n\n"
+            message_text = "≣ Ваши записи:\n\n"
             
             for date in sorted_dates:
                 formatted_date = datetime.strptime(date, '%Y-%m-%d').strftime('%d.%m.%Y')
-                message_text += f"📅 {formatted_date}:\n"
+                message_text += f"≣ {formatted_date}:\n"
                 
                 # Сортируем по времени
                 grouped_by_date[date].sort(key=lambda x: x['время'])
                 
                 for app in grouped_by_date[date]:
                     message_text += (
-                        f"   ⏰ {app['время']}\n"
-                        f"   👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                        f"   🎯 {app['услуга_название']}\n"
-                        f"   💵 {app['цена']}₽\n"
+                        f"   ○ {app['время']}\n"
+                        f"   ♢ {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                        f"   ✎ {app['услуга_название']}\n"
+                        f"   ₽ {app['цена']}₽\n"
                         f"   ────────────────\n"
                     )
                 
@@ -645,10 +645,10 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
                 
                 for app in grouped_by_date[date]:
                     message_text += (
-                        f"   ⏰ {app['время']}\n"
-                        f"   👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                        f"   🎯 {app['услуга_название']}\n"
-                        f"   💵 {app['цена']}₽\n"
+                        f"   ○ {app['время']}\n"
+                        f"   ♢ {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                        f"   ✎ {app['услуга_название']}\n"
+                        f"   ₽ {app['цена']}₽\n"
                         f"   ────────────────\n"
                     )
                 
@@ -704,8 +704,8 @@ async def show_master_appointments(update: Update, context: ContextTypes.DEFAULT
             for app in sorted(appointments, key=lambda x: (x['дата'], x['время'])):
                 message_text += (
                     f"≣ {app['дата']} {app['время']}\n"
-                    f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                    f"🎯 {app['услуга_название']}\n"
+                    f"♢ {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                    f"○ {app['услуга_название']}\n"
                     f"₽ {app['цена']}₽\n"
                     f"────────────────\n"
                 )

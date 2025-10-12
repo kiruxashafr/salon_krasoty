@@ -54,13 +54,13 @@ def initialize_notifications():
         # Уведомления будут срабатывать в 18:00 по времени сервера
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=9),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=0),  # БЕЗ timezone
             id='daily_master_notifications'
         )
         
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=9),  # БЕЗ timezone
+            CronTrigger(hour=18, minute=0),  # БЕЗ timezone
             id='daily_user_notifications'
         )
         
@@ -68,7 +68,7 @@ def initialize_notifications():
         scheduler.add_job(
             send_hourly_notifications,
             'interval',
-            minutes=5,
+            minutes=1,
             id='hourly_notifications_check'
         )
         
@@ -76,7 +76,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_appointments,
             'interval',
-            minutes=3,
+            minutes=1,
             id='new_appointments_check'
         )
         
@@ -84,7 +84,7 @@ def initialize_notifications():
         scheduler.add_job(
             check_new_master_appointments,
             'interval',
-            minutes=5,
+            minutes=1,
             id='new_master_appointments_check'
         )
         
@@ -94,13 +94,21 @@ def initialize_notifications():
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
 
-async def send_notification_with_photo(chat_id: int, message: str):
-    """Отправка уведомления с фотографией и кнопкой Главное меню"""
+async def send_notification_with_photo(chat_id: int, message: str, is_client: bool = True):
+    """Отправка уведомления с фотографией и кнопками"""
     try:
-        # Создаем клавиатуру с кнопкой "Главное меню"
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
-        ])
+        # Создаем клавиатуру с кнопками
+        if is_client:
+            # Для клиентов: показываем кнопку "Личный кабинет"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("⎋ Личный кабинет", callback_data="personal_cabinet")],
+                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+            ])
+        else:
+            # Для мастеров: НЕ показываем кнопку "Личный кабинет"
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+            ])
         
         # URL для получения фотографии
         photo_url = f"{API_BASE_URL}/photo/images/notif.jpg"
@@ -117,7 +125,7 @@ async def send_notification_with_photo(chat_id: int, message: str):
             )
             return True
         else:
-            # Если фото не найдено, отправляем только текст с кнопкой
+            # Если фото не найдено, отправляем только текст с кнопками
             await bot.send_message(
                 chat_id=chat_id, 
                 text=message,
@@ -128,11 +136,18 @@ async def send_notification_with_photo(chat_id: int, message: str):
             
     except Exception as e:
         logger.error(f"Ошибка отправки уведомления с фото: {e}")
-        # В случае ошибки отправляем только текст с кнопкой
+        # В случае ошибки отправляем только текст с кнопками
         try:
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
-            ])
+            if is_client:
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("⎋ Личный кабинет", callback_data="personal_cabinet")],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+                ])
+            else:
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+                ])
+                
             await bot.send_message(
                 chat_id=chat_id, 
                 text=message,
@@ -142,31 +157,21 @@ async def send_notification_with_photo(chat_id: int, message: str):
         except Exception as text_error:
             logger.error(f"Ошибка отправки текстового уведомления: {text_error}")
             return False
-            
-    except Exception as e:
-        logger.error(f"Ошибка отправки уведомления с фото: {e}")
-        # В случае ошибки отправляем только текст с кнопкой
-        try:
-            keyboard = InlineKeyboardMarkup([
-                [InlineKeyboardButton("☰ Главное меню", callback_data="main_menu")]
-            ])
-            await bot.send_message(
-                chat_id=chat_id, 
-                text=message,
-                reply_markup=keyboard
-            )
-            return True
-        except Exception as text_error:
-            logger.error(f"Ошибка отправки текстового уведомления: {text_error}")
-            return False
+        
 
-async def send_notification_without_photo(chat_id: int, message: str):
-    """Отправка уведомления без фото с кнопкой Главное меню"""
+async def send_notification_without_photo(chat_id: int, message: str, is_client: bool = True):
+    """Отправка уведомления без фото с кнопками"""
     try:
-        # Создаем клавиатуру с кнопкой "Главное меню"
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]  # Изменить на back_to_main
-        ])
+        # Создаем клавиатуру с кнопками
+        if is_client:
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("⎋ Личный кабинет", callback_data="personal_cabinet")],
+                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+            ])
+        else:
+            keyboard = InlineKeyboardMarkup([
+                [InlineKeyboardButton("☰ Главное меню", callback_data="back_to_main")]
+            ])
         
         await bot.send_message(
             chat_id=chat_id, 
@@ -177,7 +182,8 @@ async def send_notification_without_photo(chat_id: int, message: str):
             
     except Exception as e:
         logger.error(f"Ошибка отправки текстового уведомления: {e}")
-        return False
+        return False 
+
 
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
@@ -248,19 +254,21 @@ async def send_master_new_appointment_notification(appointment):
         formatted_date = appointment_date.strftime('%d.%m.%Y')
         
         message = (
-            "🔔 Новая запись!\n\n"
-            f"👤 Клиент: {appointment['клиент_имя']} ({appointment['клиент_телефон']})\n"
-            f"🎯 Услуга: {appointment['услуга_название']}\n"
-            f"📅 Дата: {formatted_date}\n"
-            f"⏰ Время: {appointment['время']}\n"
-            f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            f"🕐 Создано: {appointment.get('created_at', 'только что')}"
+            "⊹ Новая запись!\n\n"
+            f"♢ Клиент: {appointment['клиент_имя']} ({appointment['клиент_телефон']})\n"
+            f"♢ Услуга: {appointment['услуга_название']}\n"
+            f"♢ Дата: {formatted_date}\n"
+            f"♢ Время: {appointment['время']}\n"
+            f"♢ Стоимость: {appointment['цена']}₽\n\n"
+            f"♢ Создано: {appointment.get('created_at', 'только что')}"
         )
         
         # Используем новую функцию с фото
+        # Используем новую функцию с фото, is_client=False для мастеров
         success = await send_notification_with_photo(
             chat_id=appointment['мастер_tg_id'], 
-            message=message
+            message=message,
+            is_client=False  # МАСТЕР - не показываем личный кабинет
         )
         
         if success:
@@ -325,22 +333,23 @@ async def send_user_daily_notification(appointment):
         formatted_date = appointment_date.strftime('%d.%m.%Y')
         
         message = (
-            "🔔 НАПОМИНАНИЕ: ЗАВТРА У ВАС ЗАПИСЬ!\n\n"
-            f"📅 Дата: {formatted_date}\n"
-            f"⏰ Время: {appointment['время']}\n"
-            f"🎯 Услуга: {appointment['услуга_название']}\n"
-            f"👨‍💼 Мастер: {appointment['мастер_имя']}\n"
-            f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            "📌 Мы также напомним вам:\n"
+            "✮  НАПОМИНАНИЕ: ЗАВТРА У ВАС ЗАПИСЬ!\n\n"
+            f"♢ Дата: {formatted_date}\n"
+            f"♢ Время: {appointment['время']}\n"
+            f"♢ Услуга: {appointment['услуга_название']}\n"
+            f"♢ Мастер: {appointment['мастер_имя']}\n"
+            f"♢ Стоимость: {appointment['цена']}₽\n\n"
+            " Мы также напомним вам:\n"
             "• За 1 час до записи\n\n"
-            "⚠️ Пожалуйста, не опаздывайте!\n"
-            "📞 Контакты салона: +7 (XXX) XXX-XX-XX"
+            "≣ Пожалуйста, не опаздывайте!\n"
+            "≣ Контакты салона: +7 (XXX) XXX-XX-XX"
         )
-        
-        # Используем функцию с фото
+                
+        # Используем функцию с фото, is_client=True для клиентов
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
-            message=message
+            message=message,
+            is_client=True  # КЛИЕНТ - показываем личный кабинет
         )
         
         if success:
@@ -407,19 +416,20 @@ async def send_user_hourly_notification(appointment):
         formatted_date = appointment_date.strftime('%d.%m.%Y')
         
         message = (
-            "⏰ ЧАС ДО ЗАПИСИ!\n\n"
-            f"📅 Сегодня в {appointment['время']}\n"
-            f"🎯 Услуга: {appointment['услуга_название']}\n"
-            f"👨‍💼 Мастер: {appointment['мастер_имя']}\n"
-            f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            "🚗 Рекомендуем выезжать заранее!\n"
-            "📞 Контакты салона: +7 (XXX) XXX-XX-XX"
+            "⊹ ЧАС ДО ЗАПИСИ!\n\n"
+            f"♢ Сегодня в {appointment['время']}\n"
+            f"♢ Услуга: {appointment['услуга_название']}\n"
+            f"♢ Мастер: {appointment['мастер_имя']}\n"
+            f"♢ Стоимость: {appointment['цена']}₽\n\n"
+            "♢ Рекомендуем выезжать заранее!\n"
+            "♢ Контакты салона: +7 (XXX) XXX-XX-XX"
         )
         
-        # Используем функцию с фото
+        # Используем функцию с фото, is_client=True для клиентов
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
-            message=message
+            message=message,
+            is_client=True  # КЛИЕНТ - показываем личный кабинет
         )
         
         if success:
@@ -496,10 +506,11 @@ async def send_daily_master_notifications():
                             f"────────────────\n"
                         )
                     
-                    # Используем функцию с фото для мастеров
+                    # Используем функцию с фото для мастеров, is_client=False
                     success = await send_notification_with_photo(
                         chat_id=master['tg_id'], 
-                        message=message
+                        message=message,
+                        is_client=False  # МАСТЕР - не показываем личный кабинет
                     )
                     
                     if success:
@@ -548,10 +559,10 @@ async def send_master_daily_notification(master_id, tg_id, date):
             
             for app in appointments:
                 message += (
-                    f"⏰ {app['время']}\n"
-                    f"👤 {app['клиент_имя']} ({app['клиент_телефон']})\n"
-                    f"🎯 {app['услуга_название']}\n"
-                    f"💵 {app['цена']}₽\n"
+                    f"≣ {app['время']}\n"
+                    f"≣ {app['клиент_имя']} ({app['клиент_телефон']})\n"
+                    f"≣ {app['услуга_название']}\n"
+                    f"≣ {app['цена']}₽\n"
                     f"────────────────\n"
                 )
         
@@ -633,24 +644,25 @@ async def send_immediate_client_notification(appointment):
         formatted_date = appointment_date.strftime('%d.%m.%Y')
         
         message = (
-            "✅ Запись успешно создана!\n\n"
+            "⊹ Запись успешно создана!\n\n"
             f"✮ Услуга: {appointment['услуга_название']}\n"
             f"♢ Мастер: {appointment['мастер_имя']}\n"
             f"≣ Дата: {formatted_date}\n"
-            f"⏰ Время: {appointment['время']}\n"
-            f"💵 Стоимость: {appointment['цена']}₽\n\n"
-            "📌 Мы напомним вам о записи:\n"
+            f"≣ Время: {appointment['время']}\n"
+            f"≣ Стоимость: {appointment['цена']}₽\n\n"
+            "≣ Мы напомним вам о записи:\n"
             "• За день до визита (в 18:00)\n"
             "• За час до записи\n\n"
-            "📋 Все ваши записи можно посмотреть в личном кабинете"
+            "≣ Все ваши записи можно посмотреть в личном кабинете"
         )
         
-        # Используем новую функцию с фото
+        # Используем функцию с фото, is_client=True для клиентов
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
-            message=message
+            message=message,
+            is_client=True  # КЛИЕНТ - показываем личный кабинет
         )
-        
+            
         if success:
             # Отмечаем уведомление как отправленное
             mark_response = requests.post(f"{API_BASE_URL}/api/notification-sent", json={
@@ -659,12 +671,13 @@ async def send_immediate_client_notification(appointment):
             })
             
             if mark_response.status_code == 200 and mark_response.json().get('message') == 'success':
-                logger.info(f"✅ Отправлено немедленное уведомление клиенту {appointment['клиент_tg_id']}")
+                logger.info(f"✅ Отправлено немедленное уведомление клиенту {appointment['клиент_tg_id']} с кнопкой личного кабинета")
             else:
                 logger.error(f"❌ Ошибка отметки immediate уведомления: {mark_response.text}")
         
     except Exception as e:
         logger.error(f"Ошибка отправки немедленного уведомления клиенту: {e}")
+
 
 def shutdown_notifications():
     """Остановка системы уведомлений"""
