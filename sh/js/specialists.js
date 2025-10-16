@@ -479,7 +479,6 @@ function backToDatesSpecialist() {
 
 function loadAvailableDatesSpecialist() {
     const monthKey = `${window.specialistCurrentSpecialistId}-${window.specialistCurrentServiceId}-${window.specialistCurrentYear}-${window.specialistCurrentMonth + 1}`;
-    
     const loadingElement = document.getElementById('specialist-loading-dates');
     const dateGridElement = document.getElementById('specialist-date-grid');
     
@@ -517,9 +516,11 @@ function loadAvailableDatesSpecialist() {
             console.error('Error fetching available dates:', error);
             generateDateGridSpecialist([]);
         })
-        .finally(() => {
-            loadingElement.style.display = 'none';
-        });
+    .finally(() => {
+        loadingElement.style.display = 'none';
+        // Проверяем доступность следующего месяца
+        checkNextMonthAvailabilitySpecialist();
+    });
 }
 
 function changeMonthSpecialist(direction) {
@@ -534,6 +535,7 @@ function changeMonthSpecialist(direction) {
     }
     
     loadAvailableDatesSpecialist();
+
 }
 
 function generateDateGridSpecialist(availableDates) {
@@ -1070,7 +1072,62 @@ async function checkSpecialistsVisibility() {
     }
 }
 
+function checkNextMonthAvailabilitySpecialist() {
+    const nextMonth = window.specialistCurrentMonth + 1;
+    const nextYear = window.specialistCurrentYear;
+    
+    if (nextMonth > 11) {
+        nextMonth = 0;
+        nextYear++;
+    }
+    
+    const monthKey = `${window.specialistCurrentSpecialistId}-${window.specialistCurrentServiceId}-${nextYear}-${nextMonth + 1}`;
+    
+    // Если данные уже загружены
+    if (window.specialistAvailableDates[monthKey] && window.specialistAvailableDates[monthKey].length > 0) {
+        markNextMonthButtonAvailableSpecialist(true);
+        return;
+    }
+    
+    // Загружаем данные для следующего месяца
+    const firstDay = new Date(nextYear, nextMonth, 1);
+    const lastDay = new Date(nextYear, nextMonth + 1, 0);
+    
+    const startDate = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-01`;
+    const endDate = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`;
+    
+    fetch(`/api/specialist/${window.specialistCurrentSpecialistId}/service/${window.specialistCurrentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const hasAvailability = data.availableDates && data.availableDates.length > 0;
+            markNextMonthButtonAvailableSpecialist(hasAvailability);
+            
+            // Сохраняем данные для будущего использования
+            if (!window.specialistAvailableDates[monthKey]) {
+                window.specialistAvailableDates[monthKey] = data.availableDates || [];
+            }
+        })
+        .catch(error => {
+            console.error('Error checking next month availability:', error);
+            markNextMonthButtonAvailableSpecialist(false);
+        });
+}
 
+function markNextMonthButtonAvailableSpecialist(hasAvailability) {
+    const nextMonthBtn = document.querySelector('#specialist-modal .month-nav-btn:last-child');
+    if (nextMonthBtn) {
+        if (hasAvailability) {
+            nextMonthBtn.classList.add('has-availability');
+        } else {
+            nextMonthBtn.classList.remove('has-availability');
+        }
+    }
+}
 
 function hideSpecialistsSection() {
     const specialistsSection = document.getElementById('specialists-section');

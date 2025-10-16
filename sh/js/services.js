@@ -541,6 +541,8 @@ function changeMonthService(direction) {
     }
     
     loadAvailableDatesService();
+    
+
 }
 
 function loadAvailableDatesService() {
@@ -555,6 +557,9 @@ function loadAvailableDatesService() {
     if (window.serviceAvailableDates[monthKey]) {
         generateDateGridService(window.serviceAvailableDates[monthKey]);
         loadingElement.style.display = 'none';
+        
+        // Проверяем доступность следующего месяца
+        checkNextMonthAvailabilityService();
         return;
     }
     
@@ -583,9 +588,11 @@ function loadAvailableDatesService() {
             console.error('Error fetching available dates:', error);
             generateDateGridService([]);
         })
-        .finally(() => {
-            loadingElement.style.display = 'none';
-        });
+    .finally(() => {
+        loadingElement.style.display = 'none';
+        // Проверяем доступность следующего месяца
+        checkNextMonthAvailabilityService();
+    });
 }
 
 function generateDateGridService(availableDates) {
@@ -1058,6 +1065,64 @@ async function checkServicesVisibility() {
         console.error('Error checking services visibility:', error);
         fetchServicesWithAvailability();
         startServicesAutoRefresh();
+    }
+}
+
+
+function checkNextMonthAvailabilityService() {
+    const nextMonth = window.serviceCurrentMonth + 1;
+    const nextYear = window.serviceCurrentYear;
+    
+    if (nextMonth > 11) {
+        nextMonth = 0;
+        nextYear++;
+    }
+    
+    const monthKey = `${nextYear}-${nextMonth + 1}`;
+    
+    // Если данные уже загружены
+    if (window.serviceAvailableDates[monthKey] && window.serviceAvailableDates[monthKey].length > 0) {
+        markNextMonthButtonAvailableService(true);
+        return;
+    }
+    
+    // Загружаем данные для следующего месяца
+    const firstDay = new Date(nextYear, nextMonth, 1);
+    const lastDay = new Date(nextYear, nextMonth + 1, 0);
+    
+    const startDate = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-01`;
+    const endDate = `${nextYear}-${(nextMonth + 1).toString().padStart(2, '0')}-${lastDay.getDate().toString().padStart(2, '0')}`;
+    
+    fetch(`/api/specialist/${window.serviceCurrentSpecialistId}/service/${window.serviceCurrentServiceId}/available-dates?start=${startDate}&end=${endDate}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const hasAvailability = data.availableDates && data.availableDates.length > 0;
+            markNextMonthButtonAvailableService(hasAvailability);
+            
+            // Сохраняем данные для будущего использования
+            if (!window.serviceAvailableDates[monthKey]) {
+                window.serviceAvailableDates[monthKey] = data.availableDates || [];
+            }
+        })
+        .catch(error => {
+            console.error('Error checking next month availability:', error);
+            markNextMonthButtonAvailableService(false);
+        });
+}
+
+function markNextMonthButtonAvailableService(hasAvailability) {
+    const nextMonthBtn = document.querySelector('#service-modal .month-nav-btn:last-child');
+    if (nextMonthBtn) {
+        if (hasAvailability) {
+            nextMonthBtn.classList.add('has-availability');
+        } else {
+            nextMonthBtn.classList.remove('has-availability');
+        }
     }
 }
 
