@@ -209,6 +209,36 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
     }
 });
 
+
+// server.js - добавить после существующих endpoints для страниц
+
+// API endpoint для получения данных администратора
+app.get('/api/admin-data', (req, res) => {
+    const sql = `
+        SELECT элемент, текст 
+        FROM страницы 
+        WHERE страница = 'главная' 
+        AND элемент IN ('имя_администратора', 'фото_администратора')
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const adminData = {};
+        rows.forEach(row => {
+            adminData[row.элемент] = row.текст;
+        });
+        
+        res.json({
+            message: "success",
+            data: adminData
+        });
+    });
+});
+
 // Добавить после существующего upload-photo endpoint
 const serviceStorage = multer.diskStorage({
     destination: function (req, file, cb) {

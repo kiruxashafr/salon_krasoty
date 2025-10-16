@@ -521,6 +521,8 @@ class ContentManager {
         container.innerHTML = this.generateContentForm();
     }
 
+// setting.js - обновим метод getPageElements
+
 getPageElements(page) {
     const elementsMap = {
         'главная': [
@@ -529,7 +531,8 @@ getPageElements(page) {
             { key: 'описание', label: 'Описание', type: 'textarea' },
             { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
             { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' },
-            { key: 'фото_администратора', label: 'Фото администратора (URL)', type: 'text' } // Добавляем этот элемент
+            { key: 'имя_администратора', label: 'Имя администратора', type: 'text' }, // Добавляем это
+            { key: 'фото_администратора', label: 'Фото администратора (URL)', type: 'text' }
         ],
         'about': [
             { key: 'заголовок', label: 'Заголовок', type: 'text' },
@@ -540,6 +543,8 @@ getPageElements(page) {
     
     return elementsMap[page] || [];
 }
+
+
 
     // Упрощенная версия generateContentForm() без удаления и перетаскивания
     generateContentForm() {
@@ -583,18 +588,19 @@ getPageElements(page) {
         `;
     }
 
-    // Также обновите getElementLabel:
-    getElementLabel(elementKey) {
-        const labels = {
-            'заголовок': 'Заголовок',
-            'описание': 'Описание',
-            'название_салона': 'Название салона',
-            'кнопка_записи': 'Текст кнопки записи',
-            'дополнительный_текст': 'Дополнительный текст',
-            'фото_администратора': 'Фото администратора' // Добавляем эту метку
-        };
-        return labels[elementKey] || elementKey;
-    }
+// Обновим getElementLabel
+getElementLabel(elementKey) {
+    const labels = {
+        'заголовок': 'Заголовок',
+        'описание': 'Описание',
+        'название_салона': 'Название салона',
+        'кнопка_записи': 'Текст кнопки записи',
+        'дополнительный_текст': 'Дополнительный текст',
+        'имя_администратора': 'Имя администратора', // Добавляем это
+        'фото_администратора': 'Фото администратора'
+    };
+    return labels[elementKey] || elementKey;
+}
 
     getElementInput(elementKey, value) {
         const isLongText = ['описание', 'дополнительный_текст'].includes(elementKey);

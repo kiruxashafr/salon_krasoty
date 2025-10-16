@@ -102,7 +102,7 @@ object-position: right;
 }
 @media screen and (max-width: 1200px) {
     .fullscreen-img-hero-image {
-        object-position: right;
+        object-position:top right;
         right: 0;
     }
 }

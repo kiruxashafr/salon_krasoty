@@ -82,6 +82,7 @@
     color: white;
     font-family: 'soviet', Arial, sans-serif;
     font-weight: 700;
+    min-width: 250px;
     text-transform: uppercase;
     font-size: clamp(24px, 5vw, 36px);
     text-align: center;
@@ -194,9 +195,58 @@
     text-align: center;
 }
 
+
+
+/* Стили для номера телефона в модальном окне */
+.phone-number {
+    display: block;
+    width: 96%;
+    text-align: center;
+    margin-top: 15px;
+    font-family: 'Inter', Arial, sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: #ffffff;
+    padding: 10px;
+    border: 2px solid white;
+    border-radius: 5px;
+    box-sizing: border-box;
+    text-decoration: none;
+    transition: all 0.3s ease;
+
+}
+
+.phone-number:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    color: #ffffff;
+    text-decoration: none;
+}
+
+.about-trigger:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    color: #ffffff;
+    text-decoration: none;
+}
+
+/* Стиль для иконки телефона в контакт-боксе */
+.contact-link-phone {
+    transition: all 0.3s ease;
+}
+
+.contact-link-phone:hover {
+    transform: scale(1.1);
+}
+
 @media (max-width: 768px) {
     .contact-boxx {
         width: 90%;
+    }
+
+    .phone-number{
+        width: 91.5%;
+        margin-top: 4%;
     }
     
     .contact-link-vk img {
@@ -231,5 +281,10 @@
 
     .about-us-button span {
         font-size: clamp(16px, 2.5vw, 20px);
+    }
+
+    .phone-number {
+        font-size: 16px;
+        padding: 8px;
     }
 }
