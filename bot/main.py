@@ -182,6 +182,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         direction = parts[2]
         target_date_str = parts[3]
         await show_week_schedule(query, target_date_str)
+
+    elif data == 'contacts_menu':
+        from menu_handlers import show_contacts_menu
+        await show_contacts_menu(update, context)
+        return
     elif data.startswith('all_schedule_nav_'):
         parts = data.split('_')
         direction = parts[3]

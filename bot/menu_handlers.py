@@ -41,6 +41,7 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("⌘ Услуги", callback_data='services_menu')
         ],
         [InlineKeyboardButton("✎ Записаться", callback_data='book_appointment')],
+        [InlineKeyboardButton("🛈 Контакты", callback_data='contacts_menu')],  # Новая кнопка
         [InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet')]
     ]
     
@@ -51,14 +52,11 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
     message_text = "☰ Главное меню"
     
-    # Остальной код функции остаётся без изменений
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
-
     
     if hasattr(update, 'callback_query') and update.callback_query:
         query = update.callback_query
         try:
-            # Скачиваем фото
             photo_response = requests.get(photo_url)
             if photo_response.status_code == 200:
                 photo_data = photo_response.content
@@ -71,7 +69,6 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(text=message_text, reply_markup=reply_markup)
     else:
         try:
-            # Скачиваем фото
             photo_response = requests.get(photo_url)
             if photo_response.status_code == 200:
                 photo_data = photo_response.content
@@ -91,6 +88,133 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=message_text,
                 reply_markup=reply_markup
             )
+
+async def show_contacts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Показать меню контактов"""
+    query = update.callback_query
+    await query.answer()
+    
+    try:
+        # Получаем ссылки из базы данных
+        response = requests.get(f"{API_BASE_URL}/api/links")
+        data = response.json()
+        
+        if data['message'] == 'success':
+            links = data['data']
+            
+            # Формируем красивое сообщение с контактами
+            message = "🛈 Контакты\n\n"
+            
+            # Добавляем номер телефона если есть
+            if links.get('phone_contact'):
+                phone = links['phone_contact']
+                # Форматируем номер для красивого отображения и делаем его копируемым
+                formatted_phone = format_phone_number(phone)
+                message += f"📱 Телефон:\n<code>{formatted_phone}</code>\n\n"
+            
+            message += "💬 Свяжитесь с нами:\n\n"
+            
+            # Telegram
+            if links.get('telegram_contact'):
+                telegram_url = links['telegram_contact'].strip()
+                if telegram_url.startswith('@'):
+                    telegram_url = f"https://t.me/{telegram_url[1:]}"
+                elif not telegram_url.startswith(('https://', 'http://')):
+                    telegram_url = f"https://t.me/{telegram_url}"
+                message += f"📢 Telegram: {telegram_url}\n"
+            
+            # WhatsApp
+            if links.get('whatsapp_contact'):
+                whatsapp_url = links['whatsapp_contact'].strip()
+                message += f"💚 WhatsApp: {whatsapp_url}\n"
+            
+            # VK
+            if links.get('vk_contact'):
+                vk_url = links['vk_contact'].strip()
+                message += f"👥 ВКонтакте: {vk_url}\n"
+            
+            # Email
+            if links.get('email_contact'):
+                email = links['email_contact'].strip()
+                message += f"📧 Email: {email}\n"
+            
+            # Кнопка назад
+            keyboard = [[InlineKeyboardButton("↲ Назад", callback_data='back_to_main')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
+            # Используем фото для контактов
+            photo_url = f"{API_BASE_URL}/photo/images/contakts.jpg"
+            
+            try:
+                # Сначала пытаемся отправить новое сообщение с фото
+                photo_response = requests.get(photo_url)
+                if photo_response.status_code == 200:
+                    photo_data = photo_response.content
+                    await query.message.reply_photo(
+                        photo=photo_data,
+                        caption=message,
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'  # Добавляем поддержку HTML
+                    )
+                    await query.delete_message()
+                else:
+                    # Если фото недоступно, отправляем текстовое сообщение
+                    await query.message.reply_text(
+                        text=message, 
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'  # Добавляем поддержку HTML
+                    )
+                    await query.delete_message()
+                    
+            except Exception as e:
+                logger.error(f"Error sending contacts with photo: {e}")
+                # Если не удалось отправить с фото, пробуем просто текст
+                try:
+                    await query.message.reply_text(
+                        text=message, 
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'  # Добавляем поддержку HTML
+                    )
+                    await query.delete_message()
+                except Exception as e2:
+                    logger.error(f"Error sending contacts text: {e2}")
+                    await query.message.reply_text(
+                        text=message, 
+                        reply_markup=reply_markup,
+                        parse_mode='HTML'  # Добавляем поддержку HTML
+                    )
+                    await query.delete_message()
+                    
+        else:
+            message = "❌ Ошибка загрузки контактов"
+            keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.message.reply_text(text=message, reply_markup=reply_markup)
+            await query.delete_message()
+            
+    except Exception as e:
+        logger.error(f"Error fetching contacts: {e}")
+        message = "❌ Ошибка подключения к серверу"
+        keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.message.reply_text(text=message, reply_markup=reply_markup)
+        await query.delete_message()
+
+
+
+def format_phone_number(phone):
+    """Форматирование номера телефона для красивого отображения"""
+    # Убираем все нецифровые символы
+    cleaned = ''.join(filter(str.isdigit, phone))
+    
+    if cleaned.startswith('7') and len(cleaned) == 11:
+        return f"+7 ({cleaned[1:4]}) {cleaned[4:7]}-{cleaned[7:9]}-{cleaned[9:]}"
+    elif cleaned.startswith('8') and len(cleaned) == 11:
+        return f"+7 ({cleaned[1:4]}) {cleaned[4:7]}-{cleaned[7:9]}-{cleaned[9:]}"
+    else:
+        return phone
+    
+
 
 async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, master_id: str):
     """Показать детальную информацию о мастере"""
@@ -350,6 +474,8 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_masters_menu(update, context)
     elif data == 'services_menu':
         await show_services_menu(update, context)
+    elif data == 'contacts_menu':  # Новая обработка
+        await show_contacts_menu(update, context)
     elif data.startswith('master_detail_'):
         master_id = data.split('_')[2]
         await show_master_detail(update, context, master_id)
@@ -366,6 +492,8 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_main_menu(update, context)
     elif data == 'personal_cabinet':
         await show_personal_cabinet(update, context)
+
+
 
 async def show_booking_options_with_master(query, master_id):
     """Показать варианты записи для выбранного мастера"""

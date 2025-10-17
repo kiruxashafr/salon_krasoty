@@ -673,3 +673,17 @@
         padding: 1rem;
     }
 }
+
+.phone-hint {
+    font-size: 12px;
+    color: #666;
+    margin-top: 4px;
+}
+
+.phone-input.valid {
+    border-color: #4CAF50 !important;
+}
+
+.phone-input.invalid {
+    border-color: #ff4444 !important;
+}

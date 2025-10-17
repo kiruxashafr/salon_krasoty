@@ -1,21 +1,34 @@
 // header.js - исправленная версия
 
+
 async function loadHomeContent() {
     try {
-        const response = await fetch('/api/home-content');
-        if (!response.ok) {
-            throw new Error('Ошибка загрузки контента');
+        // Загружаем контент главной страницы
+        const homeResponse = await fetch('/api/home-content');
+        if (!homeResponse.ok) {
+            throw new Error('Ошибка загрузки контента главной страницы');
         }
         
-        const data = await response.json();
-        if (data.message === 'success') {
-            updateHomeContent(data.data);
+        const homeData = await homeResponse.json();
+        if (homeData.message === 'success') {
+            updateHomeContent(homeData.data);
         }
+        
+        // Загружаем данные администратора из страницы "контакты"
+        const contactsResponse = await fetch('/api/pages/контакты');
+        if (!contactsResponse.ok) {
+            throw new Error('Ошибка загрузки данных администратора');
+        }
+        
+        const contactsData = await contactsResponse.json();
+        if (contactsData.message === 'success') {
+            updateAdminData(contactsData.data);
+        }
+        
     } catch (error) {
-        console.error('Ошибка загрузки контента главной страницы:', error);
+        console.error('Ошибка загрузки контента:', error);
     }
 }
-
 async function loadLinks() {
     try {
         const response = await fetch('/api/links');
@@ -185,7 +198,15 @@ function updateContactSectionLinks(links) {
         if (emailLink) emailLink.href = `mailto:${links.email_contact}`;
     }
     
-    // Phone ссылка
+    // Phone ссылка - ДОБАВЛЯЕМ ЭТУ ЧАСТЬ
+    if (links.phone_contact) {
+        const phoneLink = contactSection.querySelector('a.contact-link-phone');
+        if (phoneLink) {
+            phoneLink.href = `tel:${links.phone_contact.replace(/\D/g, '')}`;
+        }
+    }
+    
+    // Обновляем номер телефона в тексте
     if (links.phone_contact) {
         updatePhoneNumber(links);
     }

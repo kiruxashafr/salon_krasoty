@@ -457,7 +457,7 @@ setupEventListeners() {
 
 class ContentManager {
     constructor() {
-        this.pages = ['главная', 'about'];
+        this.pages = ['главная', 'about', 'контакты'];
         this.currentPage = 'главная';
         this.content = {};
         this.links = {};
@@ -521,72 +521,68 @@ class ContentManager {
         container.innerHTML = this.generateContentForm();
     }
 
-// setting.js - обновим метод getPageElements
+    // Обновляем метод getPageElements для добавления страницы контактов
+    getPageElements(page) {
+        const elementsMap = {
+            'главная': [
+                { key: 'название_салона', label: 'Название салона', type: 'text' },
+                { key: 'заголовок', label: 'Заголовок', type: 'text' },
+                { key: 'описание', label: 'Описание', type: 'textarea' },
+                { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
+                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
+            ],
+            'about': [
+                { key: 'заголовок', label: 'Заголовок', type: 'text' },
+                { key: 'описание', label: 'Описание', type: 'textarea' },
+                { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
+            ],
+            'контакты': [
+                { key: 'имя_администратора', label: 'Имя администратора', type: 'text' }
+            ]
+        };
+        
+        return elementsMap[page] || [];
+    }
 
-getPageElements(page) {
-    const elementsMap = {
-        'главная': [
-            { key: 'название_салона', label: 'Название салона', type: 'text' },
-            { key: 'заголовок', label: 'Заголовок', type: 'text' },
-            { key: 'описание', label: 'Описание', type: 'textarea' },
-            { key: 'кнопка_записи', label: 'Текст кнопки записи', type: 'text' },
-            { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' },
-            { key: 'имя_администратора', label: 'Имя администратора', type: 'text' }, // Добавляем это
-            { key: 'фото_администратора', label: 'Фото администратора (URL)', type: 'text' }
-        ],
-        'about': [
-            { key: 'заголовок', label: 'Заголовок', type: 'text' },
-            { key: 'описание', label: 'Описание', type: 'textarea' },
-            { key: 'дополнительный_текст', label: 'Дополнительный текст', type: 'textarea' }
-        ]
-    };
-    
-    return elementsMap[page] || [];
-}
+// setting.js - обновленный метод generateContentForm
+generateContentForm() {
+    const elements = this.getPageElements(this.currentPage);
+    const currentElements = Array.isArray(this.content) ? this.content.filter(item => 
+        elements.some(e => e.key === item.элемент)
+    ) : [];
 
-
-
-    // Упрощенная версия generateContentForm() без удаления и перетаскивания
-    generateContentForm() {
-        const elements = this.getPageElements(this.currentPage);
-        const currentElements = Array.isArray(this.content) ? this.content.filter(item => 
-            elements.some(e => e.key === item.элемент)
-        ) : [];
-
-        return `
-            <div class="page-selector">
-                <label for="pageSelector">Выберите страницу для редактирования:</label>
-                <select id="pageSelector" class="page-select">
-                    <option value="главная" ${this.currentPage === 'главная' ? 'selected' : ''}>Главная страница</option>
-                    <option value="about" ${this.currentPage === 'about' ? 'selected' : ''}>Страница "О нас"</option>
-                </select>
-            </div>
-            
-            <div class="content-management">
-                <div class="content-elements">
-                    <h4>Элементы страницы:</h4>
-                    <div id="elementsList" class="elements-list">
-                        ${currentElements.map((item, index) => `
-                            <div class="element-item" data-element="${item.элемент}">
-                                <div class="element-content">
-                                    <label>${this.getElementLabel(item.элемент)}:</label>
-                                    ${this.getElementInput(item.элемент, item.текст)}
-                                    <button class="save-element-btn" data-element="${item.элемент}">
-                                        💾 Сохранить
-                                    </button>
-                                </div>
+    return `
+        <div class="page-selector">
+            <label for="pageSelector">Выберите страницу для редактирования:</label>
+            <select id="pageSelector" class="page-select">
+                <option value="главная" ${this.currentPage === 'главная' ? 'selected' : ''}>Главная страница</option>
+                <option value="about" ${this.currentPage === 'about' ? 'selected' : ''}>Страница "О нас"</option>
+                <option value="контакты" ${this.currentPage === 'контакты' ? 'selected' : ''}>Контакты</option>
+            </select>
+        </div>
+        
+        <div class="content-management">
+            <div class="content-elements">
+                <h4>Элементы страницы "${this.getPageDisplayName(this.currentPage)}":</h4>
+                <div id="elementsList" class="elements-list">
+                    ${currentElements.map((item, index) => `
+                        <div class="element-item" data-element="${item.элемент}">
+                            <div class="element-content">
+                                <label>${this.getElementLabel(item.элемент)}:</label>
+                                ${this.getElementInput(item.элемент, item.текст)}
+                                <button class="save-element-btn" data-element="${item.элемент}">
+                                    💾 Сохранить
+                                </button>
                             </div>
-                        `).join('')}
-                    </div>
+                        </div>
+                    `).join('')}
                 </div>
             </div>
             
-            <div class="links-management">
-                <h4>Контактные ссылки:</h4>
-                ${this.generateLinksForm()}
-            </div>
-        `;
-    }
+            ${this.currentPage === 'контакты' ? this.generateLinksForm() : ''}
+        </div>
+    `;
+}
 
 // Обновим getElementLabel
 getElementLabel(elementKey) {
@@ -622,26 +618,63 @@ getElementLabel(elementKey) {
         return div.innerHTML;
     }
 
-    setupEventListeners() {
-        // Делегирование событий для кнопок сохранения
-        document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('save-element-btn')) {
-                const elementKey = e.target.getAttribute('data-element');
-                if (elementKey) {
-                    this.saveContent(elementKey);
+setupEventListeners() {
+    // Делегирование событий для кнопок сохранения
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('save-element-btn')) {
+            const elementKey = e.target.getAttribute('data-element');
+            if (elementKey) {
+                const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
+                if (input) {
+                    this.saveContent(elementKey, input.value);
                 }
             }
-        });
+        }
+    });
 
-        // Сохранение по Enter
-        document.addEventListener('keypress', (e) => {
-            if (e.target.classList.contains('content-input') && e.key === 'Enter') {
-                const elementKey = e.target.getAttribute('data-element');
-                if (elementKey) {
-                    this.saveContent(elementKey);
-                }
+    // Сохранение по Enter
+    document.addEventListener('keypress', (e) => {
+        if (e.target.classList.contains('content-input') && e.key === 'Enter') {
+            const elementKey = e.target.getAttribute('data-element');
+            if (elementKey) {
+                this.saveContent(elementKey, e.target.value);
             }
-        });
+        }
+    });
+        // Валидация ввода телефона в реальном времени
+    document.addEventListener('input', (e) => {
+        if (e.target.classList.contains('content-input') && 
+            e.target.getAttribute('data-element') === 'phone_contact') {
+            
+            let value = e.target.value;
+            
+            // Убираем все нецифровые символы
+            value = value.replace(/\D/g, '');
+            
+            // Если начинается с 7, меняем на 8
+            if (value.startsWith('7') && value.length === 11) {
+                value = '8' + value.substring(1);
+            }
+            
+            // Ограничиваем длину 11 символами
+            if (value.length > 11) {
+                value = value.substring(0, 11);
+            }
+            
+            // Обновляем значение в поле
+            if (value !== e.target.value) {
+                e.target.value = value;
+            }
+            
+            // Визуальная индикация валидности
+            if (value.length === 11 && value.startsWith('89')) {
+                e.target.style.borderColor = '#4CAF50';
+            } else {
+                e.target.style.borderColor = '#ff4444';
+            }
+        }
+    });
+
 
         // Обработчик для изменения страницы
         document.addEventListener('change', (e) => {
@@ -650,13 +683,41 @@ getElementLabel(elementKey) {
             }
         });
     }
-
-   async changePage(page) {
+// Добавьте этот метод в класс ContentManager
+validatePhoneInput(input) {
+    let value = input.value;
+    
+    // Убираем все нецифровые символы
+    value = value.replace(/\D/g, '');
+    
+    // Если начинается с 7, меняем на 8
+    if (value.startsWith('7') && value.length === 11) {
+        value = '8' + value.substring(1);
+    }
+    
+    // Ограничиваем длину 11 символами
+    if (value.length > 11) {
+        value = value.substring(0, 11);
+    }
+    
+    // Обновляем значение в поле
+    if (value !== input.value) {
+        input.value = value;
+    }
+    
+    // Визуальная индикация валидности
+    if (value.length === 11 && value.startsWith('8')) {
+        input.style.borderColor = '#4CAF50';
+    } else {
+        input.style.borderColor = '#ff4444';
+    }
+}
+    async changePage(page) {
         this.currentPage = page;
         await this.loadPageContent();
         this.displayContent();
     }
-
+   // Обновляем generateLinksForm - теперь только для страницы контактов
     generateLinksForm() {
         const linksConfig = [
             { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
@@ -664,38 +725,41 @@ getElementLabel(elementKey) {
             { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
             { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
             { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
-            { key: 'phone_contact', label: 'Телефон', placeholder: '+79991234567' }
+            { key: 'phone_contact', label: 'Телефон', placeholder: '89255355278 (только цифры)' }
         ];
 
-        return linksConfig.map(link => `
-            <div class="link-item">
-                <label>${link.label}:</label>
-                <input type="url" id="link_${link.key}" 
-                       value="${this.links[link.key] || ''}"
-                       placeholder="${link.placeholder}"
-                       class="link-input">
-                <button onclick="contentManager.saveLink('${link.key}')" 
-                        class="save-link-btn">
-                    💾 Сохранить
-                </button>
+        return `
+            <div class="links-management">
+                <h4>Контактные ссылки:</h4>
+                ${linksConfig.map(link => `
+                    <div class="link-item">
+                        <label>${link.label}:</label>
+                        <input type="${link.key === 'phone_contact' ? 'tel' : 'url'}" 
+                               id="link_${link.key}" 
+                               value="${this.links[link.key] || ''}"
+                               placeholder="${link.placeholder}"
+                               class="link-input ${link.key === 'phone_contact' ? 'phone-input' : ''}"
+                               oninput="contentManager.validatePhoneInput(this)">
+                        <button onclick="contentManager.saveLink('${link.key}')" 
+                                class="save-link-btn">
+                            💾 Сохранить
+                        </button>
+                        ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
+                    </div>
+                `).join('')}
             </div>
-        `).join('');
+        `;
     }
 
-
+    // Обновляем getPageDisplayName для новой страницы
     getPageDisplayName(page) {
         const names = {
             'главная': 'Главная страница',
-            'about': 'Страница "О нас"'
+            'about': 'Страница "О нас"',
+            'контакты': 'Контакты'
         };
         return names[page] || page;
     }
-
-    async changePage(page) {
-        this.currentPage = page;
-        await this.loadPageContent();
-    }
-
 
 
 async uploadAdminPhoto(file) {
@@ -785,67 +849,113 @@ showConfirmationButton() {
 
 // setting.js - исправленный метод saveContent
 // setting.js - исправленный метод saveContent
-    async saveContent(elementKey) {
-        const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
+// setting.js - обновленный метод saveContent с валидацией телефона
+async saveContent(elementKey, value) {
+    // Проверяем, является ли элемент телефоном
+    if (elementKey === 'phone_contact') {
+        // Убираем все пробелы, дефисы и скобки
+        const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
         
-        if (!input) {
-            console.error('Элемент не найден:', elementKey);
-            this.showNotification('Элемент не найден', 'error');
-            return;
-        }
-
-        const value = input.value || '';
-        const trimmedValue = value.trim();
-
-        try {
-            const response = await fetch(`/api/pages/${this.currentPage}/${elementKey}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ текст: trimmedValue })
-            });
-
-            if (response.ok) {
-                this.showNotification('Текст успешно сохранен!', 'success');
-                
-                // Обновляем контент на странице если она открыта
-                if (this.currentPage === 'главная') {
-                    this.updateLiveContent();
-                }
-            } else {
-                throw new Error('Ошибка сохранения');
-            }
-        } catch (error) {
-            console.error('Ошибка сохранения текста:', error);
-            this.showNotification('Ошибка сохранения текста', 'error');
+        // Проверяем формат: 11 цифр, начинается с 89
+        const phoneRegex = /^89\d{9}$/;
+        
+        if (!phoneRegex.test(cleanPhone)) {
+            this.showNotification('❌ Неверный формат телефона! Должен быть: 89255355279 (11 цифр, начинается с 89)', 'error');
+            return false;
         }
     }
 
-    async saveLink(linkKey) {
-        const input = document.getElementById(`link_${linkKey}`);
-        const value = input.value.trim();
-
-        try {
-            const response = await fetch(`/api/links/${linkKey}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ url: value })
-            });
-
-            if (response.ok) {
-                this.showNotification('Ссылка успешно сохранена!', 'success');
-                this.links[linkKey] = value;
-            } else {
-                throw new Error('Ошибка сохранения');
-            }
-        } catch (error) {
-            console.error('Ошибка сохранения ссылки:', error);
-            this.showNotification('Ошибка сохранения ссылки', 'error');
-        }
+    // Остальной код метода остается без изменений
+    const input = document.querySelector(`.content-input[data-element="${elementKey}"]`);
+    
+    if (!input) {
+        console.error('Элемент не найден:', elementKey);
+        this.showNotification('Элемент не найден', 'error');
+        return;
     }
+
+    const trimmedValue = value.trim();
+
+    try {
+        const response = await fetch(`/api/pages/${this.currentPage}/${elementKey}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ текст: trimmedValue })
+        });
+
+        if (response.ok) {
+            this.showNotification('Текст успешно сохранен!', 'success');
+            
+            // Обновляем контент на странице если она открыта
+            if (this.currentPage === 'главная') {
+                this.updateLiveContent();
+            }
+            return true;
+        } else {
+            throw new Error('Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения текста:', error);
+        this.showNotification('Ошибка сохранения текста', 'error');
+        return false;
+    }
+}
+
+async saveLink(linkKey) {
+    const input = document.getElementById(`link_${linkKey}`);
+    let value = input.value.trim();
+
+    // Специальная валидация для телефона
+    if (linkKey === 'phone_contact') {
+        // Убираем все нецифровые символы
+        const cleanPhone = value.replace(/\D/g, '');
+        
+        // Проверяем формат: 11 цифр, начинается с 8
+        const phoneRegex = /^8\d{10}$/;
+        
+        if (!phoneRegex.test(cleanPhone)) {
+            this.showNotification('❌ Неверный формат телефона! Должен быть: 89255355278 (11 цифр, начинается с 8)', 'error');
+            
+            // Подсвечиваем поле красным
+            input.style.borderColor = '#ff4444';
+            input.focus();
+            return false;
+        }
+        
+        // Обновляем значение очищенным номером
+        value = cleanPhone;
+        input.value = value;
+    }
+
+    try {
+        const response = await fetch(`/api/links/${linkKey}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url: value })
+        });
+
+        if (response.ok) {
+            this.showNotification('Ссылка успешно сохранена!', 'success');
+            this.links[linkKey] = value;
+            
+            // Визуальное подтверждение для телефона
+            if (linkKey === 'phone_contact') {
+                input.style.borderColor = '#4CAF50';
+            }
+            return true;
+        } else {
+            throw new Error('Ошибка сохранения');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения ссылки:', error);
+        this.showNotification('Ошибка сохранения ссылки', 'error');
+        return false;
+    }
+}
 
     updateLiveContent() {
         if (typeof updateHomeContent === 'function') {
