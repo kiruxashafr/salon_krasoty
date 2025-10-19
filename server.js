@@ -521,8 +521,105 @@ app.get('/api/home-content', (req, res) => {
 });
 
 
+
+// server.js - добавить default данные для ссылок если их нет
+db.get("SELECT COUNT(*) as count FROM ссылки", [], (err, row) => {
+    if (err) {
+        console.error('Error checking links table:', err.message);
+    } else if (row.count === 0) {
+        console.log('Adding default links...');
+        const defaultLinks = [
+            ['vk_contact', 'https://m.vk.com/shafranov_k', 'Ссылка на VK', 1],
+            ['telegram_contact', 'https://t.me/Shafranov_k', 'Ссылка на Telegram', 1],
+            ['whatsapp_contact', 'https://wa.me/qr/QKNVZOAIILZNM1', 'Ссылка на WhatsApp', 1],
+            ['email_contact', 'mailto:kirshafranov@gmail.com', 'Email', 1],
+            ['phone_contact', '89255355278', 'Номер телефона', 1],
+            ['telegram_bot', 'https://t.me/shafrbeautybot', 'Telegram бот', 1]
+        ];
+        
+        const insertSql = "INSERT INTO ссылки (тип, url, описание, доступен) VALUES (?, ?, ?, ?)";
+        defaultLinks.forEach(link => {
+            db.run(insertSql, link);
+        });
+    }
+});
+// server.js - добавить после существующих endpoints для ссылок
+
+// Обновить endpoint для получения видимости контактов
+app.get('/api/contact-visibility', (req, res) => {
+    const sql = `
+        SELECT 
+            тип,
+            COALESCE(доступен, 1) as доступен
+        FROM ссылки 
+        WHERE тип IN ('vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact')
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const visibility = {};
+        rows.forEach(row => {
+            // доступен = 1 → true, доступен = 0 → false
+            visibility[row.тип] = row.доступен === 1;
+        });
+        
+        // Заполняем отсутствующие типы как доступные (true)
+        const contactTypes = ['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'];
+        contactTypes.forEach(type => {
+            if (visibility[type] === undefined) {
+                visibility[type] = true;
+            }
+        });
+        
+        console.log('Видимость контактов из БД:', visibility);
+        
+        res.json({
+            message: "success",
+            data: visibility
+        });
+    });
+});
+
+// Обновить endpoint для обновления доступности
+app.patch('/api/contact-visibility/:type', (req, res) => {
+    const contactType = req.params.type;
+    const { доступен } = req.body;
+    
+    if (!['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'].includes(contactType)) {
+        return res.status(400).json({ error: 'Неверный тип контакта' });
+    }
+    
+    const sql = `
+        UPDATE ссылки 
+        SET доступен = ? 
+        WHERE тип = ?
+    `;
+    
+    const доступенValue = доступен ? 1 : 0;
+    
+    db.run(sql, [доступенValue, contactType], function(err) {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        res.json({
+            message: "success",
+            data: {
+                тип: contactType,
+                доступен: доступен
+            }
+        });
+    });
+});
+
+// Обновить endpoint для получения ссылок, чтобы учитывать доступность
 app.get('/api/links', (req, res) => {
-    const sql = "SELECT тип, url, описание FROM ссылки";
+    const sql = "SELECT тип, url, описание, COALESCE(доступен, 1) as доступен FROM ссылки WHERE COALESCE(доступен, 1) = 1";
     db.all(sql, [], (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
@@ -540,7 +637,6 @@ app.get('/api/links', (req, res) => {
         });
     });
 });
-
 // Обновить ссылку
 app.put('/api/links/:type', (req, res) => {
     const linkType = req.params.type;

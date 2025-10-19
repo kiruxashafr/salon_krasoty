@@ -288,3 +288,38 @@
         padding: 8px;
     }
 }
+
+/* contact.css - добавить в конец файла */
+
+/* Стили для скрытых контактов */
+.contact-boxx a[style*="display: none"] {
+    display: none !important;
+}
+
+.phone-number[style*="display: none"] {
+    display: none !important;
+}
+
+/* Адаптация контактной коробки для разного количества иконок */
+.contact-boxx {
+    display: flex;
+    justify-content: space-evenly;
+    border: 2px solid white;
+    border-radius: 5px;
+    width: 95%;
+    flex-wrap: nowrap;
+    gap: 5px;
+}
+
+/* Для мобильных устройств */
+@media (max-width: 768px) {
+    .contact-boxx {
+        width: 90%;
+        gap: 3px;
+    }
+    
+    /* Если осталась только одна иконка - центрируем */
+    .contact-boxx a:only-child {
+        margin: 0 auto;
+    }
+}

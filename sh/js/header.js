@@ -47,6 +47,64 @@ async function loadLinks() {
     }
 }
 
+// header.js - добавить после функции loadLinks()
+
+async function loadContactVisibility() {
+    try {
+        const response = await fetch('/api/contact-visibility');
+        if (!response.ok) {
+            throw new Error('Ошибка загрузки видимости контактов');
+        }
+        
+        const data = await response.json();
+        if (data.message === 'success') {
+            applyContactVisibility(data.data);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки видимости контактов:', error);
+        applyDefaultContactVisibility();
+    }
+}
+
+// Функция применения видимости контактов
+function applyContactVisibility(visibility) {
+    const contactSection = document.getElementById('contacts-section');
+    if (!contactSection) return;
+    
+    // Маппинг типов контактов на CSS классы
+    const contactMap = {
+        'vk_contact': 'contact-link-vk',
+        'telegram_contact': 'contact-link-telegram', 
+        'whatsapp_contact': 'contact-link-whatsapp',
+        'email_contact': 'contact-link-mail',
+        'phone_contact': 'contact-link-phone'
+    };
+    
+    // Применяем видимость для каждого типа контакта
+    Object.keys(contactMap).forEach(contactType => {
+        const contactElement = contactSection.querySelector(`.${contactMap[contactType]}`);
+        if (contactElement) {
+            if (visibility[contactType]) {
+                contactElement.style.display = 'flex'; // Показываем
+            } else {
+                contactElement.style.display = 'none'; // Скрываем
+            }
+        }
+    });
+    
+    // Особый случай для номера телефона в тексте
+    const phoneNumberElement = contactSection.querySelector('.phone-number');
+    if (phoneNumberElement) {
+        if (visibility['phone_contact']) {
+            phoneNumberElement.style.display = 'block';
+        } else {
+            phoneNumberElement.style.display = 'none';
+        }
+    }
+}
+
+
+
 // Функция обновления номера телефона
 function updatePhoneNumber(links) {
     if (links.phone_contact) {
@@ -284,9 +342,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const header = document.querySelector('.header');
 
     // Загружаем контент и ссылки
-    loadHomeContent(); // Эта функция теперь загружает и данные администратора
+    loadHomeContent();
     loadLinks();
+    loadContactVisibility(); // ДОБАВИТЬ ЭТУ СТРОЧКУ
     checkContactsVisibility();
+
 
     window.addEventListener('scroll', () => {
         let currentScroll = window.pageYOffset || document.documentElement.scrollTop;
