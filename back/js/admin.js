@@ -1,7 +1,8 @@
 let currentActiveSection = 'journal'; // По умолчанию активен журнал
 let currentView = 'journal'; // 'journal' или 'history'
 let lastViewedTimestamp = Date.now();
-
+let isModalOpen = false;
+let currentModalType = null; // 'add' или 'edit'
 
 document.addEventListener('DOMContentLoaded', function() {
     // Элементы DOM
@@ -652,32 +653,33 @@ function displayAppointments(appointments, selectedDate = null) {
             const masterInfo = !window.currentSpecialistId ? 
                 `<div class="master-info">Мастер: ${appointment.мастер_имя}</div>` : '';
             
-            appointmentsHTML += `
-                <div class="appointment-card" data-appointment-id="${appointment.id}">
-                    <div class="appointment-content">
-                        <div class="appointment-time">${time}</div>
-                        <div class="appointment-details">
-                            <div class="client-info">
-                                <div class="client-name">${appointment.клиент_имя}</div>
-                                <div class="client-phone">${formattedPhone}</div>
-                            </div>
-                            <div class="service-info">
-                                <div class="service-name">${appointment.услуга_название}</div>
-                                <div class="service-price">${appointment.цена}₽</div>
-                            </div>
-                            ${masterInfo}
-                        </div>
-                    </div>
-                    <div class="appointment-actions">
-                        <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
-                            ✏️ Изменить
-                        </button>
-                        <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
-                            ✕ Отменить
-                        </button>
-                    </div>
+// В функции displayAppointments обновите кнопки действий:
+appointmentsHTML += `
+    <div class="appointment-card" data-appointment-id="${appointment.id}">
+        <div class="appointment-content">
+            <div class="appointment-time">${time}</div>
+            <div class="appointment-details">
+                <div class="client-info">
+                    <div class="client-name">${appointment.клиент_имя}</div>
+                    <div class="client-phone">${formattedPhone}</div>
                 </div>
-            `;
+                <div class="service-info">
+                    <div class="service-name">${appointment.услуга_название}</div>
+                    <div class="service-price">${appointment.цена}₽</div>
+                </div>
+                ${masterInfo}
+            </div>
+        </div>
+        <div class="appointment-actions">
+            <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
+                ✏️ Изменить
+            </button>
+            <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
+                ✕ Отменить
+            </button>
+        </div>
+    </div>
+`;
         });
         
         appointmentsHTML += '</div>';
@@ -776,7 +778,7 @@ function showError(message) {
 
 
 
-// Функция для загрузки услуг в форму
+// Обновите функцию loadServicesForForm
 async function loadServicesForForm() {
     try {
         const response = await fetch('/api/services');
@@ -784,13 +786,15 @@ async function loadServicesForForm() {
         
         const data = await response.json();
         if (data.message === 'success') {
-            const select = document.querySelector('select[name="serviceId"]');
-            data.data.forEach(service => {
-                const option = document.createElement('option');
-                option.value = service.id;
-                option.textContent = `${service.название} - ${service.цена} ₽`;
-                select.appendChild(option);
-            });
+            const select = document.querySelector('#addAppointmentForm select[name="serviceId"]');
+            if (select) {
+                data.data.forEach(service => {
+                    const option = document.createElement('option');
+                    option.value = service.id;
+                    option.textContent = `${service.название} - ${service.цена} ₽`;
+                    select.appendChild(option);
+                });
+            }
         }
     } catch (error) {
         console.error('Ошибка:', error);
@@ -808,7 +812,6 @@ function showAddAppointmentForm() {
     if (!window.currentSpecialistId) {
         showConfirm('Вы выбрали "Все мастера". Пожалуйста, выберите конкретного мастера для добавления записи.', (confirmed) => {
             if (confirmed) {
-                // Прокручиваем к списку мастеров
                 const specialistsSection = document.querySelector('.specialists-selection');
                 if (specialistsSection) {
                     specialistsSection.scrollIntoView({ 
@@ -821,109 +824,83 @@ function showAddAppointmentForm() {
         return;
     }
 
-    if (isAddFormOpen) return;
-    isAddFormOpen = true;
+    if (isModalOpen) return;
+    
+    currentModalType = 'add';
+    isModalOpen = true;
     
     const formHTML = `
-        <div class="add-appointment-form" id="addAppointmentFormContainer">
-            <h3>Добавить новую запись</h3>
-            <div class="selected-master-info" style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 1rem;">
-                <strong>Мастер:</strong> ${window.currentSpecialistName}
-            </div>
-            <button class="btn btn-danger btn-sm" onclick="cancelAddAppointment()" style="margin-bottom: 1rem;">
-                ✖ Отменить
-            </button>
-            <form id="addAppointmentForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Дата:</label>
-                        <input type="date" class="form-control" name="date" value="${window.selectedDate}" readonly>
-                    </div>
+        <div class="modal-overlay" id="addAppointmentModal">
+            <div class="modal-dialog appointment-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Добавить новую запись</h3>
+                    <button class="modal-close-btn" onclick="closeAppointmentModal()">✕</button>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Время (часы:минуты):</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" class="form-control" name="hours" min="0" max="23" 
-                                   placeholder="Час" style="width: 80px;" required>
-                            <span>:</span>
-                            <input type="number" class="form-control" name="minutes" min="0" max="59" 
-                                   placeholder="Минуты" style="width: 80px;" required>
+                <div class="modal-body">
+                    <div class="selected-master-info" style="background: #e8f5e8; padding: 10px; border-radius: 5px; margin-bottom: 1rem;">
+                        <strong>Мастер:</strong> ${window.currentSpecialistName}
+                    </div>
+                    
+                    <form id="addAppointmentForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Дата:</label>
+                                <input type="date" class="form-control" name="date" value="${window.selectedDate}" readonly>
+                            </div>
                         </div>
-                    </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Время (часы:минуты):</label>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <input type="number" class="form-control" name="hours" min="0" max="23" 
+                                           placeholder="Час" style="width: 80px;" required>
+                                    <span>:</span>
+                                    <input type="number" class="form-control" name="minutes" min="0" max="59" 
+                                           placeholder="Минуты" style="width: 80px;" required>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Имя клиента:</label>
+                            <input type="text" class="form-control" name="clientName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Телефон клиента:</label>
+                            <div class="phone-input-container">
+                                <span class="phone-prefix">+7</span>
+                                <input type="tel" class="form-control phone-input" name="clientPhone" 
+                                       placeholder="9255355278" pattern="[0-9]{10}" 
+                                       maxlength="10" required>
+                            </div>
+                            <div class="error-message">Введите 10 цифр номера телефона</div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Услуга:</label>
+                            <select class="form-control" name="serviceId" required>
+                                <option value="">Выберите услугу</option>
+                                <!-- Услуги будут загружены динамически -->
+                            </select>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="form-group">
-                    <label>Имя клиента:</label>
-                    <input type="text" class="form-control" name="clientName" required>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeAppointmentModal()">Отмена</button>
+                    <button type="button" class="btn btn-primary" onclick="submitAddAppointmentForm()">Добавить запись</button>
                 </div>
-                
-                <div class="form-group">
-                    <label>Телефон клиента:</label>
-                    <div class="phone-input-container">
-                        <span class="phone-prefix">+7</span>
-                        <input type="tel" class="form-control phone-input" name="clientPhone" 
-                               placeholder="9255355278" pattern="[0-9]{10}" 
-                               maxlength="10" required>
-                    </div>
-                    <div class="error-message">Введите 10 цифр номера телефона</div>
-                </div>
-                
-                <div class="form-group">
-                    <label>Услуга:</label>
-                    <select class="form-control" name="serviceId" required>
-                        <option value="">Выберите услугу</option>
-                        <!-- Услуги будут загружены динамически -->
-                    </select>
-                </div>
-                
-                <button type="submit" class="btn btn-primary">Добавить запись</button>
-            </form>
+            </div>
         </div>
     `;
     
-    document.getElementById('appointmentsList').insertAdjacentHTML('beforeend', formHTML);
+    document.body.insertAdjacentHTML('beforeend', formHTML);
     loadServicesForForm();
     
-    // Прокручиваем к форме
-    setTimeout(() => {
-        const formContainer = document.getElementById('addAppointmentFormContainer');
-        if (formContainer) {
-            formContainer.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-    }, 100);
-    
-    // Добавляем валидацию телефона
-    const phoneInput = document.querySelector('input[name="clientPhone"]');
-    phoneInput.addEventListener('input', function(e) {
-        this.value = this.value.replace(/\D/g, '');
-        if (this.value.length > 10) {
-            this.value = this.value.slice(0, 10);
-        }
-    });
-    
-    // Валидация часов и минут
-    const hoursInput = document.querySelector('input[name="hours"]');
-    const minutesInput = document.querySelector('input[name="minutes"]');
-    
-    hoursInput.addEventListener('change', function() {
-        if (this.value < 0) this.value = 0;
-        if (this.value > 23) this.value = 23;
-    });
-    
-    minutesInput.addEventListener('change', function() {
-        if (this.value < 0) this.value = 0;
-        if (this.value > 59) this.value = 59;
-    });
-    
-    // Обработчик отправки формы
-    document.getElementById('addAppointmentForm').addEventListener('submit', handleAddAppointment);
+    // Добавляем валидацию
+    setupFormValidation('addAppointmentForm');
 }
-
 // Функция отмены добавления записи
 function cancelAddAppointment() {
     const formContainer = document.getElementById('addAppointmentFormContainer');
@@ -948,11 +925,17 @@ window.addEventListener('load', function() {
     lastWindowWidth = window.innerWidth;
 });
 
+// Обновите функцию selectDate чтобы закрывать формы при выборе новой даты
 function selectDate(date, day) {
     console.log(`Selected date: ${date}`);
     window.selectedDate = date;
     
-    // Обновляем заголовок с выбранной датой
+    // Закрываем открытые модальные окна
+    if (isModalOpen) {
+        closeAppointmentModal();
+    }
+    
+    // Остальной код функции остается без изменений...
     const dateObj = new Date(date);
     const formattedDate = dateObj.toLocaleDateString('ru-RU', {
         day: 'numeric',
@@ -960,24 +943,15 @@ function selectDate(date, day) {
         year: 'numeric'
     });
     
-    // Показываем список записей
     const appointmentsList = document.getElementById('appointmentsList');
     appointmentsList.style.display = 'block';
     
-    // Очищаем предыдущую форму
-    const existingForm = document.querySelector('.add-appointment-form');
-    if (existingForm) existingForm.remove();
-    isAddFormOpen = false;
-    
-    // Загружаем записи на выбранную дату
     loadAppointmentsForDate(date);
     
-    // Добавляем кнопку для добавления записи только для текущих и будущих дат
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selectedDateObj = new Date(date);
     
-    // ИСПРАВЛЕНИЕ: Проверяем существование элемента перед использованием
     const appointmentsHeader = appointmentsList.querySelector('h3');
     if (appointmentsHeader && !document.querySelector('.add-appointment-btn')) {
         const addBtn = document.createElement('button');
@@ -986,12 +960,10 @@ function selectDate(date, day) {
         addBtn.onclick = showAddAppointmentForm;
         appointmentsHeader.after(addBtn);
     } else {
-        // Удаляем кнопку, если она есть для прошедших дат
         const existingBtn = document.querySelector('.add-appointment-btn');
         if (existingBtn) existingBtn.remove();
     }
     
-    // Прокручиваем к списку записей после загрузки данных
     setTimeout(() => {
         appointmentsList.scrollIntoView({ 
             behavior: 'smooth', 
@@ -1002,11 +974,13 @@ function selectDate(date, day) {
 
 
 
+
+// Обновленная функция showEditAppointmentForm
 function showEditAppointmentForm(appointment) {
-    if (isAddFormOpen) return;
-    isAddFormOpen = true;
+    if (isModalOpen) return;
     
-    // Сохраняем оригинальные данные записи
+    currentModalType = 'edit';
+    isModalOpen = true;
     window.originalAppointmentData = appointment;
     
     const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
@@ -1015,148 +989,174 @@ function showEditAppointmentForm(appointment) {
     const [hours, minutes] = appointment.время.split(':');
     
     const formHTML = `
-        <div class="edit-appointment-form" id="editAppointmentFormContainer">
-            <h3>Редактировать запись</h3>
-            <button class="btn btn-danger btn-sm" onclick="cancelEditAppointment()" style="margin-bottom: 1rem;">
-                ✖ Отменить редактирование
-            </button>
-            
-
-            
-            <form id="editAppointmentForm" data-appointment-id="${appointment.id}">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Дата:</label>
-                        <input type="date" class="form-control" name="date" value="${appointment.дата}" required>
-                    </div>
+        <div class="modal-overlay" id="editAppointmentModal">
+            <div class="modal-dialog appointment-modal large-modal">
+                <div class="modal-header">
+                    <h3 class="modal-title">Редактировать запись</h3>
+                    <button class="modal-close-btn" onclick="closeAppointmentModal()">✕</button>
                 </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Время (часы:минуты):</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="number" class="form-control" name="hours" min="0" max="23" 
-                                   placeholder="Час" style="width: 80px;" value="${hours}" required>
-                            <span>:</span>
-                            <input type="number" class="form-control" name="minutes" min="0" max="59" 
-                                   placeholder="Минуты" style="width: 80px;" value="${minutes}" required>
+                <div class="modal-body">
+                    <form id="editAppointmentForm" data-appointment-id="${appointment.id}">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Дата:</label>
+                                <input type="date" class="form-control" name="date" value="${appointment.дата}" required>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                <div class="current-info-section">
-                    <div class="current-info-group">
-                        <label>Текущий мастер:</label>
-                        <div class="current-info-display">
-                            <strong>${appointment.мастер_имя}</strong>
-                            <input type="hidden" id="originalMasterId" value="${appointment.мастер_id}">
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Время (часы:минуты):</label>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <input type="number" class="form-control" name="hours" min="0" max="23" 
+                                           placeholder="Час" style="width: 80px;" value="${hours}" required>
+                                    <span>:</span>
+                                    <input type="number" class="form-control" name="minutes" min="0" max="59" 
+                                           placeholder="Минуты" style="width: 80px;" value="${minutes}" required>
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleMasterSelection()" id="toggleMasterBtn">
-                    🔄 Сменить мастера
-                </button>
-                                <div class="form-group service-selection" id="masterSelection" style="display: none;">
-                    <label>Выберите нового мастера:</label>
-                    <div class="masters-selection-compact" id="mastersSelectionCompact">
-                        <div class="loading">Загрузка списка мастеров...</div>
-                    </div>
-                    <small style="color: #666;">Выберите мастера из списка выше</small>
-                </div>
-                    
-                    <div class="current-info-group">
-                        <label>Текущая услуга:</label>
-                        <div class="current-info-display">
-                            <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
-                            <input type="hidden" id="originalServiceId" value="${appointment.услуга_id}">
-                        </div>
-                    </div>
-                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
-                    ✏️ Изменить услугу
-                </button>
-                </div>
-                
-                <div class="form-group service-selection" id="serviceSelection" style="display: none;">
-                    <label>Выберите новую услугу:</label>
-                    <select class="form-control" name="serviceId" id="serviceSelect">
-                        <option value="">Выберите услугу</option>
-                        <!-- Услуги будут загружены динамически -->
-                    </select>
-                    <small style="color: #666;">Оставьте "Выберите услугу" чтобы не менять услугу</small>
-                </div>
-                
-                <div class="form-group">
-                    <label>Имя клиента:</label>
-                    <input type="text" class="form-control" name="clientName" value="${appointment.клиент_имя}" required>
-                </div>
-                
 
-                
-                <div class="form-group">
-                    <label>Телефон клиента:</label>
-                    <div class="phone-input-container">
-                        <span class="phone-prefix">+7</span>
-                        <input type="tel" class="form-control phone-input" name="clientPhone" 
-                               placeholder="9255355278" pattern="[0-9]{10}" 
-                               maxlength="10" value="${formattedPhone}" required>
-                    </div>
-                    <div class="error-message">Введите 10 цифр номера телефона</div>
+                        <div class="current-info-section">
+                            <div class="current-info-group">
+                                <label>Текущий мастер:</label>
+                                <div class="current-info-display">
+                                    <strong>${appointment.мастер_имя}</strong>
+                                    <input type="hidden" id="originalMasterId" value="${appointment.мастер_id}">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleMasterSelection()" id="toggleMasterBtn">
+                                🔄 Сменить мастера
+                            </button>
+                            
+                            <div class="form-group service-selection" id="masterSelection" style="display: none;">
+                                <label>Выберите нового мастера:</label>
+                                <div class="masters-selection-compact" id="mastersSelectionCompact">
+                                    <div class="loading">Загрузка списка мастеров...</div>
+                                </div>
+                                <small style="color: #666;">Выберите мастера из списка выше</small>
+                            </div>
+                            
+                            <div class="current-info-group">
+                                <label>Текущая услуга:</label>
+                                <div class="current-info-display">
+                                    <strong>${appointment.услуга_название}</strong> - ${appointment.цена} ₽
+                                    <input type="hidden" id="originalServiceId" value="${appointment.услуга_id}">
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleServiceSelection()" id="toggleServiceBtn">
+                                ✏️ Изменить услугу
+                            </button>
+                        </div>
+                        
+                        <div class="form-group service-selection" id="serviceSelection" style="display: none;">
+                            <label>Выберите новую услугу:</label>
+                            <select class="form-control" name="serviceId" id="serviceSelect">
+                                <option value="">Выберите услугу</option>
+                            </select>
+                            <small style="color: #666;">Оставьте "Выберите услугу" чтобы не менять услугу</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Имя клиента:</label>
+                            <input type="text" class="form-control" name="clientName" value="${appointment.клиент_имя}" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Телефон клиента:</label>
+                            <div class="phone-input-container">
+                                <span class="phone-prefix">+7</span>
+                                <input type="tel" class="form-control phone-input" name="clientPhone" 
+                                       placeholder="9255355278" pattern="[0-9]{10}" 
+                                       maxlength="10" value="${formattedPhone}" required>
+                            </div>
+                            <div class="error-message">Введите 10 цифр номера телефона</div>
+                        </div>
+                    </form>
                 </div>
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-danger" onclick="deleteAppointment(${appointment.id})">
                         Удалить запись
                     </button>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button type="button" class="btn btn-secondary" onclick="closeAppointmentModal()">Отмена</button>
+                        <button type="button" class="btn btn-primary" onclick="submitEditAppointmentForm()">Сохранить изменения</button>
+                    </div>
                 </div>
-            </form>
+            </div>
         </div>
     `;
     
-    document.getElementById('appointmentsList').insertAdjacentHTML('beforeend', formHTML);
+    document.body.insertAdjacentHTML('beforeend', formHTML);
     
-    // Загружаем услуги для выбора
+    // Загружаем услуги и мастеров
     loadServicesForEditForm(appointment.услуга_id);
-    
-    // Загружаем мастеров для выбора
     loadMastersForCompactSelection(appointment.мастер_id);
     
-    // Прокручиваем к форме
-    setTimeout(() => {
-        const formContainer = document.getElementById('editAppointmentFormContainer');
-        if (formContainer) {
-            formContainer.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }
-    }, 100);
-    
     // Добавляем валидацию
-    const phoneInput = document.querySelector('#editAppointmentForm input[name="clientPhone"]');
-    phoneInput.addEventListener('input', function(e) {
-        this.value = this.value.replace(/\D/g, '');
-        if (this.value.length > 10) {
-            this.value = this.value.slice(0, 10);
-        }
-    });
-    
-    // Валидация часов и минут
-    const hoursInput = document.querySelector('#editAppointmentForm input[name="hours"]');
-    const minutesInput = document.querySelector('#editAppointmentForm input[name="minutes"]');
-    
-    hoursInput.addEventListener('change', function() {
-        if (this.value < 0) this.value = 0;
-        if (this.value > 23) this.value = 23;
-    });
-    
-    minutesInput.addEventListener('change', function() {
-        if (this.value < 0) this.value = 0;
-        if (this.value > 59) this.value = 59;
-    });
-    
-    // Обработчик отправки формы
-    document.getElementById('editAppointmentForm').addEventListener('submit', handleEditAppointment);
+    setupFormValidation('editAppointmentForm');
 }
+
+// Функция закрытия модального окна
+function closeAppointmentModal() {
+    const modal = document.getElementById(currentModalType === 'add' ? 'addAppointmentModal' : 'editAppointmentModal');
+    if (modal) {
+        modal.remove();
+    }
+    isModalOpen = false;
+    currentModalType = null;
+    window.originalAppointmentData = null;
+    window.selectedNewMasterId = null;
+}
+// Функции отправки форм
+function submitAddAppointmentForm() {
+    const form = document.getElementById('addAppointmentForm');
+    if (form) {
+        handleAddAppointment({ preventDefault: () => {} });
+    }
+}
+
+function submitEditAppointmentForm() {
+    const form = document.getElementById('editAppointmentForm');
+    if (form) {
+        handleEditAppointment({ preventDefault: () => {}, target: form });
+    }
+}
+
+// Настройка валидации формы
+function setupFormValidation(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    const phoneInput = form.querySelector('input[name="clientPhone"]');
+    if (phoneInput) {
+        phoneInput.addEventListener('input', function(e) {
+            this.value = this.value.replace(/\D/g, '');
+            if (this.value.length > 10) {
+                this.value = this.value.slice(0, 10);
+            }
+        });
+    }
+
+    const hoursInput = form.querySelector('input[name="hours"]');
+    const minutesInput = form.querySelector('input[name="minutes"]');
+    
+    if (hoursInput) {
+        hoursInput.addEventListener('change', function() {
+            if (this.value < 0) this.value = 0;
+            if (this.value > 23) this.value = 23;
+        });
+    }
+    
+    if (minutesInput) {
+        minutesInput.addEventListener('change', function() {
+            if (this.value < 0) this.value = 0;
+            if (this.value > 59) this.value = 59;
+        });
+    }
+}
+
+
 
 // Функция для переключения отображения выбора услуги
 function toggleServiceSelection() {
