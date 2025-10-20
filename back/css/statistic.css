@@ -179,25 +179,112 @@
     margin-top: 1rem;
 }
 
+/* Добавьте эти стили в statistic.css */
+
+/* Мобильная оптимизация для таблиц статистики */
 @media (max-width: 768px) {
-    .stats-filters {
-        grid-template-columns: 1fr;
+    .stats-details {
+        margin-bottom: 1.5rem;
+        overflow: hidden;
     }
-    
-    .stats-overview {
-        grid-template-columns: 1fr;
+
+    .stats-details h3 {
+        font-size: 1.1rem;
+        margin-bottom: 0.75rem;
+        padding: 0 0.5rem;
     }
-    
-    .stats-tabs {
-        overflow-x: auto;
-        padding-bottom: 0.5rem;
+
+    .stats-table {
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+        background: white;
     }
-    
-    .stats-tab {
-        white-space: nowrap;
+
+    .stats-table table {
+        min-width: 100%;
+        display: block;
+        overflow-x: visible;
+    }
+
+    .stats-table thead {
+        display: none; /* Скрываем заголовок на мобильных */
+    }
+
+    .stats-table tbody {
+        display: block;
+        width: 100%;
+    }
+
+    .stats-table tr {
+        display: block;
+        width: 100%;
+        padding: 0.75rem;
+        border-bottom: 1px solid #e9ecef;
+        position: relative;
+    }
+
+    .stats-table tr:last-child {
+        border-bottom: none;
+    }
+
+    .stats-table td {
+        display: block;
+        width: 100%;
+        padding: 0.5rem 0;
+        border: none;
+        text-align: left;
+        position: relative;
+        padding-left: 45%; /* Место для подписей */
+    }
+
+    .stats-table td:before {
+        content: attr(data-label);
+        position: absolute;
+        left: 0.75rem;
+        top: 0.5rem;
+        width: 40%;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.8rem;
+    }
+
+    /* Альтернативный фон для строк */
+    .stats-table tr:nth-child(even) {
+        background: #f8f9fa;
+    }
+
+    .stats-table tr:hover {
+        background: #e9ecef;
+    }
+
+}
+
+/* Дополнительные улучшения для очень маленьких экранов */
+@media (max-width: 480px) {
+    .stats-table td {
+        padding-left: 40%;
+    }
+
+    .stats-table td:before {
+        width: 35%;
+        font-size: 0.75rem;
+    }
+
+    .stats-table td {
+        font-size: 0.9rem;
     }
 }
 
+/* Улучшения для landscape ориентации */
+@media (max-width: 768px) and (orientation: landscape) {
+    .stats-table td {
+        padding-left: 30%;
+    }
+
+    .stats-table td:before {
+        width: 25%;
+    }
+}
 
 /* Добавьте эти стили в statistic.css */
 .period-buttons {

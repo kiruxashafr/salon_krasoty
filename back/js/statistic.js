@@ -180,113 +180,104 @@ getPeriodInfoHTML() {
                 </div>
             </div>
 
-            ${data.byService ? `
-            <div class="stats-details">
-                <h3>По услугам</h3>
-                <div class="stats-table">
-                    <table>
-                        <thead>
+    ${data.byService ? `
+    <div class="stats-details">
+        <h3>По услугам</h3>
+        <div class="stats-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Услуга</th>
+                        <th>Количество</th>
+                        <th>Выручка</th>
+                        <th>Доля</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.byService.map(service => `
+                        <tr>
+                            <td data-label="Услуга">${service.название}</td>
+                            <td data-label="Количество">${service.count}</td>
+                            <td data-label="Выручка">${service.revenue} ₽</td>
+                            <td data-label="Доля">${service.percentage}%</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    ` : ''}
+
+    ${data.byMaster ? `
+    <div class="stats-details">
+        <h3>По мастерам</h3>
+        <div class="stats-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Мастер</th>
+                        <th>Количество</th>
+                        <th>Выручка</th>
+                        <th>Доля</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.byMaster.map(master => `
+                        <tr>
+                            <td data-label="Мастер">${master.имя}</td>
+                            <td data-label="Количество">${master.count}</td>
+                            <td data-label="Выручка">${master.revenue} ₽</td>
+                            <td data-label="Доля">${master.percentage}%</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    ` : ''}
+    `;
+}
+
+renderMastersStats(data) {
+    if (!data.masters) return '<p>Нет данных по мастерам</p>';
+
+    return `
+        <!-- ... существующий код ... -->
+
+        <div class="stats-details">
+            <h3>Статистика по мастерам</h3>
+            <div class="stats-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Мастер</th>
+                            <th>Записей</th>
+                            <th>Выручка</th>
+                            <th>Средняя выручка в день</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.masters.map(master => `
                             <tr>
-                                <th>Услуга</th>
-                                <th>Количество</th>
-                                <th>Выручка</th>
-                                <th>Доля</th>
+                                <td data-label="Мастер">${master.имя}</td>
+                                <td data-label="Записей">${master.appointmentsCount}</td>
+                                <td data-label="Выручка">${master.revenue} ₽</td>
+                                <td data-label="Средняя в день">${master.dailyAverage} ₽</td>
+                                <td data-label="Статус">${master.доступен === 1 ? 'Активен' : 'Скрыт'}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${data.byService.map(service => `
-                                <tr>
-                                    <td>${service.название}</td>
-                                    <td>${service.count}</td>
-                                    <td>${service.revenue} ₽</td>
-                                    <td>${service.percentage}%</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
-            ` : ''}
+        </div>
+    `;
+}
 
-            ${data.byMaster ? `
-            <div class="stats-details">
-                <h3>По мастерам</h3>
-                <div class="stats-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Мастер</th>
-                                <th>Количество</th>
-                                <th>Выручка</th>
-                                <th>Доля</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.byMaster.map(master => `
-                                <tr>
-                                    <td>${master.имя}</td>
-                                    <td>${master.count}</td>
-                                    <td>${master.revenue} ₽</td>
-                                    <td>${master.percentage}%</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            ` : ''}
-        `;
-    }
+renderServicesStats(data) {
+    if (!data.services) return '<p>Нет данных по услугам</p>';
 
-    renderMastersStats(data) {
-        if (!data.masters) return '<p>Нет данных по мастерам</p>';
-
-        return `
-            <div class="stats-overview">
-                <div class="stat-card">
-                    <h3>Всего мастеров</h3>
-                    <div class="stat-value">${data.totalMasters || 0}</div>
-                </div>
-                <div class="stat-card">
-                    <h3>Активных мастеров</h3>
-                    <div class="stat-value">${data.activeMasters || 0}</div>
-                </div>
-            </div>
-
-            <div class="stats-details">
-                <h3>Статистика по мастерам</h3>
-                <div class="stats-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Мастер</th>
-                                <th>Записей</th>
-                                <th>Выручка</th>
-                                <th>Средняя выручка в день</th>
-                                <th>Статус</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.masters.map(master => `
-                                <tr>
-                                    <td>${master.имя}</td>
-                                    <td>${master.appointmentsCount}</td>
-                                    <td>${master.revenue} ₽</td>
-                                    <td>${master.dailyAverage} ₽</td>
-                                    <td>${master.доступен === 1 ? 'Активен' : 'Скрыт'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    }
-
-    renderServicesStats(data) {
-        if (!data.services) return '<p>Нет данных по услугам</p>';
-
-        return `
+    return `
             <div class="stats-overview">
                 <div class="stat-card">
                     <h3>Всего услуг</h3>
@@ -298,37 +289,37 @@ getPeriodInfoHTML() {
                 </div>
             </div>
 
-            <div class="stats-details">
-                <h3>Статистика по услугам</h3>
-                <div class="stats-table">
-                    <table>
-                        <thead>
+        <div class="stats-details">
+            <h3>Статистика по услугам</h3>
+            <div class="stats-table">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Услуга</th>
+                            <th>Категория</th>
+                            <th>Записей</th>
+                            <th>Выручка</th>
+                            <th>Цена</th>
+                            <th>Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.services.map(service => `
                             <tr>
-                                <th>Услуга</th>
-                                <th>Категория</th>
-                                <th>Записей</th>
-                                <th>Выручка</th>
-                                <th>Цена</th>
-                                <th>Статус</th>
+                                <td data-label="Услуга">${service.название}</td>
+                                <td data-label="Категория">${service.категория}</td>
+                                <td data-label="Записей">${service.appointmentsCount}</td>
+                                <td data-label="Выручка">${service.revenue} ₽</td>
+                                <td data-label="Цена">${service.цена} ₽</td>
+                                <td data-label="Статус">${service.доступен === 1 ? 'Активна' : 'Скрыта'}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            ${data.services.map(service => `
-                                <tr>
-                                    <td>${service.название}</td>
-                                    <td>${service.категория}</td>
-                                    <td>${service.appointmentsCount}</td>
-                                    <td>${service.revenue} ₽</td>
-                                    <td>${service.цена} ₽</td>
-                                    <td>${service.доступен === 1 ? 'Активна' : 'Скрыта'}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
+                        `).join('')}
+                    </tbody>
+                </table>
             </div>
-        `;
-    }
+        </div>
+    `;
+}
 
 setupEventListeners() {
     // Переключение вкладок статистики

@@ -1942,7 +1942,6 @@ body {
 /* Адаптивность для мобильных */
 @media (max-width: 768px) {
     .appointment-modal {
-        margin: 1rem;
         max-width: calc(100vw - 2rem);
     }
     

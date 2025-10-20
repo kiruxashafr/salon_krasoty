@@ -303,7 +303,7 @@
 
 @media (max-width: 480px) {
     .schedule-tabs {
-        flex-direction: column;
+        flex-direction: row;
     }
     
     .quick-buttons {
