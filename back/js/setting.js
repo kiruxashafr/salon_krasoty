@@ -461,6 +461,7 @@ class ContentManager {
         this.currentPage = 'главная';
         this.content = {};
         this.links = {};
+        this.linksVisibility = {}; // Добавьте это свойство
     }
 
     async init() {
@@ -499,20 +500,34 @@ class ContentManager {
         }
     }
 
-    async loadLinks() {
-        try {
-            const response = await fetch('/api/links');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.message === 'success') {
-                    this.links = data.data;
-                    this.displayContent();
-                }
+// setting.js - обновленный метод loadLinks в ContentManager
+// setting.js - обновленный метод loadLinks в ContentManager
+async loadLinks() {
+    try {
+        // Загружаем ссылки
+        const linksResponse = await fetch('/api/links');
+        if (linksResponse.ok) {
+            const linksData = await linksResponse.json();
+            if (linksData.message === 'success') {
+                this.links = linksData.data;
             }
-        } catch (error) {
-            console.error('Ошибка загрузки ссылок:', error);
         }
+
+        // Загружаем видимость контактов (включая telegram_bot)
+        const visibilityResponse = await fetch('/api/contact-visibility');
+        if (visibilityResponse.ok) {
+            const visibilityData = await visibilityResponse.json();
+            if (visibilityData.message === 'success') {
+                this.linksVisibility = visibilityData.data;
+                console.log('Загружена видимость контактов:', this.linksVisibility);
+            }
+        }
+
+        this.displayContent();
+    } catch (error) {
+        console.error('Ошибка загрузки ссылок или видимости:', error);
     }
+}
 
     displayContent() {
         const container = document.getElementById('contentTextSettings');
@@ -717,39 +732,91 @@ validatePhoneInput(input) {
         await this.loadPageContent();
         this.displayContent();
     }
-   // Обновляем generateLinksForm - теперь только для страницы контактов
-    generateLinksForm() {
-        const linksConfig = [
-            { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
-            { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
-            { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
-            { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
-            { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
-            { key: 'phone_contact', label: 'Телефон', placeholder: '89255355278 (только цифры)' }
-        ];
+// setting.js - обновленный метод generateLinksForm
+generateLinksForm() {
+    const linksConfig = [
+        { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
+        { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
+        { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
+        { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
+        { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
+        { key: 'phone_contact', label: 'Телефон', placeholder: '89255355278 (только цифры)' }
+    ];
 
-        return `
-            <div class="links-management">
-                <h4>Контактные ссылки:</h4>
-                ${linksConfig.map(link => `
-                    <div class="link-item">
+    return `
+        <div class="links-management">
+            <h4>Контактные ссылки:</h4>
+            ${linksConfig.map(link => `
+                <div class="link-item-with-visibility">
+                    <div class="link-content">
                         <label>${link.label}:</label>
                         <input type="${link.key === 'phone_contact' ? 'tel' : 'url'}" 
-                               id="link_${link.key}" 
+                               id="link_input_${link.key}" 
                                value="${this.links[link.key] || ''}"
                                placeholder="${link.placeholder}"
                                class="link-input ${link.key === 'phone_contact' ? 'phone-input' : ''}"
-                               oninput="contentManager.validatePhoneInput(this)">
+                               ${link.key === 'phone_contact' ? 'oninput="contentManager.validatePhoneInput(this)"' : ''}>
                         <button onclick="contentManager.saveLink('${link.key}')" 
                                 class="save-link-btn">
                             💾 Сохранить
                         </button>
-                        ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
                     </div>
-                `).join('')}
-            </div>
-        `;
+                    <div class="visibility-control">
+                        <label class="visibility-toggle">
+                            <input type="checkbox" 
+                                   id="visibility_${link.key}" 
+                                   ${this.linksVisibility[link.key] ? 'checked' : ''}
+                                   onchange="contentManager.toggleLinkVisibility('${link.key}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="visibility-label">Видимость</span>
+                    </div>
+                    ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+
+// setting.js - добавьте в класс ContentManager
+async toggleLinkVisibility(linkType, isVisible) {
+    try {
+        const response = await fetch(`/api/contact-visibility/${linkType}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ доступен: isVisible })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.linksVisibility[linkType] = isVisible;
+                this.showNotification(`Видимость ${this.getLinkLabel(linkType)} ${isVisible ? 'включена' : 'выключена'}!`, 'success');
+            }
+        } else {
+            throw new Error('Ошибка сохранения видимости');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения видимости:', error);
+        this.showNotification('Ошибка сохранения видимости', 'error');
     }
+}
+
+// Вспомогательный метод для получения названия ссылки
+getLinkLabel(linkType) {
+    const labels = {
+        'vk_contact': 'VK',
+        'telegram_contact': 'Telegram',
+        'whatsapp_contact': 'WhatsApp',
+        'email_contact': 'Email',
+        'phone_contact': 'Телефона',
+        'telegram_bot': 'Telegram бота'
+    };
+    return labels[linkType] || linkType;
+}
 
     // Обновляем getPageDisplayName для новой страницы
     getPageDisplayName(page) {
@@ -903,8 +970,9 @@ async saveContent(elementKey, value) {
     }
 }
 
+// setting.js - исправленный метод saveLink
 async saveLink(linkKey) {
-    const input = document.getElementById(`link_${linkKey}`);
+    const input = document.getElementById(`link_input_${linkKey}`);
     let value = input.value.trim();
 
     // Специальная валидация для телефона

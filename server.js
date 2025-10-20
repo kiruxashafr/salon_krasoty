@@ -545,14 +545,14 @@ db.get("SELECT COUNT(*) as count FROM ссылки", [], (err, row) => {
 });
 // server.js - добавить после существующих endpoints для ссылок
 
-// Обновить endpoint для получения видимости контактов
+// server.js - обновить endpoint для получения видимости контактов
 app.get('/api/contact-visibility', (req, res) => {
     const sql = `
         SELECT 
             тип,
             COALESCE(доступен, 1) as доступен
         FROM ссылки 
-        WHERE тип IN ('vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact')
+        WHERE тип IN ('vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot')
     `;
     
     db.all(sql, [], (err, rows) => {
@@ -568,7 +568,7 @@ app.get('/api/contact-visibility', (req, res) => {
         });
         
         // Заполняем отсутствующие типы как доступные (true)
-        const contactTypes = ['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'];
+        const contactTypes = ['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot'];
         contactTypes.forEach(type => {
             if (visibility[type] === undefined) {
                 visibility[type] = true;
@@ -589,7 +589,7 @@ app.patch('/api/contact-visibility/:type', (req, res) => {
     const contactType = req.params.type;
     const { доступен } = req.body;
     
-    if (!['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'].includes(contactType)) {
+    if (!['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot'].includes(contactType)) {
         return res.status(400).json({ error: 'Неверный тип контакта' });
     }
     
