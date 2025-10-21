@@ -200,12 +200,12 @@
 /* Стили для номера телефона в модальном окне */
 .phone-number {
     display: block;
-    width: 96%;
+    width: 101%;
     text-align: center;
     margin-top: 15px;
-    font-family: 'Inter', Arial, sans-serif;
-    font-size: 18px;
-    font-weight: 600;
+    font-family: 'soviet', Arial, sans-serif;
+    font-size: 24px;
+    font-weight: 700;
     color: #ffffff;
     padding: 10px;
     border: 2px solid white;
@@ -306,7 +306,7 @@
     justify-content: space-evenly;
     border: 2px solid white;
     border-radius: 5px;
-    width: 95%;
+    width: 100%;
     flex-wrap: nowrap;
     gap: 5px;
 }

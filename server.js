@@ -209,9 +209,79 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
     }
 });
 
+// server.js - добавьте этот endpoint после других endpoints для ссылок
 
-// server.js - добавить после существующих endpoints для страниц
+// API endpoint для получения координат карты
+app.get('/api/map-coordinates', (req, res) => {
+    const sql = `
+        SELECT 
+            MAX(CASE WHEN тип = 'map_latitude' THEN url END) as latitude,
+            MAX(CASE WHEN тип = 'map_longitude' THEN url END) as longitude
+        FROM ссылки 
+        WHERE тип IN ('map_latitude', 'map_longitude')
+    `;
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const coordinates = {
+            latitude: row?.latitude ? parseFloat(row.latitude) : 52.97103104736177,
+            longitude: row?.longitude ? parseFloat(row.longitude) : 36.06383468318084
+        };
+        
+        res.json({
+            message: "success",
+            data: coordinates
+        });
+    });
+});
 
+// API endpoint для обновления координат карты
+app.put('/api/map-coordinates', (req, res) => {
+    const { latitude, longitude } = req.body;
+    
+    if (!latitude || !longitude) {
+        return res.status(400).json({ error: 'Широта и долгота обязательны' });
+    }
+    
+    const queries = [
+        { type: 'map_latitude', value: latitude.toString() },
+        { type: 'map_longitude', value: longitude.toString() }
+    ];
+    
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        
+        queries.forEach(({ type, value }) => {
+            const sql = `
+                INSERT INTO ссылки (тип, url, описание) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(тип) 
+                DO UPDATE SET url = excluded.url
+            `;
+            db.run(sql, [type, value, `Координаты карты - ${type}`]);
+        });
+        
+        db.run("COMMIT", function(err) {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: {
+                    latitude,
+                    longitude
+                }
+            });
+        });
+    });
+});
 // API endpoint для получения данных администратора
 app.get('/api/admin-data', (req, res) => {
     const sql = `

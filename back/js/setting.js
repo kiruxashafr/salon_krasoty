@@ -1060,6 +1060,343 @@ async saveLink(linkKey) {
     }
 }
 
+
+class MapSettingsManager {
+    constructor() {
+        this.map = null;
+        this.marker = null;
+        this.currentCoordinates = null;
+        this.searchControl = null;
+        this.init();
+    }
+
+    async init() {
+        await this.loadCurrentCoordinates();
+        this.setupEventListeners();
+    }
+
+    async loadCurrentCoordinates() {
+        try {
+            const response = await fetch('/api/map-coordinates');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.currentCoordinates = data.data;
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки координат:', error);
+            // Устанавливаем координаты по умолчанию
+            this.currentCoordinates = {
+                latitude: 52.97103104736177,
+                longitude: 36.06383468318084
+            };
+        }
+    }
+
+    setupEventListeners() {
+        document.getElementById('openMapSettingsBtn')?.addEventListener('click', () => {
+            this.openMapSettingsModal();
+        });
+
+        document.getElementById('closeMapSettingsModal')?.addEventListener('click', () => {
+            this.closeMapSettingsModal();
+        });
+    }
+
+openMapSettingsModal() {
+    const modal = document.getElementById('mapSettingsModal');
+    if (modal) {
+        modal.style.display = 'block';
+        // Инициализируем карту после отображения модального окна
+        setTimeout(() => {
+            this.initMap();
+        }, 100);
+        
+        // Обработчик клика вне поля поиска для скрытия подсказок
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.address-search')) {
+                this.hideSuggestions();
+            }
+        });
+    }
+}
+
+    closeMapSettingsModal() {
+        const modal = document.getElementById('mapSettingsModal');
+        if (modal) {
+            modal.style.display = 'none';
+            // Уничтожаем карту при закрытии
+            if (this.map) {
+                this.map.destroy();
+                this.map = null;
+                this.marker = null;
+            }
+        }
+    }
+    setupSearch() {
+    const addressInput = document.getElementById('addressSearch');
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    
+    if (!addressInput) return;
+    
+    // Обработчик ввода в поле поиска
+    addressInput.addEventListener('input', this.debounce((e) => {
+        this.handleAddressSearch(e.target.value);
+    }, 300));
+    
+    // Обработчик нажатия Enter
+    addressInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            this.performSearch(addressInput.value);
+        }
+    });
+}
+
+// Метод для поиска с задержкой (debounce)
+debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Обработчик поиска адреса
+async handleAddressSearch(query) {
+    if (!query || query.length < 3) {
+        this.hideSuggestions();
+        return;
+    }
+    
+    try {
+        const response = await this.searchAddress(query);
+        this.displaySuggestions(response);
+    } catch (error) {
+        console.error('Ошибка поиска адреса:', error);
+    }
+}
+
+// Поиск адреса через Яндекс Геокодер
+async searchAddress(query) {
+    return new Promise((resolve, reject) => {
+        if (!window.ymaps) {
+            reject(new Error('Yandex Maps API не загружена'));
+            return;
+        }
+        
+        ymaps.geocode(query, { results: 5 })
+            .then((res) => {
+                const suggestions = res.geoObjects.toArray().map(geoObject => ({
+                    address: geoObject.getAddressLine(),
+                    coords: geoObject.geometry.getCoordinates(),
+                    name: geoObject.properties.get('name')
+                }));
+                resolve(suggestions);
+            })
+            .catch(reject);
+    });
+}
+
+// Отображение подсказок
+displaySuggestions(suggestions) {
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    if (!suggestionsContainer) return;
+    
+    if (suggestions.length === 0) {
+        this.hideSuggestions();
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+        <div class="suggestion-item" data-coords="${suggestion.coords}">
+            <strong>${suggestion.name || ''}</strong><br>
+            <small>${suggestion.address}</small>
+        </div>
+    `).join('');
+    
+    suggestionsContainer.style.display = 'block';
+    
+    // Добавляем обработчики клика на подсказки
+    suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const coords = item.getAttribute('data-coords').split(',').map(Number);
+            this.selectSuggestion(coords, item.textContent);
+        });
+    });
+}
+
+// Скрытие подсказок
+hideSuggestions() {
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+}
+
+// Обработка выбора подсказки
+selectSuggestion(coords, address) {
+    const addressInput = document.getElementById('addressSearch');
+    if (addressInput) {
+        addressInput.value = address;
+    }
+    
+    this.hideSuggestions();
+    
+    // Обновляем карту
+    if (this.map && this.marker) {
+        this.map.setCenter(coords, 15);
+        this.marker.geometry.setCoordinates(coords);
+        this.updateCoordinates(coords);
+    }
+}
+
+// Выполнение поиска
+performSearch(query) {
+    if (!this.searchControl) return;
+    
+    this.searchControl.search(query).then(() => {
+        const results = this.searchControl.getResultsArray();
+        if (results.length > 0) {
+            const firstResult = results[0];
+            const coords = firstResult.geometry.getCoordinates();
+            
+            this.map.setCenter(coords, 15);
+            this.marker.geometry.setCoordinates(coords);
+            this.updateCoordinates(coords);
+        }
+    });
+}
+
+    initMap() {
+        if (!this.currentCoordinates) return;
+
+        // Инициализация карты
+        this.map = new ymaps.Map('mapContainer', {
+            center: [this.currentCoordinates.latitude, this.currentCoordinates.longitude],
+            zoom: 15,
+            controls: ['zoomControl', 'fullscreenControl']
+        });
+
+        // Добавляем поиск
+        this.searchControl = new ymaps.control.SearchControl({
+            options: {
+                provider: 'yandex#search',
+                noPlacemark: true
+            }
+        });
+        
+        this.map.controls.add(this.searchControl);
+
+        // Создаем маркер
+        this.marker = new ymaps.Placemark(
+            [this.currentCoordinates.latitude, this.currentCoordinates.longitude],
+            {
+                hintContent: 'Ваше заведение',
+                balloonContent: 'Местоположение вашего заведения'
+            },
+            {
+                preset: 'islands#redDotIcon',
+                draggable: true
+            }
+        );
+
+        this.map.geoObjects.add(this.marker);
+
+        // Обработчик перемещения маркера
+        this.marker.events.add('dragend', (e) => {
+            const coords = this.marker.geometry.getCoordinates();
+            this.updateCoordinates(coords);
+        });
+
+        // Обработчик клика по карте
+        this.map.events.add('click', (e) => {
+            const coords = e.get('coords');
+            this.marker.geometry.setCoordinates(coords);
+            this.updateCoordinates(coords);
+        });
+
+        // Обработчик результатов поиска
+        this.searchControl.events.add('resultselect', (e) => {
+            const results = this.searchControl.getResultsArray();
+            const selected = results[e.get('index')];
+            const coords = selected.geometry.getCoordinates();
+            
+            this.marker.geometry.setCoordinates(coords);
+            this.map.setCenter(coords, 15);
+            this.updateCoordinates(coords);
+        });
+
+        // Обновляем отображение координат
+        this.updateCoordinatesDisplay();
+        this.setupSearch();
+
+    }
+
+    updateCoordinates(coords) {
+        this.currentCoordinates = {
+            latitude: coords[0],
+            longitude: coords[1]
+        };
+        this.updateCoordinatesDisplay();
+    }
+
+    updateCoordinatesDisplay() {
+        const latElement = document.getElementById('currentLatitude');
+        const lngElement = document.getElementById('currentLongitude');
+        
+        if (latElement && lngElement && this.currentCoordinates) {
+            latElement.textContent = this.currentCoordinates.latitude.toFixed(6);
+            lngElement.textContent = this.currentCoordinates.longitude.toFixed(6);
+        }
+    }
+
+    async saveCoordinates() {
+        if (!this.currentCoordinates) {
+            this.showNotification('Сначала выберите местоположение на карте', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/map-coordinates', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    latitude: this.currentCoordinates.latitude,
+                    longitude: this.currentCoordinates.longitude
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.showNotification('Координаты успешно сохранены!', 'success');
+                    this.closeMapSettingsModal();
+                }
+            } else {
+                throw new Error('Ошибка сохранения');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения координат:', error);
+            this.showNotification('Ошибка сохранения координат', 'error');
+        }
+    }
+
+    showNotification(message, type) {
+        if (typeof notificationSettings !== 'undefined' && notificationSettings.showNotification) {
+            notificationSettings.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+}
+
 // Инициализация менеджеров
 let notificationSettings;
 let contentManager;
@@ -1096,6 +1433,14 @@ function loadSettingsSection() {
                         ⚙️ Редактировать контент
                     </button>
                 </div>
+                
+                <div class="setting-card">
+                    <h3>🗺️ Ваше заведение на карте</h3>
+                    <p>Установите местоположение вашего заведения на карте</p>
+                    <button id="openMapSettingsBtn" class="setting-btn">
+                        ⚙️ Настроить карту
+                    </button>
+                </div>
 
                 <div class="setting-card">
                     <h3>🖼️ Фото по умолчанию</h3>
@@ -1107,6 +1452,46 @@ function loadSettingsSection() {
             </div>
         </div>
 
+
+
+                <div id="mapSettingsModal" class="modal" style="display: none;">
+            <div class="modaal-content map-settings">
+                <div class="modal-header">
+                    <h3>🗺️ Настройка местоположения на карте</h3>
+                    <button id="closeMapSettingsModal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="map-instructions">
+                        <h4>Как установить местоположение:</h4>
+                        <ol>
+                            <li>Введите адрес в поле поиска или</li>
+                            <li>Кликните на карте в нужном месте или</li>
+                            <li>Перетащите маркер в нужное место</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="coordinates-display">
+                        <p><strong>Текущие координаты:</strong></p>
+                        <p>Широта: <span id="currentLatitude">--</span></p>
+                        <p>Долгота: <span id="currentLongitude">--</span></p>
+                    </div>
+                    <div class="address-search">
+                        <input type="text" 
+                            id="addressSearch" 
+                            class="address-input" 
+                            placeholder="Введите адрес для поиска..."
+                            autocomplete="off">
+                        <div id="searchSuggestions" class="search-suggestions" style="display: none;"></div>
+                    </div>
+                    
+                    <div id="mapContainer" class="map-container"></div>
+                    
+                    <button onclick="mapSettingsManager.saveCoordinates()" class="confirm-location-btn">
+                        ✅ Подтвердить местоположение
+                    </button>
+                </div>
+            </div>
+        </div>
         <!-- Модальное окно для редактирования текстов и ссылок -->
         <div id="textSettingsModal" class="modal" style="display: none;">
             <div class="modaal-content text-settings-content">
@@ -1217,6 +1602,7 @@ function loadSettingsSection() {
     // Инициализация менеджеров
     notificationSettings = new NotificationSettingsManager();
     contentManager = new ContentManager();
+    mapSettingsManager = new MapSettingsManager();
 
     // Обработчики событий - добавляем после инициализации
     document.getElementById('openTextSettingsBtn')?.addEventListener('click', () => {
@@ -1227,3 +1613,4 @@ function loadSettingsSection() {
         contentManager.closeTextSettingsModal();
     });
 }
+let mapSettingsManager;

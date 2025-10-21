@@ -761,3 +761,167 @@
 .link-item-with-visibility:has(.link-content:only-child) {
     margin-right: 0;
 }
+
+
+
+/* setting.css - добавьте эти стили в конец файла */
+
+.map-settings .modaal-content {
+    max-width: 800px;
+}
+
+.map-container {
+    height: 400px;
+    width: 100%;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    border: 2px solid #e3e3e3;
+}
+
+.address-search {
+    margin-bottom: 1rem;
+}
+
+.address-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e3e3e3;
+    border-radius: 6px;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.address-input:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.search-suggestions {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.suggestion-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.suggestion-item:hover {
+    background: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.coordinates-display {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    border: 1px solid #e3e3e3;
+}
+
+.coordinates-display p {
+    margin: 0.25rem 0;
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.confirm-location-btn {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.confirm-location-btn:hover {
+    background: #229954;
+    transform: translateY(-1px);
+}
+
+.confirm-location-btn:disabled {
+    background: #95a5a6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.map-instructions {
+    background: #e3f2fd;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border-left: 4px solid #2196F3;
+}
+
+.map-instructions h4 {
+    margin: 0 0 0.5rem 0;
+    color: #1976d2;
+}
+
+.map-instructions ol {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.map-instructions li {
+    margin-bottom: 0.3rem;
+}
+
+/* setting.css - добавьте эти стили */
+
+.search-suggestions {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+    width: calc(100% - 2px);
+    margin-top: -5px;
+}
+
+.suggestion-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background-color 0.2s;
+}
+
+.suggestion-item:hover {
+    background: #f8f9fa;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item strong {
+    color: #2c3e50;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.suggestion-item small {
+    color: #7f8c8d;
+    font-size: 0.8rem;
+}
+
+.address-search {
+    position: relative;
+    margin-bottom: 1rem;
+}
