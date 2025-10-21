@@ -370,7 +370,7 @@ async loadDefaultPhotos() {
         }
         
         // Загружаем фоновые фото с временной меткой
-        const headerTypes = ['mobile', 'tablet', 'desktop'];
+        const headerTypes = ['mobile', 'plansh', 'desktop'];
         headerTypes.forEach(type => {
             const previewId = `header${this.capitalizeFirst(type)}Preview`;
             const preview = document.getElementById(previewId);
@@ -438,8 +438,8 @@ setupEventListeners() {
         this.handleHeaderPhotoUpload('mobile', e);
     });
 
-    document.getElementById('headerTabletPhoto')?.addEventListener('change', (e) => {
-        this.handleHeaderPhotoUpload('tablet', e);
+    document.getElementById('headerPlanshPhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('plansh', e);
     });
 
     document.getElementById('headerDesktopPhoto')?.addEventListener('change', (e) => {
@@ -515,7 +515,7 @@ setupEventListeners() {
 getDeviceTypeName(type) {
     const names = {
         'mobile': 'мобильных устройств',
-        'tablet': 'планшетов', 
+        'plansh': 'планшетов', 
         'desktop': 'десктопов'
     };
     return names[type] || type;
@@ -1691,41 +1691,47 @@ function loadSettingsSection() {
                                 <small>Рекомендуемый размер: 400x300px</small>
                             </div>
                         </div>
-                                <div class="header-photo-item">
-            <h5>Мобильные устройства (до 500px)</h5>
-            <img id="headerMobilePreview" class="header-photo-preview" 
-                 style="display: none; max-width: 200px; max-height: 150px;">
-            <div class="header-photo-info">Рекомендуемый размер: 500x800px</div>
-            <input type="file" id="headerMobilePhoto" 
-                   accept="image/*" class="photo-input">
-            <label for="headerMobilePhoto" class="photo-upload-btn">
-                📸 Выбрать фото
-            </label>
-        </div>
-        
-        <div class="header-photo-item">
-            <h5>Планшеты (501px - 1200px)</h5>
-            <img id="headerTabletPreview" class="header-photo-preview" 
-                 style="display: none; max-width: 200px; max-height: 150px;">
-            <div class="header-photo-info">Рекомендуемый размер: 1200x800px</div>
-            <input type="file" id="headerTabletPhoto" 
-                   accept="image/*" class="photo-input">
-            <label for="headerTabletPhoto" class="photo-upload-btn">
-                📸 Выбрать фото
-            </label>
-        </div>
-        
-        <div class="header-photo-item">
-            <h5>Десктопы (от 1201px)</h5>
-            <img id="headerDesktopPreview" class="header-photo-preview" 
-                 style="display: none; max-width: 200px; max-height: 150px;">
-            <div class="header-photo-info">Рекомендуемый размер: 1920x1080px</div>
-            <input type="file" id="headerDesktopPhoto" 
-                   accept="image/*" class="photo-input">
-            <label for="headerDesktopPhoto" class="photo-upload-btn">
-                📸 Выбрать фото
-            </label>
-        </div>
+                         <div class="photo-setting-item header-background-item">
+                            <h4> Фон для мобильных устройств</h4>
+                            <div class="photo-upload-area">
+                                <img id="headerMobilePreview" class="default-photo-preview" 
+                                    style="display: none; max-width: 200px; max-height: 150px;">
+                                <div class="photo-info">Рекомендуемый размер: 489x870px</div>
+                                <input type="file" id="headerMobilePhoto" 
+                                    accept="image/*" class="photo-input">
+                                <label for="headerMobilePhoto" class="photo-upload-btn">
+                                    📸 Выбрать фон
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="photo-setting-item header-background-item">
+                            <h4> Фон для планшетов</h4>
+                            <div class="photo-upload-area">
+                                <img id="headerPlanshPreview" class="default-photo-preview" 
+                                    style="display: none; max-width: 200px; max-height: 150px;">
+                                <div class="photo-info">Рекомендуемый размер: 1055x870px</div>
+                                <input type="file" id="headerPlanshPhoto" 
+                                    accept="image/*" class="photo-input">
+                                <label for="headerPlanshPhoto" class="photo-upload-btn">
+                                    📸 Выбрать фон
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="photo-setting-item header-background-item">
+                            <h4> Фон для компьютеров</h4>
+                            <div class="photo-upload-area">
+                                <img id="headerDesktopPreview" class="default-photo-preview" 
+                                    style="display: none; max-width: 200px; max-height: 150px;">
+                                <div class="photo-info">Рекомендуемый размер: 1761x870px</div>
+                                <input type="file" id="headerDesktopPhoto" 
+                                    accept="image/*" class="photo-input">
+                                <label for="headerDesktopPhoto" class="photo-upload-btn">
+                                    📸 Выбрать фон
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 

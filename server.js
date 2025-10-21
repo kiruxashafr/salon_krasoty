@@ -106,7 +106,7 @@ app.post('/api/upload-header-photo', uploadHeader.single('photo'), async (req, r
         }
 
         const { type } = req.body;
-        const allowedTypes = ['mobile', 'tablet', 'desktop'];
+        const allowedTypes = ['mobile', 'plansh', 'desktop'];
         
         if (!allowedTypes.includes(type)) {
             return res.status(400).json({ error: 'Неверный тип устройства' });
