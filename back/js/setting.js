@@ -339,21 +339,18 @@ handleAdminPhotoUpload(event) {
 // setting.js - исправленный метод loadDefaultPhotos
 async loadDefaultPhotos() {
     try {
-        // Загружаем фото администратора с временной меткой
+        // Загружаем фото администратора
         const adminPreview = document.getElementById('adminPhotoPreview');
         if (adminPreview) {
             const timestamp = new Date().getTime();
             adminPreview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
             adminPreview.style.display = 'block';
             
-            // Проверяем доступность фото
             const img = new Image();
             img.onload = function() {
-                // Фото доступно
                 adminPreview.style.display = 'block';
             };
             img.onerror = function() {
-                // Фото недоступно, скрываем превью
                 adminPreview.style.display = 'none';
             };
             img.src = adminPreview.src;
@@ -371,6 +368,28 @@ async loadDefaultPhotos() {
             servicePreview.src = 'photo/услуги/default.jpg';
             servicePreview.style.display = 'block';
         }
+        
+        // Загружаем фоновые фото с временной меткой
+        const headerTypes = ['mobile', 'tablet', 'desktop'];
+        headerTypes.forEach(type => {
+            const previewId = `header${this.capitalizeFirst(type)}Preview`;
+            const preview = document.getElementById(previewId);
+            if (preview) {
+                const timestamp = new Date().getTime();
+                preview.src = `photo/header/${type}-m.jpg?t=${timestamp}`;
+                preview.style.display = 'block';
+                
+                // Проверяем доступность фото
+                const img = new Image();
+                img.onload = function() {
+                    preview.style.display = 'block';
+                };
+                img.onerror = function() {
+                    preview.style.display = 'none';
+                };
+                img.src = preview.src;
+            }
+        });
         
     } catch (error) {
         console.log('Фото по умолчанию еще не установлены');
@@ -414,7 +433,18 @@ setupEventListeners() {
     document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
         this.handleDefaultPhotoUpload('Service', e);
     });
+    
+        document.getElementById('headerMobilePhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('mobile', e);
+    });
 
+    document.getElementById('headerTabletPhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('tablet', e);
+    });
+
+    document.getElementById('headerDesktopPhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('desktop', e);
+    });
     document.addEventListener('keypress', (e) => {
         if (e.target.classList.contains('tg-id-field') && e.key === 'Enter') {
             const masterId = e.target.getAttribute('data-master-id');
@@ -452,6 +482,88 @@ setupEventListeners() {
             modal.style.display = 'none';
         }
     }
+
+    async uploadHeaderPhoto(type, file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('type', type);
+    
+    try {
+        const response = await fetch('/api/upload-header-photo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.showNotification(`Фото для ${this.getDeviceTypeName(type)} успешно обновлено!`, 'success');
+                
+                // Обновляем превью
+                this.updateHeaderPreview(type, data.filePath);
+                return true;
+            }
+        }
+        throw new Error('Ошибка загрузки фото');
+    } catch (error) {
+        console.error('Ошибка загрузки фонового фото:', error);
+        this.showNotification('Ошибка загрузки фото', 'error');
+        return false;
+    }
+}
+
+getDeviceTypeName(type) {
+    const names = {
+        'mobile': 'мобильных устройств',
+        'tablet': 'планшетов', 
+        'desktop': 'десктопов'
+    };
+    return names[type] || type;
+}
+
+updateHeaderPreview(type, filePath) {
+    const previewId = `header${this.capitalizeFirst(type)}Preview`;
+    const preview = document.getElementById(previewId);
+    if (preview) {
+        const timestamp = new Date().getTime();
+        preview.src = `${filePath}?t=${timestamp}`;
+        preview.style.display = 'block';
+    }
+}
+
+capitalizeFirst(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+handleHeaderPhotoUpload(type, event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        this.showNotification('Пожалуйста, выберите изображение', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        return;
+    }
+    
+    // Сразу показываем превью
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewId = `header${this.capitalizeFirst(type)}Preview`;
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+    };
+    reader.readAsDataURL(file);
+    
+    // Загружаем фото
+    this.uploadHeaderPhoto(type, file);
+}
 }
 
 
@@ -1532,6 +1644,7 @@ function loadSettingsSection() {
         </div>
         
         <div id="photoSettingsModal" class="modal" style="display: none;">
+        
             <div class="modaal-content photo-settings">
                 <div class="modal-header">
                     <h3>🖼️ Управление фото по умолчанию</h3>
@@ -1578,8 +1691,44 @@ function loadSettingsSection() {
                                 <small>Рекомендуемый размер: 400x300px</small>
                             </div>
                         </div>
+                                <div class="header-photo-item">
+            <h5>Мобильные устройства (до 500px)</h5>
+            <img id="headerMobilePreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 500x800px</div>
+            <input type="file" id="headerMobilePhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerMobilePhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
+        
+        <div class="header-photo-item">
+            <h5>Планшеты (501px - 1200px)</h5>
+            <img id="headerTabletPreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 1200x800px</div>
+            <input type="file" id="headerTabletPhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerTabletPhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
+        
+        <div class="header-photo-item">
+            <h5>Десктопы (от 1201px)</h5>
+            <img id="headerDesktopPreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 1920x1080px</div>
+            <input type="file" id="headerDesktopPhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerDesktopPhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
                     </div>
                 </div>
+                
             </div>
         </div>
 

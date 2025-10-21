@@ -65,6 +65,82 @@ const uploadAdminPhoto = multer({
     }
 });
 
+// server.js - добавить после существующих upload endpoints
+
+// Настройка multer для фоновых фото
+const headerStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, 'sh/photo/header/');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        const { type } = req.body; // mobile, tablet, desktop
+        const extension = path.extname(file.originalname);
+        const filename = `${type}-m${extension}`;
+        cb(null, filename);
+    }
+});
+
+const uploadHeader = multer({ 
+    storage: headerStorage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Только изображения разрешены'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+});
+
+// API endpoint для загрузки фоновых фото
+app.post('/api/upload-header-photo', uploadHeader.single('photo'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+
+        const { type } = req.body;
+        const allowedTypes = ['mobile', 'tablet', 'desktop'];
+        
+        if (!allowedTypes.includes(type)) {
+            return res.status(400).json({ error: 'Неверный тип устройства' });
+        }
+
+        let filePath = req.file.path;
+        let filename = req.file.filename;
+
+        // Конвертируем HEIC в JPEG если нужно
+        if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || path.extname(filename).toLowerCase() === '.heic') {
+            const newFilename = filename.replace(/\.[^/.]+$/, ".jpg");
+            const newFilePath = path.join(path.dirname(filePath), newFilename);
+
+            await sharp(filePath)
+                .jpeg({ quality: 90 })
+                .toFile(newFilePath);
+
+            fs.unlinkSync(filePath);
+            filePath = newFilePath;
+            filename = newFilename;
+        }
+
+        res.json({
+            message: "success",
+            filePath: `photo/header/${filename}`,
+            type: type
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки фонового фото:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
+    }
+});
+
 // API endpoint для загрузки фото администратора
 // server.js - добавьте после существующих upload endpoints
 
