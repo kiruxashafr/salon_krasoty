@@ -7,115 +7,143 @@ class ScheduleManager {
         this.endDate = null;
         this.specialists = [];
         this.autoUpdateInterval = null;
-        this.currentPeriod = 'week'; // 'today' или 'week'
+        this.currentPeriod = 'week';
+        this.isLoading = false; // Добавляем флаг загрузки
         this.init();
     }
 
     async init() {
-        await this.loadSpecialists();
-        this.setupEventListeners();
-        this.setDefaultDates();
-        this.loadSchedule();
+        try {
+            await this.loadSpecialists();
+            this.setupEventListeners();
+            this.setDefaultDates();
+            await this.loadSchedule(); // Добавляем await
+        } catch (error) {
+            console.error('Ошибка инициализации ScheduleManager:', error);
+            this.showError('Ошибка загрузки расписания');
+        }
     }
 
+    // Добавляем метод для предотвращения множественных загрузок
+    async safeLoadSchedule() {
+        if (this.isLoading) {
+            console.log('Загрузка уже выполняется, пропускаем...');
+            return;
+        }
+        
+        this.isLoading = true;
+        try {
+            await this.loadSchedule();
+        } catch (error) {
+            console.error('Ошибка загрузки расписания:', error);
+        } finally {
+            this.isLoading = false;
+        }
+    }
 
-        // Добавляем метод для автообновления
     startAutoUpdate() {
         if (this.autoUpdateInterval) {
             clearInterval(this.autoUpdateInterval);
         }
         
         this.autoUpdateInterval = setInterval(() => {
-            this.loadSchedule();
-        }, 30000); // 30 секунд
-        
+            this.safeLoadSchedule(); // Используем безопасную загрузку
+        }, 30000);
     }
-    
-    // Добавляем метод остановки автообновления
-    stopAutoUpdate() {
-        if (this.autoUpdateInterval) {
-            clearInterval(this.autoUpdateInterval);
-            this.autoUpdateInterval = null;
-        }
-    }
-
-    async init() {
-        await this.loadSpecialists();
-        this.setupEventListeners();
-        this.setDefaultDates();
-        this.loadSchedule();
-        this.startAutoUpdate(); // Запускаем автообновление
-    }
-
 
     async loadSpecialists() {
         try {
+            console.log('Загрузка списка мастеров...');
             const response = await fetch('/api/specialists');
             if (response.ok) {
                 const data = await response.json();
                 if (data.message === 'success') {
                     this.specialists = data.data;
+                    console.log(`Загружено мастеров: ${this.specialists.length}`);
                     this.updateUI();
                 }
+            } else {
+                throw new Error(`HTTP ${response.status}`);
             }
         } catch (error) {
             console.error('Ошибка загрузки мастеров:', error);
+            throw error;
         }
     }
 
     setupEventListeners() {
-        // Убрали переключение между общим и мастером
-        
-        // Переключение между записями и свободным временем
-        document.getElementById('appointmentsType').addEventListener('click', () => {
-            this.currentType = 'appointments';
-            this.updateUI();
-            this.loadSchedule();
-        });
+        // Убедимся, что элементы существуют перед добавлением обработчиков
+        setTimeout(() => {
+            const appointmentsType = document.getElementById('appointmentsType');
+            const freetimeType = document.getElementById('freetimeType');
+            const specialistSelect = document.getElementById('specialistSelect');
+            const todayBtn = document.getElementById('todayBtn');
+            const weekBtn = document.getElementById('weekBtn');
+            const startDate = document.getElementById('startDate');
+            const endDate = document.getElementById('endDate');
 
-        document.getElementById('freetimeType').addEventListener('click', () => {
-            this.currentType = 'freetime';
-            this.updateUI();
-            this.loadSchedule();
-        });
+            if (appointmentsType) {
+                appointmentsType.addEventListener('click', () => {
+                    this.currentType = 'appointments';
+                    this.updateUI();
+                    this.safeLoadSchedule();
+                });
+            }
 
-        // Выбор мастера
-        document.getElementById('specialistSelect').addEventListener('change', (e) => {
-            this.selectedSpecialistId = e.target.value === 'all' ? null : e.target.value;
-            this.loadSchedule();
-        });
+            if (freetimeType) {
+                freetimeType.addEventListener('click', () => {
+                    this.currentType = 'freetime';
+                    this.updateUI();
+                    this.safeLoadSchedule();
+                });
+            }
 
-        document.getElementById('todayBtn').addEventListener('click', () => {
-            this.setToday();
-            this.loadSchedule();
-        });
+            if (specialistSelect) {
+                specialistSelect.addEventListener('change', (e) => {
+                    this.selectedSpecialistId = e.target.value === 'all' ? null : e.target.value;
+                    this.safeLoadSchedule();
+                });
+            }
 
-        document.getElementById('weekBtn').addEventListener('click', () => {
-            this.setWeek();
-            this.loadSchedule();
-        });
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    this.setToday();
+                    this.safeLoadSchedule();
+                });
+            }
 
-        // Выбор диапазона дат вручную - сбрасываем активный период
-        document.getElementById('startDate').addEventListener('change', (e) => {
-            this.startDate = e.target.value;
-            this.resetActivePeriod(); // Сбрасываем подсветку при ручном выборе
-            this.loadSchedule();
-        });
+            if (weekBtn) {
+                weekBtn.addEventListener('click', () => {
+                    this.setWeek();
+                    this.safeLoadSchedule();
+                });
+            }
 
-        document.getElementById('endDate').addEventListener('change', (e) => {
-            this.endDate = e.target.value;
-            this.resetActivePeriod(); // Сбрасываем подсветку при ручном выборе
-            this.loadSchedule();
-        });
+            if (startDate) {
+                startDate.addEventListener('change', (e) => {
+                    this.startDate = e.target.value;
+                    this.resetActivePeriod();
+                    this.safeLoadSchedule();
+                });
+            }
+
+            if (endDate) {
+                endDate.addEventListener('change', (e) => {
+                    this.endDate = e.target.value;
+                    this.resetActivePeriod();
+                    this.safeLoadSchedule();
+                });
+            }
+        }, 100);
     }
 
-
-
-        // Новый метод для сброса активного периода при ручном выборе дат
     resetActivePeriod() {
-        document.querySelectorAll('.quick-buttons .btn-date').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        const buttons = document.querySelectorAll('.quick-buttons .btn-date');
+        if (buttons.length > 0) {
+            buttons.forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
         this.currentPeriod = null;
     }
 
@@ -124,11 +152,11 @@ class ScheduleManager {
         this.startDate = today.toISOString().split('T')[0];
         
         const endDate = new Date(today);
-        endDate.setDate(today.getDate() + 6); // +6 дней = неделя
+        endDate.setDate(today.getDate() + 6);
         this.endDate = endDate.toISOString().split('T')[0];
         
         this.updateDateInputs();
-        this.setActivePeriodButton('week'); // Устанавливаем неделю по умолчанию
+        this.setActivePeriodButton('week');
     }
 
     setToday() {
@@ -154,34 +182,61 @@ class ScheduleManager {
     }
 
     updateDateInputs() {
-        document.getElementById('startDate').value = this.startDate;
-        document.getElementById('endDate').value = this.endDate;
+        const startDateInput = document.getElementById('startDate');
+        const endDateInput = document.getElementById('endDate');
+        
+        if (startDateInput) startDateInput.value = this.startDate;
+        if (endDateInput) endDateInput.value = this.endDate;
+    }
+
+    setActivePeriodButton(period) {
+        const todayBtn = document.getElementById('todayBtn');
+        const weekBtn = document.getElementById('weekBtn');
+        
+        if (todayBtn) todayBtn.classList.remove('active');
+        if (weekBtn) weekBtn.classList.remove('active');
+        
+        if (period === 'today' && todayBtn) {
+            todayBtn.classList.add('active');
+        } else if (period === 'week' && weekBtn) {
+            weekBtn.classList.add('active');
+        }
+        
+        this.currentPeriod = period;
     }
 
     updateUI() {
-        // Обновляем активные табы для выбора типа
-        document.querySelectorAll('.type-tabs .schedule-tab').forEach(tab => {
-            tab.classList.remove('active');
-        });
-        
-        document.getElementById(`${this.currentType}Type`).classList.add('active');
+        // Обновляем активные табы
+        const tabs = document.querySelectorAll('.type-tabs .schedule-tab');
+        if (tabs.length > 0) {
+            tabs.forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            const activeTab = document.getElementById(`${this.currentType}Type`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+        }
 
-        // Всегда показываем выбор мастера
-        const specialistSelector = document.getElementById('specialistSelector');
-        specialistSelector.style.display = 'flex';
+        // Обновляем выбор мастера
         this.populateSpecialistSelect();
 
         // Обновляем заголовок
         const title = document.getElementById('scheduleTitle');
-        if (this.currentType === 'appointments') {
-            title.textContent = `Расписание записей ${this.selectedSpecialistId ? '(По мастеру)' : '(Все мастера)'}`;
-        } else {
-            title.textContent = `Расписание свободного времени ${this.selectedSpecialistId ? '(По мастеру)' : '(Все мастера)'}`;
+        if (title) {
+            if (this.currentType === 'appointments') {
+                title.textContent = `Расписание записей ${this.selectedSpecialistId ? '(По мастеру)' : '(Все мастера)'}`;
+            } else {
+                title.textContent = `Расписание свободного времени ${this.selectedSpecialistId ? '(По мастеру)' : '(Все мастера)'}`;
+            }
         }
     }
 
     populateSpecialistSelect() {
         const select = document.getElementById('specialistSelect');
+        if (!select) return;
+        
         select.innerHTML = '<option value="all">Все мастера</option>';
         
         this.specialists.forEach(specialist => {
@@ -194,31 +249,18 @@ class ScheduleManager {
             select.appendChild(option);
         });
         
-        // Если не выбран конкретный мастер, выбираем "Все мастера"
         if (!this.selectedSpecialistId) {
             select.value = 'all';
         }
     }
 
-        // Новый метод для установки активной кнопки периода
-    setActivePeriodButton(period) {
-        // Убираем активный класс со всех кнопок периода
-        document.querySelectorAll('.quick-buttons .btn-date').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        // Добавляем активный класс к выбранной кнопке
-        if (period === 'today') {
-            document.getElementById('todayBtn').classList.add('active');
-        } else if (period === 'week') {
-            document.getElementById('weekBtn').classList.add('active');
-        }
-        
-        this.currentPeriod = period;
-    }
-
     async loadSchedule() {
         const container = document.getElementById('scheduleContainer');
+        if (!container) {
+            console.error('Контейнер расписания не найден');
+            return;
+        }
+
         container.innerHTML = `
             <div class="loading-schedule">
                 <div class="loading-spinner"></div>
@@ -237,16 +279,7 @@ class ScheduleManager {
             this.displaySchedule(data);
         } catch (error) {
             console.error('Ошибка загрузки расписания:', error);
-            container.innerHTML = `
-                <div class="empty-schedule">
-                    <div class="empty-schedule-icon">⚠️</div>
-                    <h3>Ошибка загрузки</h3>
-                    <p>Не удалось загрузить расписание. Попробуйте еще раз.</p>
-                    <button onclick="scheduleManager.loadSchedule()" class="btn btn-primary">
-                        ⟳ Попробовать снова
-                    </button>
-                </div>
-            `;
+            this.showError('Не удалось загрузить расписание. Попробуйте еще раз.');
         }
     }
 
@@ -255,18 +288,18 @@ class ScheduleManager {
             let url = '/api/appointments?';
             const params = [];
             
-            if (this.currentView === 'specialist' && this.selectedSpecialistId) {
+            if (this.selectedSpecialistId) {
                 params.push(`specialistId=${this.selectedSpecialistId}`);
             }
             
-            // Добавляем параметры даты
             params.push(`startDate=${this.startDate}`);
             params.push(`endDate=${this.endDate}`);
             
             url += params.join('&');
             
+            console.log('Загрузка записей:', url);
             const response = await fetch(url);
-            if (!response.ok) throw new Error('Ошибка загрузки записей');
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
             const data = await response.json();
             
@@ -281,31 +314,40 @@ class ScheduleManager {
                 });
             }
             
+            console.log(`Загружено записей: ${data.data ? data.data.length : 0}`);
             return groupedByDate;
         } catch (error) {
             console.error('Ошибка загрузки записей:', error);
-            return {};
+            throw error;
         }
     }
 
     async loadFreeTime() {
-        let url = '/api/schedule-available?';
-        
-        if (this.currentView === 'specialist' && this.selectedSpecialistId) {
-            url += `specialistId=${this.selectedSpecialistId}&`;
+        try {
+            let url = '/api/schedule-available?';
+            
+            if (this.selectedSpecialistId) {
+                url += `specialistId=${this.selectedSpecialistId}&`;
+            }
+            
+            url += `startDate=${this.startDate}&endDate=${this.endDate}`;
+            
+            console.log('Загрузка свободного времени:', url);
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            console.log(`Загружено слотов свободного времени: ${data.data ? data.data.length : 0}`);
+            return data.message === 'success' ? data.data : [];
+        } catch (error) {
+            console.error('Ошибка загрузки свободного времени:', error);
+            throw error;
         }
-        
-        url += `startDate=${this.startDate}&endDate=${this.endDate}`;
-        
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Ошибка загрузки свободного времени');
-        
-        const data = await response.json();
-        return data.message === 'success' ? data.data : [];
     }
 
     displaySchedule(data) {
         const container = document.getElementById('scheduleContainer');
+        if (!container) return;
         
         if (this.currentType === 'appointments') {
             this.displayAppointments(data, container);
@@ -315,9 +357,7 @@ class ScheduleManager {
     }
 
     displayAppointments(appointmentsByDate, container) {
-        const dates = Object.keys(appointmentsByDate).sort();
-        
-        if (dates.length === 0) {
+        if (!appointmentsByDate || Object.keys(appointmentsByDate).length === 0) {
             container.innerHTML = `
                 <div class="empty-schedule">
                     <div class="empty-schedule-icon">📅</div>
@@ -328,6 +368,7 @@ class ScheduleManager {
             return;
         }
 
+        const dates = Object.keys(appointmentsByDate).sort();
         let html = '<div class="schedule-grid">';
         
         dates.forEach(date => {
@@ -357,37 +398,35 @@ class ScheduleManager {
         container.innerHTML = html;
     }
 
-getAppointmentsForDate(appointments) {
-    if (!appointments || appointments.length === 0) {
-        return '<p>Записей на этот день нет</p>';
-    }
-    
-    // Сортируем по времени
-    appointments.sort((a, b) => a.время.localeCompare(b.время));
-    
-    return appointments.map(appointment => {
-        // Форматируем время (убираем секунды если есть)
-        const time = appointment.время.includes(':') ? 
-                    appointment.время.split(':').slice(0, 2).join(':') : 
-                    appointment.время;
+    getAppointmentsForDate(appointments) {
+        if (!appointments || appointments.length === 0) {
+            return '<div class="no-appointments">Записей на этот день нет</div>';
+        }
         
-        return `
-            <div class="appointment-item">
-            <div class="appointment-time">${time}</div>
-            <div class="appointment-details">
-                <div class="appointment-service">${appointment.услуга_название}</div>
-                <div class="appointment-master">Мастер: ${appointment.мастер_имя}</div>
-                <div class="appointment-client">
-                <span class="client-name">Клиент: ${appointment.клиент_имя}</span>
-                &nbsp;&nbsp;
-                <span class="client-phone">${appointment.клиент_телефон}</span>
+        appointments.sort((a, b) => a.время.localeCompare(b.время));
+        
+        return appointments.map(appointment => {
+            const time = appointment.время.includes(':') ? 
+                        appointment.время.split(':').slice(0, 2).join(':') : 
+                        appointment.время;
+            
+            return `
+                <div class="appointment-item">
+                    <div class="appointment-time">${time}</div>
+                    <div class="appointment-details">
+                        <div class="appointment-service">${appointment.услуга_название}</div>
+                        <div class="appointment-master">Мастер: ${appointment.мастер_имя}</div>
+                        <div class="appointment-client">
+                            <span class="client-name">Клиент: ${appointment.клиент_имя}</span>
+                            &nbsp;&nbsp;
+                            <span class="client-phone">${appointment.клиент_телефон}</span>
+                        </div>
+                    </div>
+                    <div class="appointment-price">${appointment.цена} ₽</div>
                 </div>
-            </div>
-            <div class="appointment-price">${appointment.цена} ₽</div>
-            </div>
-        `;
-    }).join('');
-}
+            `;
+        }).join('');
+    }
 
     displayFreeTime(freeTimeData, container) {
         if (!freeTimeData || freeTimeData.length === 0) {
@@ -411,7 +450,6 @@ getAppointmentsForDate(appointments) {
         });
 
         const dates = Object.keys(groupedByDate).sort();
-        
         let html = '<div class="schedule-grid">';
         
         dates.forEach(date => {
@@ -423,7 +461,6 @@ getAppointmentsForDate(appointments) {
                 day: 'numeric'
             });
             
-            // Сортируем по времени
             groupedByDate[date].sort((a, b) => a.время.localeCompare(b.время));
             
             html += `
@@ -450,10 +487,57 @@ getAppointmentsForDate(appointments) {
         html += '</div>';
         container.innerHTML = html;
     }
+
+    showError(message) {
+        const container = document.getElementById('scheduleContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="error-schedule">
+                    <div class="error-schedule-icon">⚠️</div>
+                    <h3>Ошибка загрузки</h3>
+                    <p>${message}</p>
+                    <button onclick="scheduleManager.safeLoadSchedule()" class="btn btn-primary">
+                        ⟳ Попробовать снова
+                    </button>
+                </div>
+            `;
+        }
+    }
+
+// Добавляем метод stopAutoUpdate в класс ScheduleManager
+stopAutoUpdate() {
+    if (this.autoUpdateInterval) {
+        clearInterval(this.autoUpdateInterval);
+        this.autoUpdateInterval = null;
+        console.log('Автообновление остановлено');
+    }
 }
 
+// Исправляем метод destroy
+destroy() {
+    this.stopAutoUpdate(); // Теперь этот метод существует
+    // Дополнительная очистка если нужна
+}
+}
+
+// Исправленная функция loadScheduleSection в shedule.js
 function loadScheduleSection() {
     const contentContainer = document.getElementById('contentContainer');
+    if (!contentContainer) {
+        console.error('Контейнер контента не найден');
+        return;
+    }
+
+    // Останавливаем предыдущий менеджер если существует
+    if (window.scheduleManager) {
+        window.scheduleManager.destroy();
+        window.scheduleManager = null;
+    }
+
+    // Очищаем контейнер полностью
+    contentContainer.innerHTML = '';
+
+    // Добавляем HTML для расписания
     contentContainer.innerHTML = `
         <div class="schedule-management">
             <div class="schedule-header">
@@ -501,6 +585,22 @@ function loadScheduleSection() {
         </div>
     `;
 
-    window.scheduleManager = new ScheduleManager();
-    document.getElementById('generatePhotoBtn').addEventListener('click', openPhotoGenerator);
+    // Инициализируем новый менеджер с небольшой задержкой для гарантии отрисовки DOM
+    setTimeout(() => {
+        window.scheduleManager = new ScheduleManager();
+        
+        // Добавляем обработчик для кнопки генерации фото
+        const generatePhotoBtn = document.getElementById('generatePhotoBtn');
+        if (generatePhotoBtn) {
+            generatePhotoBtn.addEventListener('click', openPhotoGenerator);
+        }
+    }, 50);
 }
+
+// Добавляем обработчик для очистки при переходе на другие разделы
+document.addEventListener('sectionChange', function() {
+    if (window.scheduleManager) {
+        window.scheduleManager.destroy();
+        window.scheduleManager = null;
+    }
+});

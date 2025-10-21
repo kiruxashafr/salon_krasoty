@@ -339,21 +339,18 @@ handleAdminPhotoUpload(event) {
 // setting.js - исправленный метод loadDefaultPhotos
 async loadDefaultPhotos() {
     try {
-        // Загружаем фото администратора с временной меткой
+        // Загружаем фото администратора
         const adminPreview = document.getElementById('adminPhotoPreview');
         if (adminPreview) {
             const timestamp = new Date().getTime();
             adminPreview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
             adminPreview.style.display = 'block';
             
-            // Проверяем доступность фото
             const img = new Image();
             img.onload = function() {
-                // Фото доступно
                 adminPreview.style.display = 'block';
             };
             img.onerror = function() {
-                // Фото недоступно, скрываем превью
                 adminPreview.style.display = 'none';
             };
             img.src = adminPreview.src;
@@ -371,6 +368,28 @@ async loadDefaultPhotos() {
             servicePreview.src = 'photo/услуги/default.jpg';
             servicePreview.style.display = 'block';
         }
+        
+        // Загружаем фоновые фото с временной меткой
+        const headerTypes = ['mobile', 'tablet', 'desktop'];
+        headerTypes.forEach(type => {
+            const previewId = `header${this.capitalizeFirst(type)}Preview`;
+            const preview = document.getElementById(previewId);
+            if (preview) {
+                const timestamp = new Date().getTime();
+                preview.src = `photo/header/${type}-m.jpg?t=${timestamp}`;
+                preview.style.display = 'block';
+                
+                // Проверяем доступность фото
+                const img = new Image();
+                img.onload = function() {
+                    preview.style.display = 'block';
+                };
+                img.onerror = function() {
+                    preview.style.display = 'none';
+                };
+                img.src = preview.src;
+            }
+        });
         
     } catch (error) {
         console.log('Фото по умолчанию еще не установлены');
@@ -414,7 +433,18 @@ setupEventListeners() {
     document.getElementById('serviceDefaultPhoto')?.addEventListener('change', (e) => {
         this.handleDefaultPhotoUpload('Service', e);
     });
+    
+        document.getElementById('headerMobilePhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('mobile', e);
+    });
 
+    document.getElementById('headerTabletPhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('tablet', e);
+    });
+
+    document.getElementById('headerDesktopPhoto')?.addEventListener('change', (e) => {
+        this.handleHeaderPhotoUpload('desktop', e);
+    });
     document.addEventListener('keypress', (e) => {
         if (e.target.classList.contains('tg-id-field') && e.key === 'Enter') {
             const masterId = e.target.getAttribute('data-master-id');
@@ -452,6 +482,88 @@ setupEventListeners() {
             modal.style.display = 'none';
         }
     }
+
+    async uploadHeaderPhoto(type, file) {
+    const formData = new FormData();
+    formData.append('photo', file);
+    formData.append('type', type);
+    
+    try {
+        const response = await fetch('/api/upload-header-photo', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.showNotification(`Фото для ${this.getDeviceTypeName(type)} успешно обновлено!`, 'success');
+                
+                // Обновляем превью
+                this.updateHeaderPreview(type, data.filePath);
+                return true;
+            }
+        }
+        throw new Error('Ошибка загрузки фото');
+    } catch (error) {
+        console.error('Ошибка загрузки фонового фото:', error);
+        this.showNotification('Ошибка загрузки фото', 'error');
+        return false;
+    }
+}
+
+getDeviceTypeName(type) {
+    const names = {
+        'mobile': 'мобильных устройств',
+        'tablet': 'планшетов', 
+        'desktop': 'десктопов'
+    };
+    return names[type] || type;
+}
+
+updateHeaderPreview(type, filePath) {
+    const previewId = `header${this.capitalizeFirst(type)}Preview`;
+    const preview = document.getElementById(previewId);
+    if (preview) {
+        const timestamp = new Date().getTime();
+        preview.src = `${filePath}?t=${timestamp}`;
+        preview.style.display = 'block';
+    }
+}
+
+capitalizeFirst(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+}
+
+handleHeaderPhotoUpload(type, event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        this.showNotification('Пожалуйста, выберите изображение', 'error');
+        return;
+    }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        return;
+    }
+    
+    // Сразу показываем превью
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewId = `header${this.capitalizeFirst(type)}Preview`;
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+    };
+    reader.readAsDataURL(file);
+    
+    // Загружаем фото
+    this.uploadHeaderPhoto(type, file);
+}
 }
 
 
@@ -461,6 +573,7 @@ class ContentManager {
         this.currentPage = 'главная';
         this.content = {};
         this.links = {};
+        this.linksVisibility = {}; // Добавьте это свойство
     }
 
     async init() {
@@ -499,20 +612,34 @@ class ContentManager {
         }
     }
 
-    async loadLinks() {
-        try {
-            const response = await fetch('/api/links');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.message === 'success') {
-                    this.links = data.data;
-                    this.displayContent();
-                }
+// setting.js - обновленный метод loadLinks в ContentManager
+// setting.js - обновленный метод loadLinks в ContentManager
+async loadLinks() {
+    try {
+        // Загружаем ссылки
+        const linksResponse = await fetch('/api/links');
+        if (linksResponse.ok) {
+            const linksData = await linksResponse.json();
+            if (linksData.message === 'success') {
+                this.links = linksData.data;
             }
-        } catch (error) {
-            console.error('Ошибка загрузки ссылок:', error);
         }
+
+        // Загружаем видимость контактов (включая telegram_bot)
+        const visibilityResponse = await fetch('/api/contact-visibility');
+        if (visibilityResponse.ok) {
+            const visibilityData = await visibilityResponse.json();
+            if (visibilityData.message === 'success') {
+                this.linksVisibility = visibilityData.data;
+                console.log('Загружена видимость контактов:', this.linksVisibility);
+            }
+        }
+
+        this.displayContent();
+    } catch (error) {
+        console.error('Ошибка загрузки ссылок или видимости:', error);
     }
+}
 
     displayContent() {
         const container = document.getElementById('contentTextSettings');
@@ -717,39 +844,91 @@ validatePhoneInput(input) {
         await this.loadPageContent();
         this.displayContent();
     }
-   // Обновляем generateLinksForm - теперь только для страницы контактов
-    generateLinksForm() {
-        const linksConfig = [
-            { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
-            { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
-            { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
-            { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
-            { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
-            { key: 'phone_contact', label: 'Телефон', placeholder: '89255355278 (только цифры)' }
-        ];
+// setting.js - обновленный метод generateLinksForm
+generateLinksForm() {
+    const linksConfig = [
+        { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
+        { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
+        { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
+        { key: 'whatsapp_contact', label: 'WhatsApp', placeholder: 'https://wa.me/number' },
+        { key: 'email_contact', label: 'Email', placeholder: 'email@example.com' },
+        { key: 'phone_contact', label: 'Телефон', placeholder: '89255355278 (только цифры)' }
+    ];
 
-        return `
-            <div class="links-management">
-                <h4>Контактные ссылки:</h4>
-                ${linksConfig.map(link => `
-                    <div class="link-item">
+    return `
+        <div class="links-management">
+            <h4>Контактные ссылки:</h4>
+            ${linksConfig.map(link => `
+                <div class="link-item-with-visibility">
+                    <div class="link-content">
                         <label>${link.label}:</label>
                         <input type="${link.key === 'phone_contact' ? 'tel' : 'url'}" 
-                               id="link_${link.key}" 
+                               id="link_input_${link.key}" 
                                value="${this.links[link.key] || ''}"
                                placeholder="${link.placeholder}"
                                class="link-input ${link.key === 'phone_contact' ? 'phone-input' : ''}"
-                               oninput="contentManager.validatePhoneInput(this)">
+                               ${link.key === 'phone_contact' ? 'oninput="contentManager.validatePhoneInput(this)"' : ''}>
                         <button onclick="contentManager.saveLink('${link.key}')" 
                                 class="save-link-btn">
                             💾 Сохранить
                         </button>
-                        ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
                     </div>
-                `).join('')}
-            </div>
-        `;
+                    <div class="visibility-control">
+                        <label class="visibility-toggle">
+                            <input type="checkbox" 
+                                   id="visibility_${link.key}" 
+                                   ${this.linksVisibility[link.key] ? 'checked' : ''}
+                                   onchange="contentManager.toggleLinkVisibility('${link.key}', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="visibility-label">Видимость</span>
+                    </div>
+                    ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+
+// setting.js - добавьте в класс ContentManager
+async toggleLinkVisibility(linkType, isVisible) {
+    try {
+        const response = await fetch(`/api/contact-visibility/${linkType}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ доступен: isVisible })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            if (data.message === 'success') {
+                this.linksVisibility[linkType] = isVisible;
+                this.showNotification(`Видимость ${this.getLinkLabel(linkType)} ${isVisible ? 'включена' : 'выключена'}!`, 'success');
+            }
+        } else {
+            throw new Error('Ошибка сохранения видимости');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения видимости:', error);
+        this.showNotification('Ошибка сохранения видимости', 'error');
     }
+}
+
+// Вспомогательный метод для получения названия ссылки
+getLinkLabel(linkType) {
+    const labels = {
+        'vk_contact': 'VK',
+        'telegram_contact': 'Telegram',
+        'whatsapp_contact': 'WhatsApp',
+        'email_contact': 'Email',
+        'phone_contact': 'Телефона',
+        'telegram_bot': 'Telegram бота'
+    };
+    return labels[linkType] || linkType;
+}
 
     // Обновляем getPageDisplayName для новой страницы
     getPageDisplayName(page) {
@@ -903,8 +1082,9 @@ async saveContent(elementKey, value) {
     }
 }
 
+// setting.js - исправленный метод saveLink
 async saveLink(linkKey) {
-    const input = document.getElementById(`link_${linkKey}`);
+    const input = document.getElementById(`link_input_${linkKey}`);
     let value = input.value.trim();
 
     // Специальная валидация для телефона
@@ -992,6 +1172,343 @@ async saveLink(linkKey) {
     }
 }
 
+
+class MapSettingsManager {
+    constructor() {
+        this.map = null;
+        this.marker = null;
+        this.currentCoordinates = null;
+        this.searchControl = null;
+        this.init();
+    }
+
+    async init() {
+        await this.loadCurrentCoordinates();
+        this.setupEventListeners();
+    }
+
+    async loadCurrentCoordinates() {
+        try {
+            const response = await fetch('/api/map-coordinates');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.currentCoordinates = data.data;
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки координат:', error);
+            // Устанавливаем координаты по умолчанию
+            this.currentCoordinates = {
+                latitude: 52.97103104736177,
+                longitude: 36.06383468318084
+            };
+        }
+    }
+
+    setupEventListeners() {
+        document.getElementById('openMapSettingsBtn')?.addEventListener('click', () => {
+            this.openMapSettingsModal();
+        });
+
+        document.getElementById('closeMapSettingsModal')?.addEventListener('click', () => {
+            this.closeMapSettingsModal();
+        });
+    }
+
+openMapSettingsModal() {
+    const modal = document.getElementById('mapSettingsModal');
+    if (modal) {
+        modal.style.display = 'block';
+        // Инициализируем карту после отображения модального окна
+        setTimeout(() => {
+            this.initMap();
+        }, 100);
+        
+        // Обработчик клика вне поля поиска для скрытия подсказок
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.address-search')) {
+                this.hideSuggestions();
+            }
+        });
+    }
+}
+
+    closeMapSettingsModal() {
+        const modal = document.getElementById('mapSettingsModal');
+        if (modal) {
+            modal.style.display = 'none';
+            // Уничтожаем карту при закрытии
+            if (this.map) {
+                this.map.destroy();
+                this.map = null;
+                this.marker = null;
+            }
+        }
+    }
+    setupSearch() {
+    const addressInput = document.getElementById('addressSearch');
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    
+    if (!addressInput) return;
+    
+    // Обработчик ввода в поле поиска
+    addressInput.addEventListener('input', this.debounce((e) => {
+        this.handleAddressSearch(e.target.value);
+    }, 300));
+    
+    // Обработчик нажатия Enter
+    addressInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            this.performSearch(addressInput.value);
+        }
+    });
+}
+
+// Метод для поиска с задержкой (debounce)
+debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+// Обработчик поиска адреса
+async handleAddressSearch(query) {
+    if (!query || query.length < 3) {
+        this.hideSuggestions();
+        return;
+    }
+    
+    try {
+        const response = await this.searchAddress(query);
+        this.displaySuggestions(response);
+    } catch (error) {
+        console.error('Ошибка поиска адреса:', error);
+    }
+}
+
+// Поиск адреса через Яндекс Геокодер
+async searchAddress(query) {
+    return new Promise((resolve, reject) => {
+        if (!window.ymaps) {
+            reject(new Error('Yandex Maps API не загружена'));
+            return;
+        }
+        
+        ymaps.geocode(query, { results: 5 })
+            .then((res) => {
+                const suggestions = res.geoObjects.toArray().map(geoObject => ({
+                    address: geoObject.getAddressLine(),
+                    coords: geoObject.geometry.getCoordinates(),
+                    name: geoObject.properties.get('name')
+                }));
+                resolve(suggestions);
+            })
+            .catch(reject);
+    });
+}
+
+// Отображение подсказок
+displaySuggestions(suggestions) {
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    if (!suggestionsContainer) return;
+    
+    if (suggestions.length === 0) {
+        this.hideSuggestions();
+        return;
+    }
+    
+    suggestionsContainer.innerHTML = suggestions.map(suggestion => `
+        <div class="suggestion-item" data-coords="${suggestion.coords}">
+            <strong>${suggestion.name || ''}</strong><br>
+            <small>${suggestion.address}</small>
+        </div>
+    `).join('');
+    
+    suggestionsContainer.style.display = 'block';
+    
+    // Добавляем обработчики клика на подсказки
+    suggestionsContainer.querySelectorAll('.suggestion-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const coords = item.getAttribute('data-coords').split(',').map(Number);
+            this.selectSuggestion(coords, item.textContent);
+        });
+    });
+}
+
+// Скрытие подсказок
+hideSuggestions() {
+    const suggestionsContainer = document.getElementById('searchSuggestions');
+    if (suggestionsContainer) {
+        suggestionsContainer.style.display = 'none';
+    }
+}
+
+// Обработка выбора подсказки
+selectSuggestion(coords, address) {
+    const addressInput = document.getElementById('addressSearch');
+    if (addressInput) {
+        addressInput.value = address;
+    }
+    
+    this.hideSuggestions();
+    
+    // Обновляем карту
+    if (this.map && this.marker) {
+        this.map.setCenter(coords, 15);
+        this.marker.geometry.setCoordinates(coords);
+        this.updateCoordinates(coords);
+    }
+}
+
+// Выполнение поиска
+performSearch(query) {
+    if (!this.searchControl) return;
+    
+    this.searchControl.search(query).then(() => {
+        const results = this.searchControl.getResultsArray();
+        if (results.length > 0) {
+            const firstResult = results[0];
+            const coords = firstResult.geometry.getCoordinates();
+            
+            this.map.setCenter(coords, 15);
+            this.marker.geometry.setCoordinates(coords);
+            this.updateCoordinates(coords);
+        }
+    });
+}
+
+    initMap() {
+        if (!this.currentCoordinates) return;
+
+        // Инициализация карты
+        this.map = new ymaps.Map('mapContainer', {
+            center: [this.currentCoordinates.latitude, this.currentCoordinates.longitude],
+            zoom: 15,
+            controls: ['zoomControl', 'fullscreenControl']
+        });
+
+        // Добавляем поиск
+        this.searchControl = new ymaps.control.SearchControl({
+            options: {
+                provider: 'yandex#search',
+                noPlacemark: true
+            }
+        });
+        
+        this.map.controls.add(this.searchControl);
+
+        // Создаем маркер
+        this.marker = new ymaps.Placemark(
+            [this.currentCoordinates.latitude, this.currentCoordinates.longitude],
+            {
+                hintContent: 'Ваше заведение',
+                balloonContent: 'Местоположение вашего заведения'
+            },
+            {
+                preset: 'islands#redDotIcon',
+                draggable: true
+            }
+        );
+
+        this.map.geoObjects.add(this.marker);
+
+        // Обработчик перемещения маркера
+        this.marker.events.add('dragend', (e) => {
+            const coords = this.marker.geometry.getCoordinates();
+            this.updateCoordinates(coords);
+        });
+
+        // Обработчик клика по карте
+        this.map.events.add('click', (e) => {
+            const coords = e.get('coords');
+            this.marker.geometry.setCoordinates(coords);
+            this.updateCoordinates(coords);
+        });
+
+        // Обработчик результатов поиска
+        this.searchControl.events.add('resultselect', (e) => {
+            const results = this.searchControl.getResultsArray();
+            const selected = results[e.get('index')];
+            const coords = selected.geometry.getCoordinates();
+            
+            this.marker.geometry.setCoordinates(coords);
+            this.map.setCenter(coords, 15);
+            this.updateCoordinates(coords);
+        });
+
+        // Обновляем отображение координат
+        this.updateCoordinatesDisplay();
+        this.setupSearch();
+
+    }
+
+    updateCoordinates(coords) {
+        this.currentCoordinates = {
+            latitude: coords[0],
+            longitude: coords[1]
+        };
+        this.updateCoordinatesDisplay();
+    }
+
+    updateCoordinatesDisplay() {
+        const latElement = document.getElementById('currentLatitude');
+        const lngElement = document.getElementById('currentLongitude');
+        
+        if (latElement && lngElement && this.currentCoordinates) {
+            latElement.textContent = this.currentCoordinates.latitude.toFixed(6);
+            lngElement.textContent = this.currentCoordinates.longitude.toFixed(6);
+        }
+    }
+
+    async saveCoordinates() {
+        if (!this.currentCoordinates) {
+            this.showNotification('Сначала выберите местоположение на карте', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/map-coordinates', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    latitude: this.currentCoordinates.latitude,
+                    longitude: this.currentCoordinates.longitude
+                })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.message === 'success') {
+                    this.showNotification('Координаты успешно сохранены!', 'success');
+                    this.closeMapSettingsModal();
+                }
+            } else {
+                throw new Error('Ошибка сохранения');
+            }
+        } catch (error) {
+            console.error('Ошибка сохранения координат:', error);
+            this.showNotification('Ошибка сохранения координат', 'error');
+        }
+    }
+
+    showNotification(message, type) {
+        if (typeof notificationSettings !== 'undefined' && notificationSettings.showNotification) {
+            notificationSettings.showNotification(message, type);
+        } else {
+            alert(message);
+        }
+    }
+}
+
 // Инициализация менеджеров
 let notificationSettings;
 let contentManager;
@@ -1028,6 +1545,14 @@ function loadSettingsSection() {
                         ⚙️ Редактировать контент
                     </button>
                 </div>
+                
+                <div class="setting-card">
+                    <h3>🗺️ Ваше заведение на карте</h3>
+                    <p>Установите местоположение вашего заведения на карте</p>
+                    <button id="openMapSettingsBtn" class="setting-btn">
+                        ⚙️ Настроить карту
+                    </button>
+                </div>
 
                 <div class="setting-card">
                     <h3>🖼️ Фото по умолчанию</h3>
@@ -1039,6 +1564,46 @@ function loadSettingsSection() {
             </div>
         </div>
 
+
+
+                <div id="mapSettingsModal" class="modal" style="display: none;">
+            <div class="modaal-content map-settings">
+                <div class="modal-header">
+                    <h3>🗺️ Настройка местоположения на карте</h3>
+                    <button id="closeMapSettingsModal" class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="map-instructions">
+                        <h4>Как установить местоположение:</h4>
+                        <ol>
+                            <li>Введите адрес в поле поиска или</li>
+                            <li>Кликните на карте в нужном месте или</li>
+                            <li>Перетащите маркер в нужное место</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="coordinates-display">
+                        <p><strong>Текущие координаты:</strong></p>
+                        <p>Широта: <span id="currentLatitude">--</span></p>
+                        <p>Долгота: <span id="currentLongitude">--</span></p>
+                    </div>
+                    <div class="address-search">
+                        <input type="text" 
+                            id="addressSearch" 
+                            class="address-input" 
+                            placeholder="Введите адрес для поиска..."
+                            autocomplete="off">
+                        <div id="searchSuggestions" class="search-suggestions" style="display: none;"></div>
+                    </div>
+                    
+                    <div id="mapContainer" class="map-container"></div>
+                    
+                    <button onclick="mapSettingsManager.saveCoordinates()" class="confirm-location-btn">
+                        ✅ Подтвердить местоположение
+                    </button>
+                </div>
+            </div>
+        </div>
         <!-- Модальное окно для редактирования текстов и ссылок -->
         <div id="textSettingsModal" class="modal" style="display: none;">
             <div class="modaal-content text-settings-content">
@@ -1079,6 +1644,7 @@ function loadSettingsSection() {
         </div>
         
         <div id="photoSettingsModal" class="modal" style="display: none;">
+        
             <div class="modaal-content photo-settings">
                 <div class="modal-header">
                     <h3>🖼️ Управление фото по умолчанию</h3>
@@ -1125,8 +1691,44 @@ function loadSettingsSection() {
                                 <small>Рекомендуемый размер: 400x300px</small>
                             </div>
                         </div>
+                                <div class="header-photo-item">
+            <h5>Мобильные устройства (до 500px)</h5>
+            <img id="headerMobilePreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 500x800px</div>
+            <input type="file" id="headerMobilePhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerMobilePhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
+        
+        <div class="header-photo-item">
+            <h5>Планшеты (501px - 1200px)</h5>
+            <img id="headerTabletPreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 1200x800px</div>
+            <input type="file" id="headerTabletPhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerTabletPhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
+        
+        <div class="header-photo-item">
+            <h5>Десктопы (от 1201px)</h5>
+            <img id="headerDesktopPreview" class="header-photo-preview" 
+                 style="display: none; max-width: 200px; max-height: 150px;">
+            <div class="header-photo-info">Рекомендуемый размер: 1920x1080px</div>
+            <input type="file" id="headerDesktopPhoto" 
+                   accept="image/*" class="photo-input">
+            <label for="headerDesktopPhoto" class="photo-upload-btn">
+                📸 Выбрать фото
+            </label>
+        </div>
                     </div>
                 </div>
+                
             </div>
         </div>
 
@@ -1149,6 +1751,7 @@ function loadSettingsSection() {
     // Инициализация менеджеров
     notificationSettings = new NotificationSettingsManager();
     contentManager = new ContentManager();
+    mapSettingsManager = new MapSettingsManager();
 
     // Обработчики событий - добавляем после инициализации
     document.getElementById('openTextSettingsBtn')?.addEventListener('click', () => {
@@ -1159,3 +1762,4 @@ function loadSettingsSection() {
         contentManager.closeTextSettingsModal();
     });
 }
+let mapSettingsManager;

@@ -65,6 +65,82 @@ const uploadAdminPhoto = multer({
     }
 });
 
+// server.js - добавить после существующих upload endpoints
+
+// Настройка multer для фоновых фото
+const headerStorage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, 'sh/photo/header/');
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        const { type } = req.body; // mobile, tablet, desktop
+        const extension = path.extname(file.originalname);
+        const filename = `${type}-m${extension}`;
+        cb(null, filename);
+    }
+});
+
+const uploadHeader = multer({ 
+    storage: headerStorage,
+    fileFilter: function (req, file, cb) {
+        if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Только изображения разрешены'), false);
+        }
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024
+    }
+});
+
+// API endpoint для загрузки фоновых фото
+app.post('/api/upload-header-photo', uploadHeader.single('photo'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'Файл не был загружен' });
+        }
+
+        const { type } = req.body;
+        const allowedTypes = ['mobile', 'tablet', 'desktop'];
+        
+        if (!allowedTypes.includes(type)) {
+            return res.status(400).json({ error: 'Неверный тип устройства' });
+        }
+
+        let filePath = req.file.path;
+        let filename = req.file.filename;
+
+        // Конвертируем HEIC в JPEG если нужно
+        if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || path.extname(filename).toLowerCase() === '.heic') {
+            const newFilename = filename.replace(/\.[^/.]+$/, ".jpg");
+            const newFilePath = path.join(path.dirname(filePath), newFilename);
+
+            await sharp(filePath)
+                .jpeg({ quality: 90 })
+                .toFile(newFilePath);
+
+            fs.unlinkSync(filePath);
+            filePath = newFilePath;
+            filename = newFilename;
+        }
+
+        res.json({
+            message: "success",
+            filePath: `photo/header/${filename}`,
+            type: type
+        });
+        
+    } catch (error) {
+        console.error('Ошибка загрузки фонового фото:', error);
+        res.status(500).json({ error: 'Ошибка загрузки фото' });
+    }
+});
+
 // API endpoint для загрузки фото администратора
 // server.js - добавьте после существующих upload endpoints
 
@@ -209,9 +285,79 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
     }
 });
 
+// server.js - добавьте этот endpoint после других endpoints для ссылок
 
-// server.js - добавить после существующих endpoints для страниц
+// API endpoint для получения координат карты
+app.get('/api/map-coordinates', (req, res) => {
+    const sql = `
+        SELECT 
+            MAX(CASE WHEN тип = 'map_latitude' THEN url END) as latitude,
+            MAX(CASE WHEN тип = 'map_longitude' THEN url END) as longitude
+        FROM ссылки 
+        WHERE тип IN ('map_latitude', 'map_longitude')
+    `;
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        const coordinates = {
+            latitude: row?.latitude ? parseFloat(row.latitude) : 52.97103104736177,
+            longitude: row?.longitude ? parseFloat(row.longitude) : 36.06383468318084
+        };
+        
+        res.json({
+            message: "success",
+            data: coordinates
+        });
+    });
+});
 
+// API endpoint для обновления координат карты
+app.put('/api/map-coordinates', (req, res) => {
+    const { latitude, longitude } = req.body;
+    
+    if (!latitude || !longitude) {
+        return res.status(400).json({ error: 'Широта и долгота обязательны' });
+    }
+    
+    const queries = [
+        { type: 'map_latitude', value: latitude.toString() },
+        { type: 'map_longitude', value: longitude.toString() }
+    ];
+    
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        
+        queries.forEach(({ type, value }) => {
+            const sql = `
+                INSERT INTO ссылки (тип, url, описание) 
+                VALUES (?, ?, ?) 
+                ON CONFLICT(тип) 
+                DO UPDATE SET url = excluded.url
+            `;
+            db.run(sql, [type, value, `Координаты карты - ${type}`]);
+        });
+        
+        db.run("COMMIT", function(err) {
+            if (err) {
+                db.run("ROLLBACK");
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            res.json({
+                message: "success",
+                data: {
+                    latitude,
+                    longitude
+                }
+            });
+        });
+    });
+});
 // API endpoint для получения данных администратора
 app.get('/api/admin-data', (req, res) => {
     const sql = `
@@ -545,14 +691,14 @@ db.get("SELECT COUNT(*) as count FROM ссылки", [], (err, row) => {
 });
 // server.js - добавить после существующих endpoints для ссылок
 
-// Обновить endpoint для получения видимости контактов
+// server.js - обновить endpoint для получения видимости контактов
 app.get('/api/contact-visibility', (req, res) => {
     const sql = `
         SELECT 
             тип,
             COALESCE(доступен, 1) as доступен
         FROM ссылки 
-        WHERE тип IN ('vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact')
+        WHERE тип IN ('vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot')
     `;
     
     db.all(sql, [], (err, rows) => {
@@ -568,7 +714,7 @@ app.get('/api/contact-visibility', (req, res) => {
         });
         
         // Заполняем отсутствующие типы как доступные (true)
-        const contactTypes = ['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'];
+        const contactTypes = ['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot'];
         contactTypes.forEach(type => {
             if (visibility[type] === undefined) {
                 visibility[type] = true;
@@ -589,7 +735,7 @@ app.patch('/api/contact-visibility/:type', (req, res) => {
     const contactType = req.params.type;
     const { доступен } = req.body;
     
-    if (!['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact'].includes(contactType)) {
+    if (!['vk_contact', 'telegram_contact', 'whatsapp_contact', 'email_contact', 'phone_contact', 'telegram_bot'].includes(contactType)) {
         return res.status(400).json({ error: 'Неверный тип контакта' });
     }
     

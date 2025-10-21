@@ -1,11 +1,11 @@
-// uslugi.js - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// uslugi.js - ИСПРАВЛЕННАЯ ВЕРСИЯ С МОДАЛЬНЫМИ ОКНАМИ
 class ServicesManager {
     constructor() {
         this.currentServiceId = null;
         this.isEditMode = false;
         this.existingCategories = [];
         this.noPhoto = false;
-        this.originalServiceData = null; // Добавляем для хранения исходных данных
+        this.originalServiceData = null;
         this.init();
     }
 
@@ -21,7 +21,6 @@ class ServicesManager {
             if (response.ok) {
                 const data = await response.json();
                 if (data.message === 'success') {
-                    // Получаем уникальные категории из всех услуг
                     const categories = [...new Set(data.data
                         .filter(service => service.категория && service.категория.trim() !== '')
                         .map(service => service.категория.trim()))];
@@ -37,8 +36,6 @@ class ServicesManager {
 
     updateCategoryDropdown() {
         const dropdown = document.getElementById('categoryDropdown');
-        const input = document.getElementById('serviceCategory');
-        
         if (dropdown && this.existingCategories.length > 0) {
             dropdown.innerHTML = this.existingCategories.map(category => 
                 `<div class="dropdown-item" onclick="servicesManager.selectCategory('${category}')">${category}</div>`
@@ -149,7 +146,7 @@ class ServicesManager {
         this.renderServiceForm();
     }
 
-  async editService(serviceId) {
+    async editService(serviceId) {
         try {
             this.showFormLoading();
             const response = await fetch(`/api/service/${serviceId}`);
@@ -163,7 +160,7 @@ class ServicesManager {
             if (data.message === 'success') {
                 this.isEditMode = true;
                 this.currentServiceId = serviceId;
-                this.originalServiceData = data.data; // Сохраняем исходные данные
+                this.originalServiceData = data.data;
                 this.renderServiceForm(data.data);
             }
         } catch (error) {
@@ -172,277 +169,272 @@ class ServicesManager {
         }
     }
 
-renderServiceForm(serviceData = null) {
-    // ИСПРАВЛЕНИЕ: используем правильное свойство 'фото' вместо 'фoto'
-    const hasPhoto = serviceData?.фото && serviceData.фото !== 'photo/услуги/default.jpg' && !serviceData.фото.startsWith('data:');
-    
-    const formHTML = `
-        <div class="service-form-container">
-            <div class="form-header">
-                <h3 class="form-title">${this.isEditMode ? 'Редактировать услугу' : 'Добавить услугу'}</h3>
-                <button type="button" class="close-form-btn" onclick="servicesManager.closeForm()">
-                    ✕ Закрыть
-                </button>
+    renderServiceForm(serviceData = null) {
+        const hasPhoto = serviceData?.фото && serviceData.фото !== 'photo/услуги/default.jpg' && !serviceData.фото.startsWith('data:');
+        
+        const formHTML = `
+            <div class="modal-overlay" id="serviceModal">
+                <div class="modal-dialog service-modal">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${this.isEditMode ? 'Редактировать услугу' : 'Добавить услугу'}</h3>
+                        <button type="button" class="modal-close-btn" onclick="servicesManager.closeForm()">✕</button>
+                    </div>
+                    
+                    <div class="modal-body">
+                        <form class="service-form" id="serviceForm" onsubmit="servicesManager.handleSubmit(event)" enctype="multipart/form-data">
+                            <div class="form-row">
+                                <div class="form-group category-group">
+                                    <label for="serviceCategory">Категория *</label>
+                                    <div class="category-input-container">
+                                        <input type="text" id="serviceCategory" name="category" class="form-control" 
+                                               value="${serviceData?.категория || ''}" 
+                                               placeholder="Введите категорию или выберите из списка"
+                                               required
+                                               onfocus="servicesManager.showCategoryDropdown()"
+                                               onblur="setTimeout(() => servicesManager.hideCategoryDropdown(), 150)"
+                                               oninput="servicesManager.filterCategories(this.value)">
+                                        <div id="categoryDropdown" class="category-dropdown"></div>
+                                        <button type="button" class="category-dropdown-toggle" onclick="servicesManager.toggleCategoryDropdown()">
+                                            ▼
+                                        </button>
+                                    </div>
+                                    <small>Существующие категории: ${this.existingCategories.join(', ') || 'пока нет'}</small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="serviceName">Название услуги *</label>
+                                    <input type="text" id="serviceName" name="name" class="form-control" 
+                                           value="${serviceData?.название || ''}" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="servicePrice">Цена (руб) *</label>
+                                    <input type="number" id="servicePrice" name="price" class="form-control" 
+                                           value="${serviceData?.цена || ''}" min="0" step="0.01" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="servicePhoto">Фото услуги</label>
+                                    <input type="file" id="servicePhoto" name="photo" class="form-control" 
+                                           accept="image/*" onchange="servicesManager.handleFileSelect(event)">
+                                    <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
+                                    <button type="button" class="btn-no-photo" onclick="servicesManager.setNoPhoto()">
+                                        🚫 Без фото
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="serviceDescription">Описание</label>
+                                <textarea id="serviceDescription" name="description" class="form-control" 
+                                          rows="4" placeholder="Опишите услугу...">${serviceData?.описание || ''}</textarea>
+                            </div>
+                            
+                            ${hasPhoto ? `
+                                <div class="form-group">
+                                    <label>Текущее фото:</label>
+                                    <img src="${serviceData.фото}" class="image-preview" 
+                                         onerror="this.style.display='none'">
+                                    <button type="button" class="btn-remove-photo" onclick="servicesManager.removePhoto()">
+                                        ❌ Удалить фото
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </form>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="servicesManager.closeForm()">Отмена</button>
+                        <button type="submit" class="btn btn-primary" onclick="servicesManager.handleSubmit(event)">
+                            ${this.isEditMode ? 'Сохранить изменения' : 'Добавить услугу'}
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <form class="service-form" id="serviceForm" onsubmit="servicesManager.handleSubmit(event)" enctype="multipart/form-data">
-                <div class="form-row">
-                    <div class="form-group category-group">
-                        <label for="serviceCategory">Категория *</label>
-                        <div class="category-input-container">
-                            <input type="text" id="serviceCategory" name="category" class="form-control" 
-                                   value="${serviceData?.категория || ''}" 
-                                   placeholder="Введите категорию или выберите из списка"
-                                   required
-                                   onfocus="servicesManager.showCategoryDropdown()"
-                                   onblur="setTimeout(() => servicesManager.hideCategoryDropdown(), 150)"
-                                   oninput="servicesManager.filterCategories(this.value)">
-                            <div id="categoryDropdown" class="category-dropdown"></div>
-                            <button type="button" class="category-dropdown-toggle" onclick="servicesManager.toggleCategoryDropdown()">
-                                ▼
-                            </button>
-                        </div>
-                        <small>Существующие категории: ${this.existingCategories.join(', ') || 'пока нет'}</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="serviceName">Название услуги *</label>
-                        <input type="text" id="serviceName" name="name" class="form-control" 
-                               value="${serviceData?.название || ''}" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="servicePrice">Цена (руб) *</label>
-                        <input type="number" id="servicePrice" name="price" class="form-control" 
-                               value="${serviceData?.цена || ''}" min="0" step="0.01" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="servicePhoto">Фото услуги</label>
-                        <input type="file" id="servicePhoto" name="photo" class="form-control" 
-                               accept="image/*" onchange="servicesManager.handleFileSelect(event)">
-                        <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
-                        <button type="button" class="btn-no-photo" onclick="servicesManager.setNoPhoto()">
-                            🚫 Без фото
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="form-group">
-                    <label for="serviceDescription">Описание</label>
-                    <textarea id="serviceDescription" name="description" class="form-control" 
-                              rows="4" placeholder="Опишите услугу...">${serviceData?.описание || ''}</textarea>
-                </div>
-                
-                ${hasPhoto ? `
-                    <div class="form-group">
-                        <label>Текущее фото:</label>
-                        <img src="${serviceData.фото}" class="image-preview" 
-                             onerror="this.style.display='none'">
-                        <button type="button" class="btn-remove-photo" onclick="servicesManager.removePhoto()">
-                            ❌ Удалить фото
-                        </button>
-                    </div>
-                ` : ''}
-                
-                <button type="submit" class="submit-btn">
-                    ${this.isEditMode ? 'Сохранить изменения' : 'Добавить услугу'}
-                </button>
-            </form>
-        </div>
-    `;
+        `;
 
-    document.getElementById('servicesContainer').insertAdjacentHTML('beforeend', formHTML);
-    
-    // Обновляем выпадающий список категорий
-    this.updateCategoryDropdown();
-    
-    // Прокрутка к форме
-    document.querySelector('.service-form-container').scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-    });
-}
-
-
-// В методе handleSubmit
-async handleSubmit(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const category = formData.get('category').trim();
-    const name = formData.get('name').trim();
-    const price = parseFloat(formData.get('price'));
-    const description = formData.get('description').trim();
-    const photoFile = formData.get('photo');
-
-    if (!category || !name || isNaN(price)) {
-        showError('Пожалуйста, заполните все обязательные поля');
-        return;
+        document.body.insertAdjacentHTML('beforeend', formHTML);
+        
+        // Обновляем выпадающий список категорий
+        this.updateCategoryDropdown();
+        
+        // Показываем модальное окно
+        const modal = document.getElementById('serviceModal');
+        modal.style.display = 'block';
     }
 
-    try {
-        this.showFormLoading();
+    async handleSubmit(event) {
+        event.preventDefault();
         
-        let photoPath = null;
-        
-        if (this.noPhoto) {
-            photoPath = null;
-        } else if (photoFile && photoFile.size > 0) {
-            photoPath = await this.uploadPhoto(photoFile);
-        } else if (this.isEditMode && this.originalServiceData) {
-            photoPath = this.originalServiceData.фото;
+        const form = document.getElementById('serviceForm');
+        const formData = new FormData(form);
+        const category = formData.get('category').trim();
+        const name = formData.get('name').trim();
+        const price = parseFloat(formData.get('price'));
+        const description = formData.get('description').trim();
+        const photoFile = formData.get('photo');
+
+        if (!category || !name || isNaN(price)) {
+            showError('Пожалуйста, заполните все обязательные поля');
+            return;
         }
 
-        let доступен = 1;
-        if (this.isEditMode) {
-            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-            if (serviceCard) {
-                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+        try {
+            this.showFormLoading();
+            
+            let photoPath = null;
+            
+            if (this.noPhoto) {
+                photoPath = null;
+            } else if (photoFile && photoFile.size > 0) {
+                photoPath = await this.uploadPhoto(photoFile);
+            } else if (this.isEditMode && this.originalServiceData) {
+                photoPath = this.originalServiceData.фото;
             }
-        }
 
-        const serviceData = {
-            категория: category,
-            название: name,
-            цена: price,
-            описание: description,
-            фото: photoPath,
-            доступен: доступен
-        };
+            let доступен = 1;
+            if (this.isEditMode) {
+                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+                if (serviceCard) {
+                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+                }
+            }
 
-        const url = this.isEditMode 
-            ? `/api/service/${this.currentServiceId}` 
-            : '/api/services-new';
+            const serviceData = {
+                категория: category,
+                название: name,
+                цена: price,
+                описание: description,
+                фото: photoPath,
+                доступен: доступен
+            };
+
+            const url = this.isEditMode 
+                ? `/api/service/${this.currentServiceId}` 
+                : '/api/services-new';
+                
+            const method = this.isEditMode ? 'PUT' : 'POST';
             
-        const method = this.isEditMode ? 'PUT' : 'POST';
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(serviceData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сохранения');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
+                await this.loadCategories();
+                this.closeForm();
+                this.loadServices();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading();
+            this.noPhoto = false;
+        }
+    }
+
+    async toggleServiceVisibility(serviceId, status) {
+        const action = status === 1 ? 'показать' : 'скрыть';
         
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(serviceData)
+        showConfirm(`Вы уверены, что хотите ${action} эту услугу?`, (confirmed) => {
+            if (confirmed) {
+                this.performToggleVisibility(serviceId, status, action);
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка сохранения');
-        }
-
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
-            await this.loadCategories();
-            this.closeForm();
-            this.loadServices();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось сохранить: ' + error.message);
-    } finally {
-        this.hideFormLoading();
-        this.noPhoto = false;
     }
-}
 
-// В методе toggleServiceVisibility
-async toggleServiceVisibility(serviceId, status) {
-    const action = status === 1 ? 'показать' : 'скрыть';
-    
-    showConfirm(`Вы уверены, что хотите ${action} эту услугу?`, (confirmed) => {
-        if (confirmed) {
-            this.performToggleVisibility(serviceId, status, action);
+    async performToggleVisibility(serviceId, status, action) {
+        try {
+            const response = await fetch(`/api/service/${serviceId}/visibility`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ доступен: status })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка изменения видимости');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
+                this.loadServices();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось изменить видимость услуги: ' + error.message);
         }
-    });
-}
+    }
 
-async performToggleVisibility(serviceId, status, action) {
-    try {
-        const response = await fetch(`/api/service/${serviceId}/visibility`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ доступен: status })
+    async deleteService(serviceId) {
+        showConfirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить!', (confirmed) => {
+            if (confirmed) {
+                this.performDelete(serviceId);
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка изменения видимости');
-        }
-
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess(`Услуга успешно ${action === 'показать' ? 'показана' : 'скрыта'}!`);
-            this.loadServices();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось изменить видимость услуги: ' + error.message);
     }
-}
 
-// В методе deleteService
-async deleteService(serviceId) {
-    showConfirm('Вы уверены, что хотите удалить эту услугу? Это действие нельзя отменить!', (confirmed) => {
-        if (confirmed) {
-            this.performDelete(serviceId);
+    async performDelete(serviceId) {
+        try {
+            const response = await fetch(`/api/service/${serviceId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка удаления услуги');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess('Услуга успешно удалена!');
+                this.loadServices();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось удалить услугу');
         }
-    });
-}
+    }
 
-async performDelete(serviceId) {
-    try {
-        const response = await fetch(`/api/service/${serviceId}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            throw new Error('Ошибка удаления услуги');
+    setNoPhoto() {
+        this.noPhoto = true;
+        const fileInput = document.getElementById('servicePhoto');
+        if (fileInput) {
+            fileInput.value = '';
         }
+        showInfo('Фото не будет добавлено');
+    }
 
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess('Услуга успешно удалена!');
-            this.loadServices();
+    removePhoto() {
+        this.noPhoto = true;
+        const preview = document.querySelector('.image-preview');
+        if (preview) {
+            preview.style.display = 'none';
         }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось удалить услугу');
+        const removeBtn = document.querySelector('.btn-remove-photo');
+        if (removeBtn) {
+            removeBtn.style.display = 'none';
+        }
+        showInfo('Текущее фото будет удалено');
     }
-}
-
-// В методе setNoPhoto
-setNoPhoto() {
-    this.noPhoto = true;
-    const fileInput = document.getElementById('servicePhoto');
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    showInfo('Фото не будет добавлено');
-}
-
-// В методе removePhoto
-removePhoto() {
-    this.noPhoto = true;
-    const preview = document.querySelector('.image-preview');
-    if (preview) {
-        preview.style.display = 'none';
-    }
-    const removeBtn = document.querySelector('.btn-remove-photo');
-    if (removeBtn) {
-        removeBtn.style.display = 'none';
-    }
-    showInfo('Текущее фото будет удалено');
-}
-
-// Метод для удаления существующего фото
 
     showCategoryDropdown() {
         const dropdown = document.getElementById('categoryDropdown');
@@ -488,23 +480,24 @@ removePhoto() {
         if (file) {
             const reader = new FileReader();
             reader.onload = function(e) {
-                const previewContainer = document.querySelector('.image-preview-container') || 
-                    document.createElement('div');
-                previewContainer.className = 'image-preview-container';
+                let previewContainer = document.querySelector('.image-preview-container');
+                if (!previewContainer) {
+                    previewContainer = document.createElement('div');
+                    previewContainer.className = 'image-preview-container';
+                    
+                    const form = document.getElementById('serviceForm');
+                    const lastGroup = form.querySelector('.form-group:last-child');
+                    lastGroup.after(previewContainer);
+                }
                 
                 previewContainer.innerHTML = `
                     <label>Предпросмотр:</label>
                     <img src="${e.target.result}" class="image-preview" style="max-width: 200px; max-height: 200px;">
                 `;
-                
-                const form = document.getElementById('serviceForm');
-                form.querySelector('.form-group:last-child').after(previewContainer);
             };
             reader.readAsDataURL(file);
         }
     }
-
-
 
     async uploadPhoto(file) {
         const formData = new FormData();
@@ -530,14 +523,10 @@ removePhoto() {
         }
     }
 
-
-
-
-
     closeForm() {
-        const formContainer = document.querySelector('.service-form-container');
-        if (formContainer) {
-            formContainer.remove();
+        const modal = document.getElementById('serviceModal');
+        if (modal) {
+            modal.remove();
         }
     }
 
@@ -552,31 +541,18 @@ removePhoto() {
     }
 
     showFormLoading() {
-        const form = document.getElementById('serviceForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
+        const submitBtn = document.querySelector('#serviceModal .btn-primary');
+        if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px;"></div> Сохранение...';
-            
-            const formContainer = document.querySelector('.service-form-container');
-            formContainer.style.position = 'relative';
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'loading-overlay';
-            overlay.innerHTML = '<div class="spinner"></div>';
-            formContainer.appendChild(overlay);
         }
     }
 
     hideFormLoading() {
-        const form = document.getElementById('serviceForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
+        const submitBtn = document.querySelector('#serviceModal .btn-primary');
+        if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = this.isEditMode ? 'Сохранить изменения' : 'Добавить услугу';
-            
-            const overlay = document.querySelector('.loading-overlay');
-            if (overlay) overlay.remove();
         }
     }
 
@@ -596,20 +572,6 @@ removePhoto() {
     setupEventListeners() {
         document.getElementById('addServiceBtn')?.addEventListener('click', () => {
             this.showAddForm();
-        });
-
-        // Закрытие выпадающего списка при клике вне его
-        document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('categoryDropdown');
-            const input = document.getElementById('serviceCategory');
-            const toggle = document.querySelector('.category-dropdown-toggle');
-            
-            if (dropdown && input && toggle && 
-                !dropdown.contains(e.target) && 
-                !input.contains(e.target) && 
-                !toggle.contains(e.target)) {
-                dropdown.style.display = 'none';
-            }
         });
     }
 }
@@ -636,53 +598,6 @@ function loadServicesSection() {
                 </div>
             </div>
         </div>
-        
-        <style>
-            .category-group {
-                position: relative;
-            }
-            
-            .category-input-container {
-                position: relative;
-            }
-            
-            .category-dropdown {
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                background: white;
-                border: 1px solid #ddd;
-                border-top: none;
-                max-height: 200px;
-                overflow-y: auto;
-                display: none;
-                z-index: 1000;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }
-            
-            .dropdown-item {
-                padding: 8px 12px;
-                cursor: pointer;
-                border-bottom: 1px solid #eee;
-            }
-            
-            .dropdown-item:hover {
-                background-color: #f5f5f5;
-            }
-            
-            .category-dropdown-toggle {
-                position: absolute;
-                right: 8px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: none;
-                border: none;
-                cursor: pointer;
-                font-size: 12px;
-                color: #666;
-            }
-        </style>
     `;
 
     // Инициализируем менеджер услуг

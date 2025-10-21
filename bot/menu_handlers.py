@@ -41,8 +41,12 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("⌘ Услуги", callback_data='services_menu')
         ],
         [InlineKeyboardButton("✎ Записаться", callback_data='book_appointment')],
-        [InlineKeyboardButton("🛈 Контакты", callback_data='contacts_menu')],  # Новая кнопка
-        [InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet')]
+
+
+        [
+            InlineKeyboardButton("🛈 Контакты", callback_data='contacts_menu'),  # Новая кнопка
+            InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet') 
+        ]
     ]
     
     # Добавляем кнопку админ-панели если пользователь мастер

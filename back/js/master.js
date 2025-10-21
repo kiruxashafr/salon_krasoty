@@ -1,11 +1,11 @@
 // master.js
 class MastersManager {
-constructor() {
-    this.currentMasterId = null;
-    this.isEditMode = false;
-    this.noPhoto = false; // Добавляем флаг
-    this.init();
-}
+    constructor() {
+        this.currentMasterId = null;
+        this.isEditMode = false;
+        this.noPhoto = false;
+        this.init();
+    }
 
     init() {
         this.loadMasters();
@@ -24,7 +24,6 @@ constructor() {
             const data = await response.json();
             
             if (data.message === 'success') {
-                // Фильтруем мастеров с доступен != 0
                 const activeMasters = data.data.filter(master => master.доступен !== 0);
                 this.displayMasters(activeMasters);
             }
@@ -51,10 +50,10 @@ constructor() {
     }
 
     createMasterCard(master) {
-            let photoUrl = master.фото || 'photo/работники/default.jpg';
-    if (photoUrl.startsWith('data:')) {
-        photoUrl = 'photo/работники/default.jpg';
-    }
+        let photoUrl = master.фото || 'photo/работники/default.jpg';
+        if (photoUrl.startsWith('data:')) {
+            photoUrl = 'photo/работники/default.jpg';
+        }
         const isHidden = master.доступен === 2;
         const statusText = isHidden ? 'Скрыт' : 'Активен';
         const statusClass = isHidden ? 'hidden' : '';
@@ -62,7 +61,7 @@ constructor() {
         return `
             <div class="master-card ${statusClass}" data-master-id="${master.id}">
                 <div class="master-header">
-                    <img src="${master.фото || 'photo/работники/default.jpg'}" 
+                    <img src="${photoUrl}" 
                          alt="${master.имя}" 
                          class="master-image"
                          onerror="this.src='photo/работники/default.jpg'">
@@ -126,296 +125,287 @@ constructor() {
         }
     }
 
-renderMasterForm(masterData = null) {
-    const hasPhoto = masterData?.фото && masterData.фото !== 'photo/работники/default.jpg';
-    
-    const formHTML = `
-        <div class="master-form-container">
-            <div class="form-header">
-                <h3 class="form-title">${this.isEditMode ? 'Редактировать мастера' : 'Добавить мастера'}</h3>
-                <button class="close-form-btn" onclick="mastersManager.closeForm()">
-                    ✕ Закрыть
-                </button>
-            </div>
-            
-            <form class="master-form" id="masterForm" onsubmit="mastersManager.handleSubmit(event)" enctype="multipart/form-data">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="masterName">Имя мастера *</label>
-                        <input type="text" id="masterName" name="name" class="form-control" 
-                               value="${masterData?.имя || ''}" required>
+    renderMasterForm(masterData = null) {
+        const hasPhoto = masterData?.фото && masterData.фото !== 'photo/работники/default.jpg';
+        
+        const formHTML = `
+            <div class="modal-overlay" id="masterModal">
+                <div class="modal-dialog master-modal">
+                    <div class="modal-header">
+                        <h3 class="modal-title">${this.isEditMode ? 'Редактировать мастера' : 'Добавить мастера'}</h3>
+                        <button class="modal-close-btn" onclick="mastersManager.closeForm()">✕</button>
                     </div>
                     
-                    <div class="form-group">
-                        <label for="masterPhoto">Фото мастера</label>
-                        <input type="file" id="masterPhoto" name="photo" class="form-control" 
-                               accept="image/*" onchange="mastersManager.handleFileSelect(event)">
-                        <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
-                        <button type="button" class="btn-no-photo" onclick="mastersManager.setNoPhoto()">
-                            🚫 Без фото
+                    <div class="modal-body">
+                        <form class="master-form" id="masterForm" onsubmit="mastersManager.handleSubmit(event)" enctype="multipart/form-data">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="masterName">Имя мастера *</label>
+                                    <input type="text" id="masterName" name="name" class="form-control" 
+                                           value="${masterData?.имя || ''}" required>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="masterPhoto">Фото мастера</label>
+                                    <input type="file" id="masterPhoto" name="photo" class="form-control" 
+                                           accept="image/*" onchange="mastersManager.handleFileSelect(event)">
+                                    <small>Поддерживаемые форматы: JPG, PNG, GIF</small>
+                                    <button type="button" class="btn-no-photo" onclick="mastersManager.setNoPhoto()">
+                                        🚫 Без фото
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            ${hasPhoto ? `
+                                <div class="form-group">
+                                    <label>Текущее фото:</label>
+                                    <img src="${masterData.фото}" class="image-preview" 
+                                         onerror="this.style.display='none'">
+                                    <button type="button" class="btn-remove-photo" onclick="mastersManager.removePhoto()">
+                                        ❌ Удалить фото
+                                    </button>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="form-group">
+                                <label for="masterDescription">Описание</label>
+                                <textarea id="masterDescription" name="description" class="form-control" 
+                                          rows="4" placeholder="Опишите специализацию мастера...">${masterData?.описание || ''}</textarea>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="mastersManager.closeForm()">Отмена</button>
+                        <button type="submit" class="btn btn-primary" onclick="mastersManager.handleSubmit(event)">
+                            ${this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера'}
                         </button>
                     </div>
                 </div>
-                
-                ${hasPhoto ? `
-                    <div class="form-group">
-                        <label>Текущее фото:</label>
-                        <img src="${masterData.фото}" class="image-preview" 
-                             onerror="this.style.display='none'">
-                        <button type="button" class="btn-remove-photo" onclick="mastersManager.removePhoto()">
-                            ❌ Удалить фото
-                        </button>
-                    </div>
-                ` : ''}
-                
-                <div class="form-group">
-                    <label for="masterDescription">Описание</label>
-                    <textarea id="masterDescription" name="description" class="form-control" 
-                              rows="4" placeholder="Опишите специализацию мастера...">${masterData?.описание || ''}</textarea>
-                </div>
-                
-                <button type="submit" class="submit-btn">
-                    ${this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера'}
-                </button>
-            </form>
-        </div>
-    `;
+            </div>
+        `;
 
-    document.getElementById('mastersContainer').insertAdjacentHTML('beforeend', formHTML);
-    
-    // Прокрутка к форме
-    document.querySelector('.master-form-container').scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-    });
-}
-
-
-
-
-
+        document.body.insertAdjacentHTML('beforeend', formHTML);
+        
+        // Показываем модальное окно
+        const modal = document.getElementById('masterModal');
+        modal.style.display = 'block';
+    }
 
     handleFileSelect(event) {
         const file = event.target.files[0];
         if (file) {
-            // Показываем превью изображения
             const reader = new FileReader();
             reader.onload = function(e) {
-                const previewContainer = document.querySelector('.image-preview-container') || 
-                    document.createElement('div');
-                previewContainer.className = 'image-preview-container';
+                let previewContainer = document.querySelector('.image-preview-container');
+                if (!previewContainer) {
+                    previewContainer = document.createElement('div');
+                    previewContainer.className = 'image-preview-container';
+                    
+                    const form = document.getElementById('masterForm');
+                    const lastGroup = form.querySelector('.form-group:last-child');
+                    lastGroup.after(previewContainer);
+                }
                 
                 previewContainer.innerHTML = `
                     <label>Предпросмотр:</label>
                     <img src="${e.target.result}" class="image-preview" style="max-width: 200px; max-height: 200px;">
                 `;
-                
-                const form = document.getElementById('masterForm');
-                form.querySelector('.form-group:last-child').after(previewContainer);
             };
             reader.readAsDataURL(file);
         }
     }
 
-
-// В методе handleSubmit
-async handleSubmit(event) {
-    event.preventDefault();
-    
-    const formData = new FormData(event.target);
-    const name = formData.get('name').trim();
-    const description = formData.get('description').trim();
-    const photoFile = formData.get('photo');
-
-    if (!name) {
-        showError('Пожалуйста, введите имя мастера');
-        return;
-    }
-
-    try {
-        this.showFormLoading();
+    async handleSubmit(event) {
+        event.preventDefault();
         
-        let photoPath = null;
-        
-        if (this.noPhoto) {
-            photoPath = null;
-        } else if (photoFile && photoFile.size > 0) {
-            photoPath = await this.uploadPhoto(photoFile);
-        } else if (this.isEditMode) {
-            const currentPreview = document.querySelector('.image-preview');
-            if (currentPreview && !currentPreview.src.startsWith('data:')) {
-                photoPath = currentPreview.src;
-            } else {
-                photoPath = null;
-            }
+        const form = document.getElementById('masterForm');
+        const formData = new FormData(form);
+        const name = formData.get('name').trim();
+        const description = formData.get('description').trim();
+        const photoFile = formData.get('photo');
+
+        if (!name) {
+            showError('Пожалуйста, введите имя мастера');
+            return;
         }
 
-        const masterData = {
-            имя: name,
-            описание: description,
-            фото: photoPath
-        };
-
-        const url = this.isEditMode 
-            ? `/api/specialist/${this.currentMasterId}` 
-            : '/api/specialists';
+        try {
+            this.showFormLoading();
             
-        const method = this.isEditMode ? 'PUT' : 'POST';
+            let photoPath = null;
+            
+            if (this.noPhoto) {
+                photoPath = null;
+            } else if (photoFile && photoFile.size > 0) {
+                photoPath = await this.uploadPhoto(photoFile);
+            } else if (this.isEditMode) {
+                const currentPreview = document.querySelector('.image-preview');
+                if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                    photoPath = currentPreview.src;
+                } else {
+                    photoPath = null;
+                }
+            }
+
+            const masterData = {
+                имя: name,
+                описание: description,
+                фото: photoPath
+            };
+
+            const url = this.isEditMode 
+                ? `/api/specialist/${this.currentMasterId}` 
+                : '/api/specialists';
+                
+            const method = this.isEditMode ? 'PUT' : 'POST';
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(masterData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка сохранения');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
+                this.closeForm();
+                this.loadMasters();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось сохранить: ' + error.message);
+        } finally {
+            this.hideFormLoading();
+            this.noPhoto = false;
+        }
+    }
+
+    async toggleMasterVisibility(masterId, status) {
+        const action = status === 1 ? 'показать' : 'скрыть';
         
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(masterData)
+        showConfirm(`Вы уверены, что хотите ${action} этого мастера?`, (confirmed) => {
+            if (confirmed) {
+                this.performToggleVisibility(masterId, status, action);
+            }
         });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка сохранения');
-        }
-
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
-            this.closeForm();
-            this.loadMasters();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось сохранить: ' + error.message);
-    } finally {
-        this.hideFormLoading();
-        this.noPhoto = false;
     }
-}
 
-// В методе toggleMasterVisibility
-async toggleMasterVisibility(masterId, status) {
-    const action = status === 1 ? 'показать' : 'скрыть';
-    
-    showConfirm(`Вы уверены, что хотите ${action} этого мастера?`, (confirmed) => {
-        if (confirmed) {
-            this.performToggleVisibility(masterId, status, action);
+    async performToggleVisibility(masterId, status, action) {
+        try {
+            const response = await fetch(`/api/specialist/${masterId}/visibility`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ доступен: status })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка изменения видимости');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess(`Мастер успешно ${action === 'показать' ? 'показан' : 'скрыт'}!`);
+                this.loadMasters();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось изменить видимость мастера: ' + error.message);
         }
-    });
-}
+    }
 
-
-async performToggleVisibility(masterId, status, action) {
-    try {
-        const response = await fetch(`/api/specialist/${masterId}/visibility`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ доступен: status })
+    async deleteMaster(masterId) {
+        showConfirm('Вы уверены, что хотите удалить этого мастера? Это действие нельзя отменить!', (confirmed) => {
+            if (confirmed) {
+                this.performDelete(masterId);
+            }
         });
+    }
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка изменения видимости');
+    async performDelete(masterId) {
+        try {
+            const response = await fetch(`/api/specialist/${masterId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Ошибка удаления мастера');
+            }
+
+            const data = await response.json();
+            
+            if (data.message === 'success') {
+                showSuccess('Мастер успешно удален!');
+                this.loadMasters();
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            showError('Не удалось удалить мастера');
         }
+    }
 
-        const data = await response.json();
+    setNoPhoto() {
+        this.noPhoto = true;
+        const fileInput = document.getElementById('masterPhoto');
+        if (fileInput) {
+            fileInput.value = '';
+        }
+        showInfo('Фото не будет добавлено');
+    }
+
+    removePhoto() {
+        this.noPhoto = true;
+        const preview = document.querySelector('.image-preview');
+        if (preview) {
+            preview.style.display = 'none';
+        }
+        const removeBtn = document.querySelector('.btn-remove-photo');
+        if (removeBtn) {
+            removeBtn.style.display = 'none';
+        }
+        showInfo('Текущее фото будет удалено');
+    }
+
+    async uploadPhoto(file) {
+        const formData = new FormData();
+        formData.append('photo', file);
         
-        if (data.message === 'success') {
-            showSuccess(`Мастер успешно ${action === 'показать' ? 'показан' : 'скрыт'}!`);
-            this.loadMasters();
+        try {
+            const response = await fetch('/api/upload-photo', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Ошибка загрузки фото');
+            }
+            
+            const data = await response.json();
+            return data.filePath;
+        } catch (error) {
+            console.error('Ошибка загрузки фото:', error);
+            alert('Ошибка загрузки фото: ' + error.message);
+            return 'photo/работники/default.jpg';
         }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось изменить видимость мастера: ' + error.message);
     }
-}
-
-
-async deleteMaster(masterId) {
-    showConfirm('Вы уверены, что хотите удалить этого мастера? Это действие нельзя отменить!', (confirmed) => {
-        if (confirmed) {
-            this.performDelete(masterId);
-        }
-    });
-}
-
-async performDelete(masterId) {
-    try {
-        const response = await fetch(`/api/specialist/${masterId}`, {
-            method: 'DELETE'
-        });
-
-        if (!response.ok) {
-            throw new Error('Ошибка удаления мастера');
-        }
-
-        const data = await response.json();
-        
-        if (data.message === 'success') {
-            showSuccess('Мастер успешно удален!');
-            this.loadMasters();
-        }
-    } catch (error) {
-        console.error('Ошибка:', error);
-        showError('Не удалось удалить мастера');
-    }
-}
-
-// В методе setNoPhoto
-setNoPhoto() {
-    this.noPhoto = true;
-    const fileInput = document.getElementById('masterPhoto');
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    showInfo('Фото не будет добавлено');
-}
-
-// В методе removePhoto
-removePhoto() {
-    this.noPhoto = true;
-    const preview = document.querySelector('.image-preview');
-    if (preview) {
-        preview.style.display = 'none';
-    }
-    const removeBtn = document.querySelector('.btn-remove-photo');
-    if (removeBtn) {
-        removeBtn.style.display = 'none';
-    }
-    showInfo('Текущее фото будет удалено');
-}
-// master.js - исправленная функция uploadPhoto
-async uploadPhoto(file) {
-    const formData = new FormData();
-    formData.append('photo', file);
-    
-    try {
-        const response = await fetch('/api/upload-photo', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Ошибка загрузки фото');
-        }
-        
-        const data = await response.json();
-        return data.filePath;
-    } catch (error) {
-        console.error('Ошибка загрузки фото:', error);
-        alert('Ошибка загрузки фото: ' + error.message);
-        return 'photo/работники/default.jpg';
-    }
-}
-
-
-
 
     closeForm() {
-        const formContainer = document.querySelector('.master-form-container');
-        if (formContainer) {
-            formContainer.remove();
+        const modal = document.getElementById('masterModal');
+        if (modal) {
+            modal.remove();
         }
     }
 
@@ -430,33 +420,18 @@ async uploadPhoto(file) {
     }
 
     showFormLoading() {
-        const form = document.getElementById('masterForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
+        const submitBtn = document.querySelector('#masterModal .btn-primary');
+        if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<div class="spinner" style="width: 20px; height: 20px;"></div> Сохранение...';
-            
-            // Добавляем overlay поверх формы
-            const formContainer = document.querySelector('.master-form-container');
-            formContainer.style.position = 'relative';
-            
-            const overlay = document.createElement('div');
-            overlay.className = 'loading-overlay';
-            overlay.innerHTML = '<div class="spinner"></div>';
-            formContainer.appendChild(overlay);
         }
     }
 
     hideFormLoading() {
-        const form = document.getElementById('masterForm');
-        if (form) {
-            const submitBtn = form.querySelector('.submit-btn');
+        const submitBtn = document.querySelector('#masterModal .btn-primary');
+        if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = this.isEditMode ? 'Сохранить изменения' : 'Добавить мастера';
-            
-            // Убираем overlay
-            const overlay = document.querySelector('.loading-overlay');
-            if (overlay) overlay.remove();
         }
     }
 
@@ -474,7 +449,6 @@ async uploadPhoto(file) {
     }
 
     setupEventListeners() {
-        // Обработчик для кнопки добавления
         document.getElementById('addMasterBtn')?.addEventListener('click', () => {
             this.showAddForm();
         });
@@ -508,6 +482,3 @@ function loadMastersSection() {
     // Инициализируем менеджер мастеров
     mastersManager = new MastersManager();
 }
-
-
-

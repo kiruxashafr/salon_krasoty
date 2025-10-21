@@ -65,7 +65,18 @@ async function loadContactVisibility() {
         applyDefaultContactVisibility();
     }
 }
-
+// Функция для видимости контактов по умолчанию (на случай ошибки)
+function applyDefaultContactVisibility() {
+    const defaultVisibility = {
+        'vk_contact': true,
+        'telegram_contact': true,
+        'whatsapp_contact': true,
+        'email_contact': true,
+        'phone_contact': true,
+        'telegram_bot': true // ДОБАВЛЯЕМ ТЕЛЕГРАМ БОТ
+    };
+    applyContactVisibility(defaultVisibility);
+}
 // Функция применения видимости контактов
 function applyContactVisibility(visibility) {
     const contactSection = document.getElementById('contacts-section');
@@ -77,12 +88,13 @@ function applyContactVisibility(visibility) {
         'telegram_contact': 'contact-link-telegram', 
         'whatsapp_contact': 'contact-link-whatsapp',
         'email_contact': 'contact-link-mail',
-        'phone_contact': 'contact-link-phone'
+        'phone_contact': 'contact-link-phone',
+        'telegram_bot': 'buttonn' // ДОБАВЛЯЕМ ТЕЛЕГРАМ БОТ
     };
     
     // Применяем видимость для каждого типа контакта
     Object.keys(contactMap).forEach(contactType => {
-        const contactElement = contactSection.querySelector(`.${contactMap[contactType]}`);
+        const contactElement = document.querySelector(`.${contactMap[contactType]}`);
         if (contactElement) {
             if (visibility[contactType]) {
                 contactElement.style.display = 'flex'; // Показываем
