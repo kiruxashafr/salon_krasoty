@@ -206,9 +206,9 @@ r
 }
 
 .time-slot-btn:active {
-    background-color: #007bff;
+    background-color: #b9b9b9;
     color: white;
-    border-color: #007bff;
+    border-color: #a8a8a8;
 }
 
 /* Стили для выбора даты */
