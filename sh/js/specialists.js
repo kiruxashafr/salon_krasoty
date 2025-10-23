@@ -5,6 +5,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let specialistsRefreshInterval;
 
+
+function showLoadingIndicatorSpecialists(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        // Добавляем класс для загрузки
+        container.classList.add('loading');
+        container.innerHTML = `
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        `;
+    }
+}
+
+function hideLoadingIndicatorSpecialists(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        // Убираем класс загрузки
+        container.classList.remove('loading');
+        const loadingIndicator = container.querySelector('.loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+    }
+}
+
+
 function fetchSpecialists() {
     console.log('Fetching specialists from /api/specialists');
     fetch('/api/specialists')
@@ -40,8 +67,13 @@ function startSpecialistsAutoRefresh() {
     }, 30000);
 }
 
+// Обновите функцию displaySpecialists
 function displaySpecialists(specialists) {
     const specialistsContainer = document.getElementById('specialists-container');
+    
+    // Скрываем индикатор загрузки
+    hideLoadingIndicatorSpecialists('specialists-container');
+    
     if (!specialistsContainer) {
         console.error('Container not found during display');
         return;
@@ -49,7 +81,7 @@ function displaySpecialists(specialists) {
 
     if (!specialists || specialists.length === 0) {
         console.warn('No specialists with available appointments');
-        specialistsContainer.innerHTML = '<p class="no-specialists" style="color: white; text-align: center; font-family: forum;">В данный момент нет доступных специалистов</p>';
+        specialistsContainer.innerHTML = '<p class="no-specialists" style="color: white; text-align: center; font-family: forum; padding: 2rem;">В данный момент нет доступных специалистов</p>';
         return;
     }
 
@@ -105,6 +137,7 @@ function showError(message) {
     }
 }
 
+// Обновите функцию openSpecialistModal
 function openSpecialistModal(specialistId) {
     console.log(`Opening modal for specialist ID: ${specialistId}`);
     
@@ -116,6 +149,21 @@ function openSpecialistModal(specialistId) {
     window.specialistCurrentServiceId = null;
     window.specialistSelectedDate = null;
     window.specialistCurrentStep = 'services';
+    
+    const modal = document.getElementById('specialist-modal');
+    const modalContent = modal.querySelector('.specialist-modal-content');
+    
+    // Показываем индикатор загрузки в модальном окне
+    modalContent.innerHTML = `
+        <button class="close-modal-btn" onclick="closeSpecialistModal()">⨉</button>
+        <div class="modal-step">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
     
     fetch(`/api/specialist/${specialistId}/services`)
         .then(response => {
@@ -141,11 +189,24 @@ function openSpecialistModal(specialistId) {
         });
 }
 
+// Обновите функцию filterServicesWithAvailableTimeSpecialist
 function filterServicesWithAvailableTimeSpecialist(specialistId, services) {
     if (!services || services.length === 0) {
         showNoServicesMessage();
         return;
     }
+
+    const modalContent = document.querySelector('.specialist-modal-content');
+    
+    // Показываем индикатор загрузки услуг
+    modalContent.innerHTML = `
+        <button class="close-modal-btn" onclick="closeSpecialistModal()">⨉</button>
+        <div class="modal-step">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    `;
 
     const today = new Date();
     const startDate = today.toISOString().split('T')[0];
@@ -347,8 +408,14 @@ function checkServiceAvailabilitySpecialist(specialistId, services, startDate, e
         .then(results => results.some(result => result === true));
 }
 
+// Обновите функцию fetchSpecialistsWithAvailability
 function fetchSpecialistsWithAvailability() {
     console.log('Fetching all specialists first...');
+    const container = document.getElementById('specialists-container');
+    
+    if (container) {
+        showLoadingIndicatorSpecialists('specialists-container');
+    }
     
     fetch('/api/specialists')
         .then(response => {
@@ -363,11 +430,13 @@ function fetchSpecialistsWithAvailability() {
             } else {
                 console.error('Invalid response:', data);
                 showError('Ошибка загрузки данных');
+                hideLoadingIndicatorSpecialists('specialists-container');
             }
         })
         .catch(error => {
             console.error('Fetch error:', error);
             showError('Не удалось загрузить данные специалистов');
+            hideLoadingIndicatorSpecialists('specialists-container');
         });
 }
 
@@ -624,11 +693,19 @@ function selectDateSpecialist(day) {
     loadAvailableTimeSpecialist(formattedDate);
 }
 
+// Обновите функцию loadAvailableTimeSpecialist
 function loadAvailableTimeSpecialist(date) {
     if (!window.specialistCurrentSpecialistId || !window.specialistCurrentServiceId) {
         console.error('Specialist ID or Service ID not found');
         return;
     }
+    
+    const timeSlotsContainer = document.getElementById('specialist-time-slots');
+    timeSlotsContainer.innerHTML = `
+        <div class="loading-indicator">
+            <div class="spinner"></div>
+        </div>
+    `;
     
     console.log(`Fetching schedule for specialist ${window.specialistCurrentSpecialistId}, service ${window.specialistCurrentServiceId} on date ${date}`);
     fetch(`/api/specialist/${window.specialistCurrentSpecialistId}/service/${window.specialistCurrentServiceId}/schedule/${date}`)
@@ -643,12 +720,12 @@ function loadAvailableTimeSpecialist(date) {
             if (data.message === 'success') {
                 displayTimeSlotsSpecialist(data.data);
             } else {
-                document.getElementById('specialist-time-slots').innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
+                timeSlotsContainer.innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
             }
         })
         .catch(error => {
             console.error('Error fetching schedule:', error);
-            document.getElementById('specialist-time-slots').innerHTML = '<p>Ошибка загрузки расписания</p>';
+            timeSlotsContainer.innerHTML = '<p>Ошибка загрузки расписания</p>';
         });
 }
 

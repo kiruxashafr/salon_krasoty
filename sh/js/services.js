@@ -4,6 +4,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let servicesRefreshInterval;
 
+
+// Функция для показа индикатора загрузки
+function showLoadingIndicator(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        container.innerHTML = `
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        `;
+    }
+}
+
+// Функция для скрытия индикатора загрузки
+function hideLoadingIndicator(containerId) {
+    const container = document.getElementById(containerId);
+    if (container) {
+        const loadingIndicator = container.querySelector('.loading-indicator');
+        if (loadingIndicator) {
+            loadingIndicator.remove();
+        }
+    }
+}
+
+
 function fetchServices() {
     fetch('/api/services')
         .then(response => {
@@ -37,6 +62,11 @@ function startServicesAutoRefresh() {
 
 function fetchServicesWithAvailability() {
     console.log('Fetching all services first...');
+    const container = document.getElementById('services-container');
+    
+    if (container) {
+        showLoadingIndicator('services-container');
+    }
     
     fetch('/api/services')
         .then(response => {
@@ -51,14 +81,17 @@ function fetchServicesWithAvailability() {
             } else {
                 console.error('Error fetching services:', data.error);
                 showError('Ошибка загрузки услуг');
+                hideLoadingIndicator('services-container');
             }
         })
         .catch(error => {
             console.error('Error fetching services:', error);
             showError('Не удалось загрузить услуги');
+            hideLoadingIndicator('services-container');
         });
 }
 
+// Обновите функцию filterServicesWithAvailability
 function filterServicesWithAvailability(services) {
     if (!services || services.length === 0) {
         displayServices([]);
@@ -68,6 +101,12 @@ function filterServicesWithAvailability(services) {
     const today = new Date();
     const startDate = today.toISOString().split('T')[0];
     const endDate = new Date(today.setMonth(today.getMonth() + 1)).toISOString().split('T')[0];
+
+    // Показываем индикатор загрузки при фильтрации
+    const container = document.getElementById('services-container');
+    if (container && !container.querySelector('.loading-indicator')) {
+        showLoadingIndicator('services-container');
+    }
 
     const servicePromises = services.map(service => {
         return new Promise((resolve) => {
@@ -105,6 +144,11 @@ function filterServicesWithAvailability(services) {
                 .map(result => result.service);
 
             console.log('Available services:', availableServices);
+            
+            if (availableServices.length === 0) {
+                displayServices([]);
+                return;
+            }
             
             const servicesWithValidSpecialistsPromises = availableServices.map(service => {
                 return checkServiceHasValidSpecialists(service.id, startDate, endDate)
@@ -178,14 +222,19 @@ function checkSpecialistsAvailability(serviceId, specialists, startDate, endDate
         .then(results => results.some(result => result === true));
 }
 
+// Обновите функцию displayServices
 function displayServices(services) {
     const servicesContainer = document.getElementById('services-container');
     
+    // Скрываем индикатор загрузки
+    hideLoadingIndicator('services-container');
+    
     if (!services || services.length === 0) {
-        servicesContainer.innerHTML = '<p class="no-services" style="color: white; text-align: center; font-family: forum;">Нет доступных услуг на данный момент</p>';
+        servicesContainer.innerHTML = '<p class="no-services" style="color: white; text-align: center; font-family: forum; padding: 2rem;">Нет доступных услуг на данный момент</p>';
         return;
     }
     
+    // Остальной код функции остается без изменений
     servicesContainer.innerHTML = '';
     
     const servicesByCategory = services.reduce((acc, service) => {
@@ -239,6 +288,7 @@ function showError(message) {
     }
 }
 
+// Обновите функцию openServiceModal
 function openServiceModal(serviceId) {
     console.log(`Opening modal for service ID: ${serviceId}`);
     
@@ -250,7 +300,22 @@ function openServiceModal(serviceId) {
     window.serviceCurrentServiceId = serviceId;
     window.serviceSelectedDate = null;
     window.serviceCurrentStep = 'specialists';
-    window.serviceCurrentService = null; // Добавляем сброс
+    window.serviceCurrentService = null;
+    
+    const modal = document.getElementById('service-modal');
+    const modalContent = modal.querySelector('.service-modal-content');
+    
+    // Показываем индикатор загрузки в модальном окне
+    modalContent.innerHTML = `
+        <button class="close-modal-btn" onclick="closeServiceModal()">⨉</button>
+        <div class="modal-step">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
     
     fetch(`/api/service/${serviceId}`)
         .then(response => {
@@ -286,19 +351,34 @@ function openServiceModal(serviceId) {
             } else {
                 console.error('Error fetching service:', serviceData.error);
                 alert('Ошибка загрузки информации об услуге');
+                closeServiceModal();
             }
         })
         .catch(error => {
             console.error('Error fetching service:', error);
             alert('Ошибка загрузки информации об услуге');
+            closeServiceModal();
         });
 }
 
+// Обновите функцию filterSpecialistsWithAvailableTimeService
 function filterSpecialistsWithAvailableTimeService(serviceId, service, specialists) {
     if (!specialists || specialists.length === 0) {
         showNoSpecialistsMessage(service);
         return;
     }
+
+    const modalContent = document.querySelector('.service-modal-content');
+    
+    // Показываем индикатор загрузки мастеров
+    modalContent.innerHTML = `
+        <button class="close-modal-btn" onclick="closeServiceModal()">⨉</button>
+        <div class="modal-step">
+            <div class="loading-indicator">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    `;
 
     const today = new Date();
     const startDate = today.toISOString().split('T')[0];
@@ -683,11 +763,19 @@ function selectDateService(day) {
     loadAvailableTimeService(formattedDate);
 }
 
+// Обновите функцию loadAvailableTimeService
 function loadAvailableTimeService(date) {
     if (!window.serviceCurrentSpecialistId || !window.serviceCurrentServiceId) {
         console.error('Specialist ID or Service ID not found');
         return;
     }
+    
+    const timeSlotsContainer = document.getElementById('service-time-slots');
+    timeSlotsContainer.innerHTML = `
+        <div class="loading-indicator">
+            <div class="spinner"></div>
+        </div>
+    `;
     
     console.log(`Fetching schedule for specialist ${window.serviceCurrentSpecialistId}, service ${window.serviceCurrentServiceId} on date ${date}`);
     fetch(`/api/specialist/${window.serviceCurrentSpecialistId}/service/${window.serviceCurrentServiceId}/schedule/${date}`)
@@ -702,12 +790,12 @@ function loadAvailableTimeService(date) {
             if (data.message === 'success') {
                 displayTimeSlotsService(data.data);
             } else {
-                document.getElementById('service-time-slots').innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
+                timeSlotsContainer.innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
             }
         })
         .catch(error => {
             console.error('Error fetching schedule:', error);
-            document.getElementById('service-time-slots').innerHTML = '<p>Ошибка загрузки расписания</p>';
+            timeSlotsContainer.innerHTML = '<p>Ошибка загрузки расписания</p>';
         });
 }
 
