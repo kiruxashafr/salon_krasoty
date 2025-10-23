@@ -73,15 +73,34 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
     query = update.callback_query if update.callback_query else None
     photo_url = f"{API_BASE_URL}/photo/images/lk.jpg"
 
+    try:
+        # Получаем данные клиента
+        response = requests.get(f"{API_BASE_URL}/api/client/by-tg/{user_id}")
+        data = response.json()
+
+        if data['message'] == 'success' and data['data']:
+            client_data = data['data']
+            client_name = client_data.get('имя', 'Неизвестно')
+            client_phone = client_data.get('телефон', 'Не указан')
+            
+            message_text = (
+                "🔑 Личный кабинет\n\n"
+                f"👤 {client_name} "
+                f" {client_phone}"
+            )
+        else:
+            message_text = "🔑 Личный кабинет"
+
+    except Exception as e:
+        logger.error(f"Error fetching client data: {e}")
+        message_text = "🔑 Личный кабинет"
+
     keyboard = [
         [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
         [InlineKeyboardButton("○ Актуальные записи", callback_data='cabinet_current')],
         [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message_text = (
-        "🔑 Личный кабинет\n"
-    )
 
     try:
         photo_response = requests.get(photo_url)
@@ -103,6 +122,9 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
         else:
             await update.message.reply_text(text=message_text, reply_markup=reply_markup)
+
+
+
 
 async def handle_personal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback для личного кабинета"""

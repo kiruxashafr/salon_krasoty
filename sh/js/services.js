@@ -5,10 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
 let servicesRefreshInterval;
 
 
-// Функция для показа индикатора загрузки
 function showLoadingIndicator(containerId) {
     const container = document.getElementById(containerId);
-    if (container) {
+    if (container && !container.querySelector('.service-card')) {
         container.innerHTML = `
             <div class="loading-indicator">
                 <div class="spinner"></div>
@@ -62,9 +61,12 @@ function startServicesAutoRefresh() {
 
 function fetchServicesWithAvailability() {
     console.log('Fetching all services first...');
-    const container = document.getElementById('services-container');
     
-    if (container) {
+    // Не показываем индикатор загрузки при автообновлении
+    const container = document.getElementById('services-container');
+    const isInitialLoad = !container.querySelector('.service-card') && !container.querySelector('.no-services');
+    
+    if (isInitialLoad) {
         showLoadingIndicator('services-container');
     }
     
@@ -80,14 +82,18 @@ function fetchServicesWithAvailability() {
                 filterServicesWithAvailability(data.data);
             } else {
                 console.error('Error fetching services:', data.error);
-                showError('Ошибка загрузки услуг');
-                hideLoadingIndicator('services-container');
+                if (isInitialLoad) {
+                    showError('Ошибка загрузки услуг');
+                    hideLoadingIndicator('services-container');
+                }
             }
         })
         .catch(error => {
             console.error('Error fetching services:', error);
-            showError('Не удалось загрузить услуги');
-            hideLoadingIndicator('services-container');
+            if (isInitialLoad) {
+                showError('Не удалось загрузить услуги');
+                hideLoadingIndicator('services-container');
+            }
         });
 }
 

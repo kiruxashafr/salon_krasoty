@@ -109,12 +109,12 @@ async def show_contacts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Формируем красивое сообщение с контактами
             message = "🛈 Контакты\n\n"
             
-            # Добавляем номер телефона если есть
+            # Добавляем номер телефона если есть и доступен
             if links.get('phone_contact'):
                 phone = links['phone_contact']
-                # Форматируем номер для красивого отображения и делаем его копируемым
+                # Форматируем номер для красивого отображения
                 formatted_phone = format_phone_number(phone)
-                message += f"📱 Телефон:\n<code>{formatted_phone}</code>\n\n"
+                message += f"📱 Телефон:  {formatted_phone} \n\n"
             
             message += "💬 Свяжитесь с нами:\n\n"
             
@@ -142,6 +142,10 @@ async def show_contacts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 email = links['email_contact'].strip()
                 message += f"📧 Email: {email}\n"
             
+            # Если нет доступных контактов
+            if message == "🛈 Контакты\n\n💬 Свяжитесь с нами:\n\n":
+                message += "📭 Контакты временно недоступны\n\n"
+            
             # Кнопка назад
             keyboard = [[InlineKeyboardButton("↲ Назад", callback_data='back_to_main')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -150,74 +154,100 @@ async def show_contacts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             photo_url = f"{API_BASE_URL}/photo/images/contakts.jpg"
             
             try:
-                # Сначала пытаемся отправить новое сообщение с фото
+                # Скачиваем фото
                 photo_response = requests.get(photo_url)
                 if photo_response.status_code == 200:
                     photo_data = photo_response.content
-                    await query.message.reply_photo(
-                        photo=photo_data,
-                        caption=message,
-                        reply_markup=reply_markup,
-                        parse_mode='HTML'  # Добавляем поддержку HTML
-                    )
-                    await query.delete_message()
-                else:
-                    # Если фото недоступно, отправляем текстовое сообщение
-                    await query.message.reply_text(
-                        text=message, 
-                        reply_markup=reply_markup,
-                        parse_mode='HTML'  # Добавляем поддержку HTML
-                    )
-                    await query.delete_message()
                     
+                    # Проверяем, есть ли фото в текущем сообщении
+                    if query.message.photo:
+                        # Если сообщение с фото, редактируем его
+                        media = InputMediaPhoto(media=photo_data, caption=message)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        # Если текстовое сообщение, редактируем текст и добавляем фото
+                        await query.message.reply_photo(
+                            photo=photo_data,
+                            caption=message,
+                            reply_markup=reply_markup,
+                            parse_mode='Markdown'  # Изменено с HTML на Markdown
+                        )
+                        await query.delete_message()
+                else:
+                    # Если фото недоступно, редактируем текстовое сообщение
+                    if query.message.photo:
+                        # Если было фото, переходим на текст
+                        await query.edit_message_text(
+                            text=message, 
+                            reply_markup=reply_markup,
+                            parse_mode='Markdown'  # Изменено с HTML на Markdown
+                        )
+                    else:
+                        # Если уже текст, просто редактируем
+                        await query.edit_message_text(
+                            text=message, 
+                            reply_markup=reply_markup,
+                            parse_mode='Markdown'  # Изменено с HTML на Markdown
+                        )
+                        
             except Exception as e:
-                logger.error(f"Error sending contacts with photo: {e}")
-                # Если не удалось отправить с фото, пробуем просто текст
+                logger.error(f"Error editing contacts: {e}")
+                # Если не удалось отредактировать с фото, пробуем просто текст
                 try:
-                    await query.message.reply_text(
+                    await query.edit_message_text(
                         text=message, 
                         reply_markup=reply_markup,
-                        parse_mode='HTML'  # Добавляем поддержку HTML
+                        parse_mode='Markdown'  # Изменено с HTML на Markdown
                     )
-                    await query.delete_message()
                 except Exception as e2:
-                    logger.error(f"Error sending contacts text: {e2}")
+                    logger.error(f"Error editing contacts text: {e2}")
+                    # Последняя попытка - отправляем новое сообщение
                     await query.message.reply_text(
                         text=message, 
                         reply_markup=reply_markup,
-                        parse_mode='HTML'  # Добавляем поддержку HTML
+                        parse_mode='Markdown'  # Изменено с HTML на Markdown
                     )
-                    await query.delete_message()
                     
         else:
             message = "❌ Ошибка загрузки контактов"
             keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.message.reply_text(text=message, reply_markup=reply_markup)
-            await query.delete_message()
+            
+            if query.message.photo:
+                await query.edit_message_caption(caption=message, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching contacts: {e}")
         message = "❌ Ошибка подключения к серверу"
         keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.message.reply_text(text=message, reply_markup=reply_markup)
-        await query.delete_message()
+        
+        if query.message.photo:
+            await query.edit_message_caption(caption=message, reply_markup=reply_markup)
+        else:
+            await query.edit_message_text(text=message, reply_markup=reply_markup)
 
 
 
 def format_phone_number(phone):
-    """Форматирование номера телефона для красивого отображения"""
+    """Форматирование номера телефона для отображения в формате +79711990304"""
     # Убираем все нецифровые символы
     cleaned = ''.join(filter(str.isdigit, phone))
     
-    if cleaned.startswith('7') and len(cleaned) == 11:
-        return f"+7 ({cleaned[1:4]}) {cleaned[4:7]}-{cleaned[7:9]}-{cleaned[9:]}"
-    elif cleaned.startswith('8') and len(cleaned) == 11:
-        return f"+7 ({cleaned[1:4]}) {cleaned[4:7]}-{cleaned[7:9]}-{cleaned[9:]}"
+    # Если номер начинается с 7 или 8 и имеет 11 цифр (российский номер)
+    if cleaned.startswith(('7', '8')) and len(cleaned) == 11:
+        return f"+{cleaned}" if cleaned.startswith('7') else f"+7{cleaned[1:]}"
+    # Если номер уже в международном формате (начинается с +7)
+    elif cleaned.startswith('7') and len(cleaned) == 11:
+        return f"+{cleaned}"
+    # Если номер короткий (возможно, без кода страны)
+    elif len(cleaned) == 10:
+        return f"+7{cleaned}"
+    # Для других случаев возвращаем как есть
     else:
-        return phone
-    
+        return f"+{cleaned}" if cleaned and not cleaned.startswith('+') else cleaned
 
 
 async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE, master_id: str):

@@ -8,8 +8,7 @@ let specialistsRefreshInterval;
 
 function showLoadingIndicatorSpecialists(containerId) {
     const container = document.getElementById(containerId);
-    if (container) {
-        // Добавляем класс для загрузки
+    if (container && !container.querySelector('.specialist-card')) {
         container.classList.add('loading');
         container.innerHTML = `
             <div class="loading-indicator">
@@ -408,12 +407,14 @@ function checkServiceAvailabilitySpecialist(specialistId, services, startDate, e
         .then(results => results.some(result => result === true));
 }
 
-// Обновите функцию fetchSpecialistsWithAvailability
 function fetchSpecialistsWithAvailability() {
     console.log('Fetching all specialists first...');
-    const container = document.getElementById('specialists-container');
     
-    if (container) {
+    // Не показываем индикатор загрузки при автообновлении
+    const container = document.getElementById('specialists-container');
+    const isInitialLoad = !container.querySelector('.specialist-card') && !container.querySelector('.no-specialists');
+    
+    if (isInitialLoad) {
         showLoadingIndicatorSpecialists('specialists-container');
     }
     
@@ -429,14 +430,18 @@ function fetchSpecialistsWithAvailability() {
                 filterSpecialistsWithAvailability(data.data);
             } else {
                 console.error('Invalid response:', data);
-                showError('Ошибка загрузки данных');
-                hideLoadingIndicatorSpecialists('specialists-container');
+                if (isInitialLoad) {
+                    showError('Ошибка загрузки данных');
+                    hideLoadingIndicatorSpecialists('specialists-container');
+                }
             }
         })
         .catch(error => {
             console.error('Fetch error:', error);
-            showError('Не удалось загрузить данные специалистов');
-            hideLoadingIndicatorSpecialists('specialists-container');
+            if (isInitialLoad) {
+                showError('Не удалось загрузить данные специалистов');
+                hideLoadingIndicatorSpecialists('specialists-container');
+            }
         });
 }
 

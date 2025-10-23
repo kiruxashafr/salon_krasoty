@@ -73,7 +73,6 @@
 
 .cont:hover {
     background-color: #7a7b82; /* Matches about-trigger hover color */
-    transform: translateY(-4px); /* Slight lift effect on hover */
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2); /* Adds shadow on hover */
     border-color: rgb(250 250 250 / 45%); /* Matches about-trigger border */
 }
