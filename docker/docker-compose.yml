@@ -1,8 +1,6 @@
 services:
   server:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.server
+    image: project1-server  # ← ИЗМЕНИТЬ: build на image
     ports:
       - "${PORT}:${PORT}"
     volumes:
@@ -15,16 +13,15 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "--max-time", "10", "-f", "http://localhost:${PORT}"]
-      interval: 1s
+      interval: 30s  # ← ИЗМЕНИТЬ: с 1s на 30s
       timeout: 10s
-      retries: 1
+      retries: 3     # ← ИЗМЕНИТЬ: с 1 на 3
+      start_period: 40s
     env_file:
       - .env
 
   bot:
-    build:
-      context: ../bot
-      dockerfile: ../docker/Dockerfile.bot
+    image: project1-bot  # ← ИЗМЕНИТЬ: build на image
     volumes:
       - ../bot:/app
     environment:
@@ -34,4 +31,4 @@ services:
         condition: service_healthy
     restart: unless-stopped
     env_file:
-      - .env  # Добавьте эту строку
+      - .env

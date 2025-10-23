@@ -250,6 +250,7 @@ function openServiceModal(serviceId) {
     window.serviceCurrentServiceId = serviceId;
     window.serviceSelectedDate = null;
     window.serviceCurrentStep = 'specialists';
+    window.serviceCurrentService = null; // Добавляем сброс
     
     fetch(`/api/service/${serviceId}`)
         .then(response => {
@@ -260,6 +261,9 @@ function openServiceModal(serviceId) {
         })
         .then(serviceData => {
             if (serviceData.message === 'success') {
+                // Сохраняем данные об услуге
+                window.serviceCurrentService = serviceData.data;
+                
                 fetch(`/api/service/${serviceId}/specialists`)
                     .then(response => {
                         if (!response.ok) {
@@ -814,6 +818,13 @@ function showConfirmationStepContentService() {
     stepContent.className = 'modal-step';
     stepContent.id = 'service-step-confirmation';
     
+    // Проверяем, что данные об услуге загружены
+    if (!window.serviceCurrentService) {
+        console.error('Service data is not available');
+        alert('Ошибка: данные об услуге не загружены');
+        return;
+    }
+    
     const masterPhoto = window.serviceCurrentSpecialist?.фото || 'photo/работники/default.jpg';
     const formattedDate = formatDateService(window.serviceSelectedDate);
     
@@ -958,6 +969,13 @@ function showBookingSuccessService() {
     const stepContent = document.createElement('div');
     stepContent.className = 'modal-step';
     stepContent.id = 'service-step-success';
+    
+    // Проверяем, что данные об услуге загружены
+    if (!window.serviceCurrentService) {
+        console.error('Service data is not available');
+        alert('Ошибка: данные об услуге не загружены');
+        return;
+    }
     
     const masterPhoto = window.serviceCurrentSpecialist?.фото || 'photo/работники/default.jpg';
     const formattedDate = formatDateService(window.serviceSelectedDate);
