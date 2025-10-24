@@ -284,7 +284,7 @@ body {
 }
 
 .appointment-card:hover {
-    transform: translateY(-4px);
+
     box-shadow: 0 8px 30px rgba(33, 150, 243, 0.25);
 }
 
@@ -1447,51 +1447,7 @@ body {
     opacity: 0.5;
 }
 
-/* Адаптивность для мобильных */
-@media (max-width: 768px) {
-    .history-header {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
-    }
-    
-    .history-item-header {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .history-item-content {
-        grid-template-columns: 1fr;
-    }
-    
-    .history-detail {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.3rem;
-    }
-    
-    .detail-label {
-        min-width: auto;
-    }
-    
-    .history-item-actions {
-        justify-content: center;
-    }
-}
 
-@media (max-width: 480px) {
-    .history-item {
-        padding: 1rem;
-    }
-    
-    .history-date {
-        font-size: 1rem;
-    }
-    
-    .history-created {
-        font-size: 0.8rem;
-    }
-}
 
 
 
@@ -1991,3 +1947,220 @@ body {
         transform: translate(-50%, -50%);
     }
 }
+
+
+
+
+
+
+
+/* Стили для компактного заголовка выбора */
+.selection-header {
+background: white;
+    gap: 7px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+}
+
+.selected-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.selected-item:last-child {
+    margin-bottom: 0;
+}
+
+.selected-label {
+    font-weight: 600;
+    color: #2c3e50;
+    min-width: 60px;
+}
+
+.selected-value {
+    flex: 1;
+    color: #495057;
+    font-weight: 500;
+}
+
+.change-selection-btn {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.change-selection-btn:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+/* Стили для заголовка календаря */
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.calendar-header .month-navigation {
+    margin-bottom: 0;
+}
+
+.change-date-btn {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.change-date-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+/* Упрощенные карточки мастеров */
+.specialist-info-compact {
+    padding: 1rem;
+}
+
+.specialist-info-compact h4 {
+    margin: 0 0 0.3rem 0;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.specialist-info-compact p {
+    margin: 0;
+    color: #7f8c8d;
+    font-size: 14px;
+}
+
+.specialist-card-admin {
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.specialist-card-admin:hover {
+    border-color: #3498db;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.specialist-card-admin.selected {
+    border-color: #3498db;
+    background-color: #e8f4fd;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .selection-header {
+        padding: 1rem;
+        flex-direction: column;
+        display: flex;
+        gap: 7px;
+    }
+    
+    .selected-item {
+        flex-direction: row;
+
+        gap: 0.5rem;
+    }
+    
+    .selected-label {
+        min-width: auto;
+    }
+    
+    .calendar-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .change-date-btn {
+        align-self: flex-end;
+    }
+}
+
+@media (max-width: 480px) {
+    .selected-item {
+        padding: 0.8rem;
+    }
+    
+    .change-selection-btn,
+    .change-date-btn {
+
+        text-align: center;
+    }
+}
+
+
+
+
+.appointments-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.appointments-title {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .appointments-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: flex-start;
+    }
+    
+    .appointments-header .add-appointment-btn {
+        align-self: stretch;
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

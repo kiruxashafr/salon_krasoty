@@ -4,6 +4,9 @@ let lastViewedTimestamp = Date.now();
 let isModalOpen = false;
 let currentModalType = null; // 'add' или 'edit'
 
+
+
+
 document.addEventListener('DOMContentLoaded', function() {
     // Элементы DOM
     const menuToggle = document.getElementById('menuToggle');
@@ -197,6 +200,7 @@ window.addEventListener('resize', function() {
 // [Здесь должен быть весь остальной код из вашего файла admin.js]
 
     // Функция загрузки контента журнала
+// Функция загрузки контента журнала - ОБНОВЛЕННАЯ (без лишней кнопки)
 function loadJournalContent() {
     contentContainer.innerHTML = `
         <div class="journal-content">
@@ -210,31 +214,40 @@ function loadJournalContent() {
             </div>
             
             <div id="journalView" class="view-content">
-                <div class="specialists-selection">
+                <div class="selection-header" id="selectionHeader" style="display: none;">
+                    <div class="selected-master-compact" id="selectedMasterCompact">
+                        <!-- Выбранный мастер будет здесь -->
+                    </div>
+                    <div class="selected-date-compact" id="selectedDateCompact" style="display: none;">
+                        <!-- Выбранная дата будет здесь -->
+                    </div>
+                </div>
+                
+                <div class="specialists-selection" id="specialistsSelection">
                     <h2>Выберите мастера</h2>
-
                     <div class="specialists-list" id="specialistsList">
                         <!-- Мастера будут загружены динамически -->
-                        
                     </div>
-                                        <div class="specialists-actions">
+                    <div class="specialists-actions">
                         <button class="all-masters-btn" id="allMastersBtn">
-                             Все мастера
+                            Все мастера
                         </button>
                     </div>
                 </div>
                 
                 <div class="calendar-section" id="calendarSection" style="display: none;">
-                    <div class="month-navigation">
-                        <button class="month-nav-btn" onclick="changeMonth(-1)">←</button>
-                        <span class="current-month" id="currentMonth"></span>
-                        <button class="month-nav-btn" onclick="changeMonth(1)">→</button>
+                    <div class="calendar-header">
+                        <div class="month-navigation">
+                            <button class="month-nav-btn" onclick="changeMonth(-1)">←</button>
+                            <span class="current-month" id="currentMonth"></span>
+                            <button class="month-nav-btn" onclick="changeMonth(1)">→</button>
+                        </div>
+                        <!-- УБРАНА КНОПКА ИЗМЕНЕНИЯ ДАТЫ - она есть в компактном заголовке -->
                     </div>
                     <div class="date-grid" id="dateGrid"></div>
                 </div>
                 
                 <div class="appointments-list" id="appointmentsList" style="display: none;">
-
                     <div id="appointmentsContainer">
                         <!-- Записи будут загружены динамически -->
                     </div>
@@ -260,9 +273,12 @@ function loadJournalContent() {
     showJournalView();
 }
 
-
+// Функция выбора всех мастеров - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function selectAllMasters() {
-    window.currentSpecialistId = null; // null означает "все мастера"
+    // СОХРАНЯЕМ ТЕКУЩУЮ ДАТУ
+    const currentDate = window.selectedDate;
+    
+    window.currentSpecialistId = null;
     window.currentSpecialistName = 'Все мастера';
     
     // Показываем активное состояние кнопки
@@ -273,47 +289,37 @@ function selectAllMasters() {
         card.classList.remove('selected');
     });
     
-    // Показываем календарь
-    const calendarSection = document.getElementById('calendarSection');
-    calendarSection.style.display = 'block';
+    // Обновляем компактный заголовок
+    updateSelectionHeader('Все мастера', currentDate);
     
-    // Инициализируем календарь
-    initCalendar();
+    // Скрываем список мастеров
+    document.getElementById('specialistsSelection').style.display = 'none';
+    document.getElementById('selectionHeader').style.display = 'flex';
     
-    // ЕСЛИ УЖЕ ВЫБРАНА ДАТА - ОБНОВЛЯЕМ ЗАПИСИ АВТОМАТИЧЕСКИ
-    if (window.selectedDate) {
-        // Показываем список записей если он скрыт
-        const appointmentsList = document.getElementById('appointmentsList');
-        appointmentsList.style.display = 'block';
+    // ВОССТАНАВЛИВАЕМ ДАТУ
+    if (currentDate) {
+        window.selectedDate = currentDate;
+        console.log('Дата восстановлена при выборе всех мастеров:', currentDate);
         
-        // Обновляем заголовок
-        const dateObj = new Date(window.selectedDate);
-        const formattedDate = dateObj.toLocaleDateString('ru-RU', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-        });
+        // Если дата была выбрана ранее, сразу показываем записи
+        document.getElementById('calendarSection').style.display = 'none';
+        document.getElementById('appointmentsList').style.display = 'block';
+        loadAppointmentsForDate(currentDate);
         
-
-        
-        // Загружаем записи для выбранной даты и всех мастеров
-        loadAppointmentsForDate(window.selectedDate);
-        
-        // Прокручиваем к списку записей
+        // Прокручиваем к записям
         setTimeout(() => {
-            appointmentsList.scrollIntoView({ 
+            document.getElementById('appointmentsList').scrollIntoView({ 
                 behavior: 'smooth', 
                 block: 'start' 
             });
-        }, 100);
+        }, 300);
     } else {
-        // Прокручиваем к календарю если дата не выбрана
-        setTimeout(() => {
-            calendarSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }, 100);
+        // Если даты нет, показываем календарь для выбора даты
+        document.getElementById('calendarSection').style.display = 'block';
+        document.getElementById('appointmentsList').style.display = 'none';
+        
+        // Инициализируем календарь
+        initCalendar();
     }
 }
 
@@ -338,24 +344,22 @@ function selectAllMasters() {
     }
 
     // Функция отображения мастеров для выбора
-    function displaySpecialistsForSelection(specialists) {
-        const specialistsList = document.getElementById('specialistsList');
-        
-        if (!specialists || specialists.length === 0) {
-            specialistsList.innerHTML = '<p>Нет доступных мастеров</p>';
-            return;
-        }
+// Обновленная функция отображения мастеров для выбора
+function displaySpecialistsForSelection(specialists) {
+    const specialistsList = document.getElementById('specialistsList');
+    
+    if (!specialists || specialists.length === 0) {
+        specialistsList.innerHTML = '<p>Нет доступных мастеров</p>';
+        return;
+    }
 
-        specialistsList.innerHTML = '';
-        
-        specialists.forEach(specialist => {
-            const specialistCard = document.createElement('div');
-            specialistCard.className = 'specialist-card-admin';
-            specialistCard.dataset.specialistId = specialist.id;
-            
-            // Используем фото из базы данных или дефолтное
-            const imageUrl = specialist.фото || 'photo/работники/default.jpg';
-            
+    specialistsList.innerHTML = '';
+    
+    specialists.forEach(specialist => {
+        const specialistCard = document.createElement('div');
+        specialistCard.className = 'specialist-card-admin';
+        specialistCard.dataset.specialistId = specialist.id;
+                    const imageUrl = specialist.фото || 'photo/работники/default.jpg';
             specialistCard.innerHTML = `
                 <div class="specialist-image" style="background-image: url('${imageUrl}')"></div>
                 <div class="specialist-info">
@@ -363,16 +367,21 @@ function selectAllMasters() {
                     <p>${specialist.описание || 'Профессиональный мастер'}</p>
                 </div>
             `;
-            
-            specialistCard.addEventListener('click', () => {
-                selectSpecialistForJournal(specialist.id, specialist.имя);
-            });
-            
-            specialistsList.appendChild(specialistCard);
+        
+        specialistCard.addEventListener('click', () => {
+            selectSpecialistForJournal(specialist.id, specialist.имя);
         });
-    }
+        
+        specialistsList.appendChild(specialistCard);
+    });
+}
 
+
+// Функция выбора мастера - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function selectSpecialistForJournal(specialistId, specialistName) {
+    // СОХРАНЯЕМ ТЕКУЩУЮ ДАТУ ПЕРЕД ВЫБОРОМ НОВОГО МАСТЕРА
+    const currentDate = window.selectedDate;
+    
     window.currentSpecialistId = specialistId;
     window.currentSpecialistName = specialistName;
     
@@ -385,56 +394,141 @@ function selectSpecialistForJournal(specialistId, specialistName) {
     });
     document.querySelector(`[data-specialist-id="${specialistId}"]`).classList.add('selected');
     
-
-    // Показываем календарь
-    const calendarSection = document.getElementById('calendarSection');
-    calendarSection.style.display = 'block';
+    // Обновляем компактный заголовок
+    updateSelectionHeader(specialistName, currentDate);
     
-    // Инициализируем календарь
-    initCalendar();
+    // Скрываем список мастеров и показываем календарь
+    document.getElementById('specialistsSelection').style.display = 'none';
+    document.getElementById('selectionHeader').style.display = 'flex';
     
-    // ЕСЛИ УЖЕ ВЫБРАНА ДАТА - ОБНОВЛЯЕМ ЗАПИСИ АВТОМАТИЧЕСКИ
-    if (window.selectedDate) {
-        // Показываем список записей если он скрыт
-        const appointmentsList = document.getElementById('appointmentsList');
-        appointmentsList.style.display = 'block';
+    // ВОССТАНАВЛИВАЕМ ДАТУ В ГЛОБАЛЬНОЙ ПЕРЕМЕННОЙ
+    if (currentDate) {
+        window.selectedDate = currentDate;
+        console.log('Дата восстановлена при выборе мастера:', currentDate);
         
-        // Обновляем заголовок
-        const dateObj = new Date(window.selectedDate);
+        // Если дата была выбрана ранее, сразу показываем записи
+        document.getElementById('calendarSection').style.display = 'none';
+        document.getElementById('appointmentsList').style.display = 'block';
+        loadAppointmentsForDate(currentDate);
+        
+        // Прокручиваем к записям
+        setTimeout(() => {
+            document.getElementById('appointmentsList').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
+        }, 300);
+    } else {
+        // Если даты нет, показываем календарь для выбора даты
+        document.getElementById('calendarSection').style.display = 'block';
+        document.getElementById('appointmentsList').style.display = 'none';
+        
+        // Инициализируем календарь
+        initCalendar();
+    }
+}
+
+
+    // Загружаем начальный раздел
+    loadSection('journal');
+});
+
+
+
+// Функция обновления заголовка выбора - УЛУЧШЕННАЯ ВЕРСИЯ (без ссылки на changeDateBtn)
+function updateSelectionHeader(masterName, date) {
+    const selectionHeader = document.getElementById('selectionHeader');
+    const masterCompact = document.getElementById('selectedMasterCompact');
+    const dateCompact = document.getElementById('selectedDateCompact');
+    
+    // Обновляем мастера
+    masterCompact.innerHTML = `
+        <div class="selected-item">
+            <span class="selected-label">Мастер:</span>
+            <span class="selected-value">${masterName}</span>
+            <button class="change-selection-btn" onclick="changeMaster()">
+                ✏️ Изменить
+            </button>
+        </div>
+    `;
+    
+    // Обновляем дату если есть
+    if (date) {
+        const dateObj = new Date(date);
         const formattedDate = dateObj.toLocaleDateString('ru-RU', {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
         });
         
-
+        dateCompact.innerHTML = `
+            <div class="selected-item">
+                <span class="selected-label">Дата:</span>
+                <span class="selected-value">${formattedDate}</span>
+                <button class="change-selection-btn" onclick="showCalendar()">
+                    ✏️ Изменить
+                </button>
+            </div>
+        `;
+        dateCompact.style.display = 'block';
         
-        // Загружаем записи для выбранной даты и нового мастера
-        loadAppointmentsForDate(window.selectedDate);
-        
-        // Прокручиваем к списку записей
-        setTimeout(() => {
-            appointmentsList.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }, 100);
+        // ОБНОВЛЯЕМ ГЛОБАЛЬНУЮ ПЕРЕМЕННУЮ
+        window.selectedDate = date;
     } else {
-        // Прокручиваем к календарю если дата не выбрана
-        setTimeout(() => {
-            calendarSection.scrollIntoView({ 
-                behavior: 'smooth', 
-                block: 'start' 
-            });
-        }, 100);
+        dateCompact.style.display = 'none';
     }
 }
 
+// Функция смены мастера - ИСПРАВЛЕННАЯ ВЕРСИЯ
+function changeMaster() {
+    // СОХРАНЯЕМ ВЫБРАННУЮ ДАТУ ПЕРЕД СМЕНОЙ МАСТЕРА
+    const currentDate = window.selectedDate;
+    
+    // Показываем список мастеров снова
+    document.getElementById('specialistsSelection').style.display = 'block';
+    document.getElementById('selectionHeader').style.display = 'none';
+    document.getElementById('calendarSection').style.display = 'none';
+    document.getElementById('appointmentsList').style.display = 'none';
+    
+    // Восстанавливаем дату после смены мастера
+    setTimeout(() => {
+        if (currentDate) {
+            window.selectedDate = currentDate;
+            console.log('Дата восстановлена после смены мастера:', currentDate);
+        }
+    }, 100);
+    
+    // Прокручиваем к выбору мастеров
+    setTimeout(() => {
+        document.getElementById('specialistsSelection').scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }, 100);
+}
 
+// Функция показа календаря - ИСПРАВЛЕННАЯ ВЕРСИЯ
+function showCalendar() {
+    // Показываем календарь
+    document.getElementById('calendarSection').style.display = 'block';
+    // Скрываем список записей
+    document.getElementById('appointmentsList').style.display = 'none';
+    
+    // Сбрасываем выбранную дату в глобальной переменной
+    window.selectedDate = null;
+    
+    // Обновляем заголовок (убираем дату)
+    updateSelectionHeader(window.currentSpecialistName, null);
+    
+    // Прокручиваем к календарю
+    setTimeout(() => {
+        document.getElementById('calendarSection').scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start' 
+        });
+    }, 100);
+}
 
-    // Загружаем начальный раздел
-    loadSection('journal');
-});
 
 // Глобальные функции для календаря
 function initCalendar() {
@@ -624,10 +718,14 @@ function displayAppointments(appointments, selectedDate = null) {
     const displayDate = selectedDate || new Date().toLocaleDateString('ru-RU');
     const masterInfo = window.currentSpecialistName ? ` - ${window.currentSpecialistName}` : '';
     
+    // Создаем HTML с кнопкой ДОБАВЛЕНИЯ ЗАПИСИ ВВЕРХУ
     let appointmentsHTML = `
         <div class="appointments-container">
             <div class="appointments-header">
                 <h3 class="appointments-title">Записи на ${displayDate}${masterInfo}</h3>
+                <button class="btn btn-primary add-appointment-btn" onclick="showAddAppointmentForm()">
+                    ✚ Добавить запись
+                </button>
             </div>
     `;
 
@@ -653,33 +751,32 @@ function displayAppointments(appointments, selectedDate = null) {
             const masterInfo = !window.currentSpecialistId ? 
                 `<div class="master-info">Мастер: ${appointment.мастер_имя}</div>` : '';
             
-// В функции displayAppointments обновите кнопки действий:
-appointmentsHTML += `
-    <div class="appointment-card" data-appointment-id="${appointment.id}">
-        <div class="appointment-content">
-            <div class="appointment-time">${time}</div>
-            <div class="appointment-details">
-                <div class="client-info">
-                    <div class="client-name">${appointment.клиент_имя}</div>
-                    <div class="client-phone">${formattedPhone}</div>
+            appointmentsHTML += `
+                <div class="appointment-card" data-appointment-id="${appointment.id}">
+                    <div class="appointment-content">
+                        <div class="appointment-time">${time}</div>
+                        <div class="appointment-details">
+                            <div class="client-info">
+                                <div class="client-name">${appointment.клиент_имя}</div>
+                                <div class="client-phone">${formattedPhone}</div>
+                            </div>
+                            <div class="service-info">
+                                <div class="service-name">${appointment.услуга_название}</div>
+                                <div class="service-price">${appointment.цена}₽</div>
+                            </div>
+                            ${masterInfo}
+                        </div>
+                    </div>
+                    <div class="appointment-actions">
+                        <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
+                            ✏️ Изменить
+                        </button>
+                        <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
+                            ✕ Отменить
+                        </button>
+                    </div>
                 </div>
-                <div class="service-info">
-                    <div class="service-name">${appointment.услуга_название}</div>
-                    <div class="service-price">${appointment.цена}₽</div>
-                </div>
-                ${masterInfo}
-            </div>
-        </div>
-        <div class="appointment-actions">
-            <button class="edit-btn" onclick="showEditAppointmentForm(${JSON.stringify(appointment).replace(/"/g, '&quot;')})">
-                ✏️ Изменить
-            </button>
-            <button class="cancel-btn" onclick="cancelAppointment(${appointment.id}, event)">
-                ✕ Отменить
-            </button>
-        </div>
-    </div>
-`;
+            `;
         });
         
         appointmentsHTML += '</div>';
@@ -689,20 +786,9 @@ appointmentsHTML += `
     
     appointmentsContainer.innerHTML = appointmentsHTML;
     
-    // Добавляем кнопку "Добавить запись" если её нет
-    if (!document.querySelector('.add-appointment-btn')) {
-        const addBtn = document.createElement('button');
-        addBtn.className = 'btn btn-primary add-appointment-btn';
-        addBtn.textContent = '✚ Добавить запись';
-        addBtn.onclick = showAddAppointmentForm;
-        addBtn.style.marginTop = '1rem';
-        
-        const container = document.querySelector('.appointments-container');
-        if (container) {
-            container.appendChild(addBtn);
-        }
-    }
+    // УДАЛЯЕМ старый код добавления кнопки внизу, так как теперь она вверху
 }
+
 
 
 // Обновленная функция отмены записи - АСИНХРОННАЯ ВЕРСИЯ
@@ -925,7 +1011,8 @@ window.addEventListener('load', function() {
     lastWindowWidth = window.innerWidth;
 });
 
-// Обновите функцию selectDate чтобы закрывать формы при выборе новой даты
+
+// Функция выбора даты - ОБНОВЛЕННАЯ ВЕРСИЯ (без добавления кнопки внизу)
 function selectDate(date, day) {
     console.log(`Selected date: ${date}`);
     window.selectedDate = date;
@@ -935,37 +1022,21 @@ function selectDate(date, day) {
         closeAppointmentModal();
     }
     
-    // Остальной код функции остается без изменений...
-    const dateObj = new Date(date);
-    const formattedDate = dateObj.toLocaleDateString('ru-RU', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-    });
+    // Обновляем заголовок выбора
+    updateSelectionHeader(window.currentSpecialistName, date);
     
-    const appointmentsList = document.getElementById('appointmentsList');
-    appointmentsList.style.display = 'block';
+    // Скрываем календарь и показываем записи
+    document.getElementById('calendarSection').style.display = 'none';
+    document.getElementById('appointmentsList').style.display = 'block';
     
+    // Загружаем записи для выбранной даты
     loadAppointmentsForDate(date);
     
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selectedDateObj = new Date(date);
+    // УДАЛЯЕМ код добавления кнопки внизу, так как теперь она добавляется автоматически в displayAppointments
     
-    const appointmentsHeader = appointmentsList.querySelector('h3');
-    if (appointmentsHeader && !document.querySelector('.add-appointment-btn')) {
-        const addBtn = document.createElement('button');
-        addBtn.className = 'btn btn-primary add-appointment-btn';
-        addBtn.textContent = '✚ Добавить запись';
-        addBtn.onclick = showAddAppointmentForm;
-        appointmentsHeader.after(addBtn);
-    } else {
-        const existingBtn = document.querySelector('.add-appointment-btn');
-        if (existingBtn) existingBtn.remove();
-    }
-    
+    // Прокручиваем к списку записей
     setTimeout(() => {
-        appointmentsList.scrollIntoView({ 
+        document.getElementById('appointmentsList').scrollIntoView({ 
             behavior: 'smooth', 
             block: 'start' 
         });
@@ -982,6 +1053,10 @@ function showEditAppointmentForm(appointment) {
     currentModalType = 'edit';
     isModalOpen = true;
     window.originalAppointmentData = appointment;
+    
+    // ВАЖНО: Сохраняем исходную дату сразу при открытии формы
+    window.preservedDate = appointment.дата;
+    console.log('Дата сохранена при открытии формы редактирования:', window.preservedDate);
     
     const formattedPhone = appointment.клиент_телефон?.replace('+7', '') || 
                           appointment.клиент_телеfono?.replace('+7', '') || '';
@@ -1000,7 +1075,8 @@ function showEditAppointmentForm(appointment) {
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Дата:</label>
-                                <input type="date" class="form-control" name="date" value="${appointment.дата}" required>
+                                <input type="date" class="form-control" name="date" value="${appointment.дата}" 
+                                    id="editDateField" required>
                             </div>
                         </div>
                         
@@ -1097,7 +1173,6 @@ function showEditAppointmentForm(appointment) {
     setupFormValidation('editAppointmentForm');
 }
 
-// Функция закрытия модального окна
 function closeAppointmentModal() {
     const modal = document.getElementById(currentModalType === 'add' ? 'addAppointmentModal' : 'editAppointmentModal');
     if (modal) {
@@ -1106,8 +1181,17 @@ function closeAppointmentModal() {
     isModalOpen = false;
     currentModalType = null;
     window.originalAppointmentData = null;
-    window.selectedNewMasterId = null;
+    
+    // ВАЖНО: Очищаем все глобальные переменные связанные с выбором мастера
+    if (window.selectedNewMasterId) {
+        delete window.selectedNewMasterId;
+    }
+    if (window.preservedDate) {
+        delete window.preservedDate;
+    }
 }
+
+
 // Функции отправки форм
 function submitAddAppointmentForm() {
     const form = document.getElementById('addAppointmentForm');
@@ -1252,12 +1336,23 @@ async function loadServicesForEditForm(selectedServiceId) {
 async function handleEditAppointment(e) {
     e.preventDefault();
     
-    const formData = new FormData(e.target);
+    const form = document.getElementById('editAppointmentForm');
+    const formData = new FormData(form);
     const appointmentId = e.target.dataset.appointmentId;
     const phoneDigits = formData.get('clientPhone');
     const hours = parseInt(formData.get('hours'));
     const minutes = parseInt(formData.get('minutes'));
-    const newDate = formData.get('date');
+    
+    // ВАЖНОЕ ИСПРАВЛЕНИЕ: Всегда используем сохраненную дату при смене мастера
+    let newDate;
+    if (window.selectedNewMasterId && window.preservedDate) {
+        // Если меняем мастера, используем сохраненную дату
+        newDate = window.preservedDate;
+        console.log('Используем сохраненную дату при смене мастера:', newDate);
+    } else {
+        // Иначе используем дату из формы
+        newDate = formData.get('date');
+    }
     
     // Получаем выбранную услугу из формы
     const selectedServiceId = formData.get('serviceId');
@@ -1373,7 +1468,19 @@ async function handleEditAppointment(e) {
         const data = await response.json();
         if (data.message === 'success') {
             showSuccess('Запись успешно обновлена!' + (masterChanged ? ' Мастер изменен.' : ''));
-            cancelEditAppointment();
+            
+            // Очищаем сохраненную дату
+            if (window.preservedDate) {
+                delete window.preservedDate;
+            }
+            if (window.selectedNewMasterId) {
+                delete window.selectedNewMasterId;
+            }
+            
+            // ЗАКРЫВАЕМ МОДАЛЬНОЕ ОКНО ПРИ УСПЕШНОМ ОБНОВЛЕНИИ
+            closeAppointmentModal();
+            
+            // Обновляем данные
             loadAppointmentsForDate(window.selectedDate);
             generateCalendar();
         }
@@ -1388,8 +1495,7 @@ async function handleEditAppointment(e) {
 
 
 
-
-// Функция для переключения отображения выбора мастера
+// Функция для переключения отображения выбора мастера - ОБНОВЛЕННАЯ
 function toggleMasterSelection() {
     const masterSelection = document.getElementById('masterSelection');
     const toggleBtn = document.getElementById('toggleMasterBtn');
@@ -1399,6 +1505,16 @@ function toggleMasterSelection() {
         toggleBtn.textContent = '✖ Отменить смену мастера';
         toggleBtn.classList.remove('btn-outline-primary');
         toggleBtn.classList.add('btn-outline-secondary');
+        
+        // СОХРАНЯЕМ ТЕКУЩУЮ ДАТУ ПЕРЕД ОТКРЫТИЕМ ВЫБОРА МАСТЕРА
+        const dateField = document.getElementById('editDateField');
+        if (dateField && dateField.value) {
+            window.preservedDate = dateField.value;
+            console.log('Дата сохранена при открытии выбора мастера:', window.preservedDate);
+            
+            // ОБНОВЛЯЕМ ЗНАЧЕНИЕ ПОЛЯ чтобы убедиться в его сохранности
+            dateField.value = window.preservedDate;
+        }
         
         // Скрываем выбор услуги если он открыт
         const serviceSelection = document.getElementById('serviceSelection');
@@ -1415,6 +1531,20 @@ function toggleMasterSelection() {
         document.querySelectorAll('.master-option-compact').forEach(option => {
             option.classList.remove('selected');
         });
+        
+        // ВОССТАНАВЛИВАЕМ ДАТУ ПРИ ОТМЕНЕ СМЕНЫ МАСТЕРА
+        if (window.preservedDate) {
+            const dateField = document.getElementById('editDateField');
+            if (dateField) {
+                dateField.value = window.preservedDate;
+                console.log('Дата восстановлена при отмене смены мастера:', window.preservedDate);
+            }
+        }
+        
+        // Очищаем выбор мастера при отмене
+        if (window.selectedNewMasterId) {
+            delete window.selectedNewMasterId;
+        }
     }
 }
 
@@ -1469,7 +1599,7 @@ function displayMastersForCompactSelection(masters, currentMasterId) {
     mastersContainer.innerHTML = mastersHTML;
 }
 
-// Функция для выбора мастера в компактной форме
+
 function selectMasterOption(masterId) {
     // Снимаем выделение со всех опций
     document.querySelectorAll('.master-option-compact').forEach(option => {
@@ -1484,6 +1614,22 @@ function selectMasterOption(masterId) {
     
     // Сохраняем выбранного мастера в глобальной переменной
     window.selectedNewMasterId = masterId;
+    
+    // ВАЖНО: Сохраняем текущую дату из формы редактирования
+    const dateField = document.getElementById('editDateField');
+    if (dateField && dateField.value) {
+        window.preservedDate = dateField.value;
+        console.log('Дата сохранена при выборе мастера:', window.preservedDate);
+        
+        // Блокируем поле даты
+        dateField.readOnly = true;
+        dateField.title = "Дата заблокирована при смене мастера";
+        dateField.style.backgroundColor = '#f8f9fa';
+        dateField.style.cursor = 'not-allowed';
+        
+        // ОБНОВЛЯЕМ ЗНАЧЕНИЕ ПОЛЯ ДАТЫ, чтобы оно точно сохранилось
+        dateField.value = window.preservedDate;
+    }
 }
 
 
