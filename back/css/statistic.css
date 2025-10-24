@@ -149,6 +149,9 @@
     text-align: center;
     padding: 3rem;
 }
+.settings-management .content-body{
+    padding: 0;
+}
 
 .spinner {
     border: 3px solid #f3f3f3;
@@ -228,7 +231,8 @@
     }
 
     .stats-table td {
-        display: block;
+        display: flex;
+        justify-content: space-around;
         width: 100%;
         padding: 0.5rem 0;
         border: none;

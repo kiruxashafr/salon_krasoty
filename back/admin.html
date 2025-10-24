@@ -68,70 +68,70 @@
 
 
 
-
-    <!-- Универсальные модальные окна -->
-<div id="successModal" class="modal-overlay modal-success">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <div class="modal-icon">✅</div>
-            <h3 class="modal-title">Успех</h3>
+<!-- Успешное выполнение -->
+<div id="successModal" class="admin-modal-overlay admin-modal-success">
+    <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+            <div class="admin-modal-icon"></div>
+            <h3 class="admin-modal-title">Успешно</h3>
         </div>
-        <div class="modal-body">
-            <p id="successMessage">Операция выполнена успешно!</p>
+        <div class="admin-modal-body">
+            <p id="successMessage"></p>
         </div>
-        <div class="modal-footer">
-            <button class="modal-btn modal-btn-primary" onclick="hideModal('successModal')">OK</button>
-        </div>
-    </div>
-</div>
-
-<div id="errorModal" class="modal-overlay modal-error">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <div class="modal-icon">❌</div>
-            <h3 class="modal-title">Ошибка</h3>
-        </div>
-        <div class="modal-body">
-            <p id="errorMessage">Произошла ошибка!</p>
-        </div>
-        <div class="modal-footer">
-            <button class="modal-btn modal-btn-primary" onclick="hideModal('errorModal')">OK</button>
+        <div class="admin-modal-footer">
+            <button class="admin-modal-btn admin-modal-btn-primary" onclick="hideAdminModal('successModal')">OK</button>
         </div>
     </div>
 </div>
 
-<div id="confirmModal" class="modal-overlay modal-confirm">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <div class="modal-icon">⚠️</div>
-            <h3 class="modal-title">Подтверждение</h3>
+<!-- Ошибка -->
+<div id="errorModal" class="admin-modal-overlay admin-modal-error">
+    <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+            <div class="admin-modal-icon"></div>
+            <h3 class="admin-modal-title">Ошибка</h3>
         </div>
-        <div class="modal-body">
-            <p id="confirmMessage">Вы уверены, что хотите выполнить это действие?</p>
+        <div class="admin-modal-body">
+            <p id="errorMessage"></p>
         </div>
-        <div class="modal-footer">
-            <button class="modal-btn modal-btn-primary" id="confirmYes">Да</button>
-            <button class="modal-btn modal-btn-secondary" onclick="hideModal('confirmModal')">Нет</button>
-        </div>
-    </div>
-</div>
-
-<div id="infoModal" class="modal-overlay modal-info">
-    <div class="modal-dialog">
-        <div class="modal-header">
-            <div class="modal-icon">ℹ️</div>
-            <h3 class="modal-title">Информация</h3>
-        </div>
-        <div class="modal-body">
-            <p id="infoMessage">Информационное сообщение</p>
-        </div>
-        <div class="modal-footer">
-            <button class="modal-btn modal-btn-primary" onclick="hideModal('infoModal')">OK</button>
+        <div class="admin-modal-footer">
+            <button class="admin-modal-btn admin-modal-btn-primary" onclick="hideAdminModal('errorModal')">Понятно</button>
         </div>
     </div>
 </div>
 
+<!-- Информация -->
+<div id="infoModal" class="admin-modal-overlay admin-modal-info">
+    <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+            <div class="admin-modal-icon"></div>
+            <h3 class="admin-modal-title">Информация</h3>
+        </div>
+        <div class="admin-modal-body">
+            <p id="infoMessage"></p>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-modal-btn admin-modal-btn-primary" onclick="hideAdminModal('infoModal')">OK</button>
+        </div>
+    </div>
+</div>
 
+<!-- Подтверждение -->
+<div id="confirmModal" class="admin-modal-overlay admin-modal-confirm">
+    <div class="admin-modal-dialog">
+        <div class="admin-modal-header">
+            <div class="admin-modal-icon"></div>
+            <h3 class="admin-modal-title">Подтверждение</h3>
+        </div>
+        <div class="admin-modal-body">
+            <p id="confirmMessage"></p>
+        </div>
+        <div class="admin-modal-footer">
+            <button class="admin-modal-btn admin-modal-btn-secondary" id="confirmNo">Отмена</button>
+            <button class="admin-modal-btn admin-modal-btn-primary" id="confirmYes">Да</button>
+        </div>
+    </div>
+</div>
 
 
 

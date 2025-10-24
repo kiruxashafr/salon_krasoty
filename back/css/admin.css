@@ -2,7 +2,11 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    tap-highlight-color: transparent;
+
 }
+
 
 body {
     font-family: 'Arial', sans-serif;
@@ -1174,109 +1178,6 @@ body {
 
 
 
-/* Стили для универсальных модальных окон */
-.modal-overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
-    z-index: 2000;
-    backdrop-filter: blur(3px);
-}
-
-.modal-dialog {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-    max-width: 400px;
-    width: 90%;
-}
-
-@keyframes modalSlideIn {
-    from {
-        opacity: 0;
-        transform: translate(-50%, -60%);
-    }
-    to {
-        opacity: 1;
-        transform: translate(-50%, -50%);
-    }
-}
-
-.modal-header {
-    padding: 1.5rem 1.5rem 0.5rem;
-    text-align: center;
-}
-
-.modal-icon {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
-}
-
-.modal-title {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: #2c3e50;
-    margin: 0;
-}
-
-.modal-body {
-    padding: 0 1.5rem;
-    text-align: center;
-    color: #5a6c7d;
-    line-height: 1.5;
-}
-
-.modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
-    display: flex;
-    gap: 0.5rem;
-    justify-content: center;
-}
-
-.modal-btn {
-    padding: 0.6rem 1.5rem;
-    border: none;
-    border-radius: 6px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    min-width: 80px;
-}
-
-.modal-btn-primary {
-    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
-    color: white;
-}
-
-.modal-btn-primary:hover {
-    background: linear-gradient(135deg, #2980b9 0%, #2573a7 100%);
-    transform: translateY(-1px);
-}
-
-.modal-btn-secondary {
-    background: #f8f9fa;
-    color: #6c757d;
-    border: 1px solid #dee2e6;
-}
-
-.modal-btn-secondary:hover {
-    background: #e9ecef;
-}
-
-/* Типы модальных окон */
-.modal-success .modal-icon { color: #27ae60; }
-.modal-error .modal-icon { color: #e74c3c; }
-.modal-warning .modal-icon { color: #f39c12; }
-.modal-info .modal-icon { color: #3498db; }
-.modal-confirm .modal-icon { color: #f39c12; }
 
 
 /* Добавить в admin.css */
@@ -1369,7 +1270,7 @@ body {
 .history-created {
     font-size: 0.85rem;
     color: #7f8c8d;
-    background: #f8f9fa;
+
     padding: 0.3rem 0.6rem;
     border-radius: 6px;
 }
@@ -1386,7 +1287,6 @@ body {
     align-items: center;
     gap: 0.5rem;
     padding: 0.5rem;
-    background: #f8f9fa;
     border-radius: 6px;
 }
 
@@ -2147,6 +2047,228 @@ background: white;
 
 
 
+/* Добавьте в admin.css */
+
+/* Стили для истории записей - компактная мобильная версия */
+@media (max-width: 768px) {
+    .history-content {
+        padding: 0.5rem;
+    }
+    
+    .history-header {
+        flex-direction: column;
+        gap: 0.8rem;
+        text-align: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .history-header h3 {
+        font-size: 1.2rem;
+        margin: 0;
+    }
+    
+    .history-info {
+        flex-direction: column;
+        gap: 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .history-list {
+        gap: 0.8rem;
+    }
+    
+    .history-item {
+        padding: 1rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .history-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .history-date {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .history-date strong {
+        /* Убираем смайлики из даты */
+        font-weight: 600;
+    }
+    
+    .history-date strong::before {
+        display: none; /* Скрываем смайлики */
+    }
+    
+    .history-created {
+        font-size: 0.75rem;
+        padding: 0.2rem 0.4rem;
+        align-self: flex-start;
+    }
+    
+    .history-item-content {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.6rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .history-detail {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.4rem;
+        font-size: 0.85rem;
+    }
+    
+    /* Убираем смайлики из деталей */
+    .detail-label {
+        min-width: 70px;
+        font-size: 0.8rem;
+    }
+    
+    .detail-label::before {
+        display: none; /* Скрываем смайлики */
+    }
+    
+    .detail-value {
+        font-size: 0.85rem;
+        flex: 1;
+    }
+    
+    /* Компактные бейджи */
+    .new-badge {
+        font-size: 0.7rem;
+        padding: 0.1rem 0.4rem;
+    }
+    
+    .history-item-actions {
+        justify-content: center;
+        padding-top: 0.8rem;
+    }
+    
+    .btn-outline {
+        padding: 0.3rem 0.8rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) {
+    .history-item {
+        padding: 0.8rem;
+    }
+    
+    .history-header {
+        padding: 0.8rem;
+    }
+    
+    .history-header h3 {
+        font-size: 1.1rem;
+    }
+    
+    .history-detail {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.2rem;
+        padding: 0.3rem;
+    }
+    
+    .detail-label {
+        min-width: auto;
+        font-weight: 600;
+    }
+    
+    .detail-value {
+        font-size: 0.8rem;
+    }
+    
+    .history-date {
+        font-size: 0.95rem;
+    }
+    
+    .history-created {
+        font-size: 0.7rem;
+    }
+    
+    /* Еще более компактные кнопки */
+    .btn-outline {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
+        width: 100%;
+        text-align: center;
+    }
+}
+
+/* Дополнительные улучшения для мобильной истории */
+@media (max-width: 768px) {
+    /* Упрощаем заголовок истории */
+    .history-header h3::before {
+        display: none; /* Убираем смайлик из заголовка */
+    }
+    
+    /* Компактное отображение информации о записи */
+    .history-detail[class*="Мастер"] .detail-label::before,
+    .history-detail[class*="Услуга"] .detail-label::before,
+    .history-detail[class*="Цена"] .detail-label::before,
+    .history-detail[class*="Клиент"] .detail-label::before,
+    .history-detail[class*="Телефон"] .detail-label::before {
+        display: none;
+    }
+    
+    /* Специфичные стили для каждого типа информации */
+    .history-detail:nth-child(1) .detail-label { /* Мастер */ }
+    .history-detail:nth-child(2) .detail-label { /* Услуга */ }
+    .history-detail:nth-child(3) .detail-label { /* Цена */ }
+    .history-detail:nth-child(4) .detail-label { /* Клиент */ }
+    .history-detail:nth-child(5) .detail-label { /* Телефон */ }
+}
+
+/* Улучшенная читаемость на мобильных */
+@media (max-width: 768px) {
+    .history-item {
+        background: #ffffff;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .history-item.new-item {
+        background: #fffaf0;
+        border-left: 3px solid #ff6b6b;
+    }
+    
+    .history-detail {
+        border-radius: 4px;
+    }
+    
+    /* Улучшаем визуальную иерархию */
+    .history-date {
+        color: #2c3e50;
+    }
+    
+    .detail-label {
+        color: #495057;
+    }
+    
+    .detail-value {
+        color: #2c3e50;
+        font-weight: 500;
+    }
+}
+
+/* Оптимизация для горизонтальной ориентации на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+    .history-item-content {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .history-detail {
+        min-height: auto;
+    }
+}/* admin.css - обновленные стили для модальных окон */
 
 
 
@@ -2161,6 +2283,224 @@ background: white;
 
 
 
+/* Уникальные стили для модальных окон админки - чтобы не пересекались с другими файлами */
+.admin-modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 3000;
+    backdrop-filter: blur(5px);
+}
 
+.admin-modal-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    max-width: 420px;
+    width: 90%;
+    animation: adminModalSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
 
+@keyframes adminModalSlideIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
 
+.admin-modal-header {
+    padding: 2rem 2rem 1rem;
+    text-align: center;
+    position: relative;
+}
+
+.admin-modal-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 1rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.admin-modal-icon::before {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    opacity: 0.1;
+}
+
+.admin-modal-success .admin-modal-icon::before {
+    background: #10b981;
+}
+
+.admin-modal-error .admin-modal-icon::before {
+    background: #ef4444;
+}
+
+.admin-modal-info .admin-modal-icon::before {
+    background: #3b82f6;
+}
+
+.admin-modal-confirm .admin-modal-icon::before {
+    background: #f59e0b;
+}
+
+.admin-modal-icon svg {
+    width: 40px;
+    height: 40px;
+}
+
+.admin-modal-success .admin-modal-icon svg {
+    color: #10b981;
+}
+
+.admin-modal-error .admin-modal-icon svg {
+    color: #ef4444;
+}
+
+.admin-modal-info .admin-modal-icon svg {
+    color: #3b82f6;
+}
+
+.admin-modal-confirm .admin-modal-icon svg {
+    color: #f59e0b;
+}
+
+.admin-modal-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 0.5rem;
+    line-height: 1.3;
+}
+
+.admin-modal-body {
+    padding: 0 2rem 1.5rem;
+    text-align: center;
+    color: #6b7280;
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.admin-modal-footer {
+    padding: 0 2rem 2rem;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+}
+
+.admin-modal-btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 100px;
+    flex: 1;
+}
+
+.admin-modal-btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.admin-modal-btn-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+}
+
+.admin-modal-btn-secondary {
+    background: #f8fafc;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+}
+
+.admin-modal-btn-secondary:hover {
+    background: #f1f5f9;
+    color: #475569;
+    transform: translateY(-1px);
+}
+
+/* Специфичные стили для разных типов модальных окон */
+.admin-modal-success {
+    border-top: 4px solid #10b981;
+}
+
+.admin-modal-error {
+    border-top: 4px solid #ef4444;
+}
+
+.admin-modal-info {
+    border-top: 4px solid #3b82f6;
+}
+
+.admin-modal-confirm {
+    border-top: 4px solid #f59e0b;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .admin-modal-dialog {
+        max-width: 90%;
+
+    }
+    
+    .admin-modal-header {
+        padding: 1.5rem 1.5rem 1rem;
+    }
+    
+    .admin-modal-body {
+        padding: 0 1.5rem 1.5rem;
+    }
+    
+    .admin-modal-footer {
+        padding: 0 1.5rem 1.5rem;
+        flex-direction: column;
+    }
+    
+    .admin-modal-btn {
+        min-width: auto;
+    }
+    
+    .admin-modal-icon {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 0.75rem;
+    }
+    
+    .admin-modal-icon svg {
+        width: 30px;
+        height: 30px;
+    }
+    
+    .admin-modal-title {
+        font-size: 1.3rem;
+    }
+}
+
+/* Стили для иконок SVG */
+.admin-modal-icon svg {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}

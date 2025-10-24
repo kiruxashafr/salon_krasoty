@@ -1,7 +1,5 @@
 /* settings.css */
-.settings-management {
-    padding: 20px;
-}
+
 
 .settings-header {
     margin-bottom: 2rem;
@@ -125,7 +123,7 @@
     border: 1px solid #e3e3e3;
 }
 
-.master-info {
+.master-notification-item .master-info {
     display: flex;
     align-items: center;
     gap: 1rem;

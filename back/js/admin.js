@@ -1957,7 +1957,7 @@ document.addEventListener('visibilitychange', function() {
 
 
 
-function hideModal(modalId) {
+function hideAdminModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
@@ -1967,7 +1967,7 @@ function hideModal(modalId) {
 // Закрытие модальных окон по клику вне их области
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('modal-overlay')) {
-        hideModal(e.target.id);
+        hideAdminModal(e.target.id);
     }
 });
 
@@ -1977,7 +1977,7 @@ document.addEventListener('keydown', function(e) {
         const modals = document.querySelectorAll('.modal-overlay');
         modals.forEach(modal => {
             if (modal.style.display === 'block') {
-                hideModal(modal.id);
+                hideAdminModal(modal.id);
             }
         });
     }
@@ -1985,24 +1985,24 @@ document.addEventListener('keydown', function(e) {
 
 // Функции-обертки для удобства
 function showSuccess(message) {
-    showModal('success', message);
+    showAdminModal('success', message);
 }
 
 function showError(message) {
-    showModal('error', message);
+    showAdminModal('error', message);
 }
 
 function showInfo(message) {
-    showModal('info', message);
+    showAdminModal('info', message);
 }
 
 function showConfirm(message, callback) {
-    showModal('confirm', message, callback);
+    showAdminModal('confirm', message, callback);
 }
 
 
-// admin.js - исправленная функция showModal
-function showModal(type, message, callback = null) {
+// Обновленная функция showAdminModal с уникальными классами
+function showAdminModal(type, message, callback = null) {
     const modal = document.getElementById(type + 'Modal');
     const messageElement = document.getElementById(type + 'Message');
     
@@ -2010,37 +2010,69 @@ function showModal(type, message, callback = null) {
         messageElement.textContent = message;
         modal.style.display = 'block';
         
-        // Убедимся, что модальное окно уведомления всегда поверх других
-        if (type === 'success' || type === 'error' || type === 'info' || type === 'confirm') {
-            modal.style.zIndex = '3000';
+        // Устанавливаем SVG иконки для разных типов модальных окон
+        const iconContainer = modal.querySelector('.admin-modal-icon');
+        if (iconContainer) {
+            let svgIcon = '';
+            
+            switch(type) {
+                case 'success':
+                    svgIcon = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    `;
+                    break;
+                case 'error':
+                    svgIcon = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    `;
+                    break;
+                case 'info':
+                    svgIcon = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    `;
+                    break;
+                case 'confirm':
+                    svgIcon = `
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    `;
+                    break;
+            }
+            
+            iconContainer.innerHTML = svgIcon;
         }
         
         if (type === 'confirm' && callback) {
-            // Клонируем кнопку Да
             const confirmYes = document.getElementById('confirmYes').cloneNode(true);
             document.getElementById('confirmYes').replaceWith(confirmYes);
             
-            // Ищем кнопку Нет по классу
-            const confirmNo = document.querySelector('#confirmModal .modal-btn-secondary');
+            const confirmNo = document.querySelector('#confirmModal .admin-modal-btn-secondary');
             if (confirmNo) {
                 const newConfirmNo = confirmNo.cloneNode(true);
                 confirmNo.replaceWith(newConfirmNo);
                 
                 newConfirmNo.onclick = () => {
-                    hideModal('confirmModal');
+                    hideAdminModal('confirmModal');
                     callback(false);
                 };
             }
             
             confirmYes.onclick = () => {
-                hideModal('confirmModal');
+                hideAdminModal('confirmModal');
                 callback(true);
             };
         }
     }
 }
 
-function hideModal(modalId) {
+function hideAdminModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) {
         modal.style.display = 'none';
@@ -2049,18 +2081,18 @@ function hideModal(modalId) {
 
 // Закрытие модальных окон по клику вне их области
 document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal-overlay')) {
-        hideModal(e.target.id);
+    if (e.target.classList.contains('admin-modal-overlay')) {
+        hideAdminModal(e.target.id);
     }
 });
 
 // Закрытие по ESC
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
-        const modals = document.querySelectorAll('.modal-overlay');
+        const modals = document.querySelectorAll('.admin-modal-overlay');
         modals.forEach(modal => {
             if (modal.style.display === 'block') {
-                hideModal(modal.id);
+                hideAdminModal(modal.id);
             }
         });
     }
@@ -2068,19 +2100,19 @@ document.addEventListener('keydown', function(e) {
 
 // Функции-обертки для удобства
 function showSuccess(message) {
-    showModal('success', message);
+    showAdminModal('success', message);
 }
 
 function showError(message) {
-    showModal('error', message);
+    showAdminModal('error', message);
 }
 
 function showInfo(message) {
-    showModal('info', message);
+    showAdminModal('info', message);
 }
 
 function showConfirm(message, callback) {
-    showModal('confirm', message, callback);
+    showAdminModal('confirm', message, callback);
 }
 
 // Заменяем стандартные alert и confirm
@@ -2096,6 +2128,14 @@ window.confirm = function(message) {
     });
 };
 
+// Инициализация модальных окон при загрузке
+document.addEventListener('DOMContentLoaded', function() {
+    // Скрываем все модальные окна при загрузке
+    const modals = document.querySelectorAll('.admin-modal-overlay');
+    modals.forEach(modal => {
+        modal.style.display = 'none';
+    });
+});
 
 
 
@@ -2125,7 +2165,7 @@ function displayAppointmentsHistory(appointments) {
 }
 
 
-// Генерация элементов истории - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// Обновленная функция генерации элементов истории для мобильных
 function generateHistoryItems(appointments) {
     if (!appointments || appointments.length === 0) {
         return '<div class="empty-history">Записей пока нет</div>';
@@ -2143,14 +2183,16 @@ function generateHistoryItems(appointments) {
         const createdDate = new Date(appointment.created_at);
         const isNew = createdDate > new Date(lastViewedTimestamp);
         
-        // ИСПРАВЛЕНО: используем мастер_id из данных
         const masterId = appointment.мастер_id || appointment.masterId;
+        
+        // Определяем, мобильное ли устройство
+        const isMobile = window.innerWidth <= 768;
         
         return `
             <div class="history-item ${isNew ? 'new-item' : ''}" data-appointment-id="${appointment.id}">
                 <div class="history-item-header">
                     <div class="history-date">
-                        <strong>📅 ${appointment.дата} 🕒 ${appointment.время}</strong>
+                        <strong>${appointment.дата} ${appointment.время}</strong>
                         ${isNew ? '<span class="new-badge">NEW</span>' : ''}
                     </div>
                     <div class="history-created">
@@ -2160,28 +2202,26 @@ function generateHistoryItems(appointments) {
                 
                 <div class="history-item-content">
                     <div class="history-detail">
-                        <span class="detail-label">👤 Мастер:</span>
+                        <span class="detail-label">Мастер:</span>
                         <span class="detail-value">${appointment.мастер_имя}</span>
                     </div>
                     <div class="history-detail">
-                        <span class="detail-label">💅 Услуга:</span>
+                        <span class="detail-label">Услуга:</span>
                         <span class="detail-value">${appointment.услуга_название}</span>
                     </div>
                     <div class="history-detail">
-                        <span class="detail-label">💰 Цена:</span>
+                        <span class="detail-label">Цена:</span>
                         <span class="detail-value">${appointment.цена} ₽</span>
                     </div>
                     <div class="history-detail">
-                        <span class="detail-label">👨‍💼 Клиент:</span>
+                        <span class="detail-label">Клиент:</span>
                         <span class="detail-value">${appointment.клиент_имя}</span>
                     </div>
                     <div class="history-detail">
-                        <span class="detail-label">📞 Телефон:</span>
+                        <span class="detail-label">Телефон:</span>
                         <span class="detail-value">${appointment.клиент_телефон}</span>
                     </div>
                 </div>
-                
-
             </div>
         `;
     }).join('');
