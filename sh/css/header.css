@@ -294,7 +294,7 @@ ul li.draw::after {
     justify-content: space-evenly;
     border: 2px solid white;
     border-radius: 5px;
-    width: 105px;
+    width: 130px;
 }
 
 
@@ -372,7 +372,14 @@ ul li.draw::after {
     align-items: center;
 }
 
-
+.phone-photo{
+    width: 24px !important;
+    height: 24px !important;
+    top: 5px;
+    margin-right: 3px;
+    position: relative;
+    left: 5px;
+}
 
 
 .buttonn {

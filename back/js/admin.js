@@ -318,7 +318,7 @@ function selectAllMasters() {
         document.getElementById('calendarSection').style.display = 'block';
         document.getElementById('appointmentsList').style.display = 'none';
         
-        // Инициализируем календарь
+        // Инициализируем календарь (будет показано информационное сообщение)
         initCalendar();
     }
 }
@@ -377,7 +377,6 @@ function displaySpecialistsForSelection(specialists) {
 }
 
 
-// Функция выбора мастера - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function selectSpecialistForJournal(specialistId, specialistName) {
     // СОХРАНЯЕМ ТЕКУЩУЮ ДАТУ ПЕРЕД ВЫБОРОМ НОВОГО МАСТЕРА
     const currentDate = window.selectedDate;
@@ -423,11 +422,10 @@ function selectSpecialistForJournal(specialistId, specialistName) {
         document.getElementById('calendarSection').style.display = 'block';
         document.getElementById('appointmentsList').style.display = 'none';
         
-        // Инициализируем календарь
+        // Инициализируем календарь (теперь будет показывать дни только для выбранного мастера)
         initCalendar();
     }
 }
-
 
     // Загружаем начальный раздел
     loadSection('journal');
@@ -554,10 +552,17 @@ function changeMonth(direction) {
 let appointmentsByDate = {};
 // Функция для загрузки дней с записями
 // Функция для загрузки дней с записями
+// Функция для загрузки дней с записями - ИСПРАВЛЕННАЯ ВЕРСИЯ
 async function loadAppointmentDays(year, month) {
-    // Если выбран "Все мастера", не фильтруем по specialistId
+    // Если выбран конкретный мастер, фильтруем по specialistId
+    // Если выбран "Все мастера", НЕ загружаем дни с записями (возвращаем пустой объект)
     const specialistFilter = window.currentSpecialistId ? 
         `&specialistId=${window.currentSpecialistId}` : '';
+    
+    // Если выбран "Все мастера", не показываем подсветку дней
+    if (!window.currentSpecialistId) {
+        return {};
+    }
     
     const startDate = `${year}-${(month + 1).toString().padStart(2, '0')}-01`;
     const endDate = `${year}-${(month + 1).toString().padStart(2, '0')}-${new Date(year, month + 1, 0).getDate()}`;
@@ -581,6 +586,9 @@ async function loadAppointmentDays(year, month) {
         return {};
     }
 }
+
+
+
 async function generateCalendar() {
     const dateGrid = document.getElementById('dateGrid');
     const currentMonthElement = document.getElementById('currentMonth');
@@ -594,7 +602,7 @@ async function generateCalendar() {
     // Устанавливаем текущий месяц
     currentMonthElement.textContent = `${monthNames[window.currentMonth]} ${window.currentYear}`;
     
-    // Загружаем дни с записями
+    // Загружаем дни с записями ТОЛЬКО для выбранного мастера
     appointmentsByDate = await loadAppointmentDays(window.currentYear, window.currentMonth);
     
     // Очищаем сетку дат
@@ -640,30 +648,42 @@ async function generateCalendar() {
             // Делаем прошедшие дни кликабельными, но с другим стилем
             dateCell.onclick = () => selectDate(formattedDate, day);
             
-            // Проверяем, есть ли записи на эту дату
+            // Проверяем, есть ли записи на эту дату у ВЫБРАННОГО мастера
             if (appointmentsByDate[formattedDate]) {
                 dateCell.classList.add('has-appointments');
-                dateCell.title = `${appointmentsByDate[formattedDate]} записей`;
+                dateCell.title = `${appointmentsByDate[formattedDate]} записей у выбранного мастера`;
             } else {
-                dateCell.title = 'Нет записей';
+                dateCell.title = 'Нет записей у выбранного мастера';
             }
         } 
-        // Проверяем, есть ли записи на эту дату (будущие дни)
+        // Проверяем, есть ли записи на эту дату у ВЫБРАННОГО мастера (будущие дни)
         else if (appointmentsByDate[formattedDate]) {
             dateCell.classList.add('has-appointments');
             dateCell.textContent = day;
             dateCell.onclick = () => selectDate(formattedDate, day);
-            dateCell.title = `${appointmentsByDate[formattedDate]} записей`;
+            dateCell.title = `${appointmentsByDate[formattedDate]} записей у выбранного мастера`;
         }
-        // Дата в будущем без записей
+        // Дата в будущем без записей у выбранного мастера
         else {
             dateCell.classList.add('available-date');
             dateCell.textContent = day;
             dateCell.onclick = () => selectDate(formattedDate, day);
-            dateCell.title = 'Нет записей';
+            dateCell.title = 'Нет записей у выбранного мастера';
         }
         
         dateGrid.appendChild(dateCell);
+    }
+    
+    // Добавляем информационное сообщение если выбран "Все мастера"
+    if (!window.currentSpecialistId) {
+        const infoMessage = document.createElement('div');
+        infoMessage.className = 'calendar-info-message';
+        infoMessage.style.gridColumn = '1 / -1';
+        infoMessage.style.textAlign = 'center';
+        infoMessage.style.padding = '1rem';
+        infoMessage.style.color = '#666';
+        infoMessage.innerHTML = '📅 Выберите конкретного мастера для просмотра дней с записями';
+        dateGrid.appendChild(infoMessage);
     }
 }
 
