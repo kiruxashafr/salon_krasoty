@@ -685,6 +685,38 @@ function generateDateGridSpecialist(availableDates) {
         
         dateGrid.appendChild(dateCell);
     }
+    
+    // Добавляем легенду после календаря
+    addCalendarLegendSpecialist();
+}
+
+function addCalendarLegendSpecialist() {
+    const dateStep = document.getElementById('specialist-step-dates');
+    
+    // Удаляем существующую легенду, если есть
+    const existingLegend = dateStep.querySelector('.calendar-legend');
+    if (existingLegend) {
+        existingLegend.remove();
+    }
+    
+    const legend = document.createElement('div');
+    legend.className = 'calendar-legend';
+    legend.innerHTML = `
+        <div class="legend-item">
+            <div class="legend-color legend-available"></div>
+            <span>Есть свободное время для записи</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color legend-unavailable"></div>
+            <span>Нет доступного времени</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color legend-past"></div>
+            <span>Прошедшая дата</span>
+        </div>
+    `;
+    
+    dateStep.appendChild(legend);
 }
 
 function selectDateSpecialist(day) {

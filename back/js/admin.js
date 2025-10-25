@@ -685,6 +685,42 @@ async function generateCalendar() {
         infoMessage.innerHTML = '📅 Выберите конкретного мастера для просмотра дней с записями';
         dateGrid.appendChild(infoMessage);
     }
+    
+    // ДОБАВЛЯЕМ ЛЕГЕНДУ КАЛЕНДАРЯ
+    addCalendarLegend(dateGrid);
+}
+
+// Функция для добавления легенды календаря
+function addCalendarLegend(dateGrid) {
+    const legendContainer = document.createElement('div');
+    legendContainer.className = 'calendar-legend';
+    legendContainer.style.gridColumn = '1 / -1';
+    legendContainer.style.display = 'flex';
+    legendContainer.style.flexWrap = 'wrap';
+    legendContainer.style.justifyContent = 'center';
+    legendContainer.style.gap = '1rem';
+    legendContainer.style.marginTop = '1.5rem';
+    legendContainer.style.padding = '1rem';
+    legendContainer.style.background = '#f8f9fa';
+    legendContainer.style.borderRadius = '8px';
+    legendContainer.style.border = '1px solid #e9ecef';
+    
+    legendContainer.innerHTML = `
+        <div class="legend-item">
+            <div class="legend-color past-date has-appointments"></div>
+            <span class="legend-text">Есть записи на эту дату</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color available-date"></div>
+            <span class="legend-text">Доступно для добавления записей</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color past-date"></div>
+            <span class="legend-text">Прошедшая дата</span>
+        </div>
+    `;
+    
+    dateGrid.appendChild(legendContainer);
 }
 
 

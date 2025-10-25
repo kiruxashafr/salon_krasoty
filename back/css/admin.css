@@ -2512,3 +2512,77 @@ background: white;
     margin: 1rem 0;
     font-size: 14px;
 }
+
+
+/* Стили для легенды календаря */
+.calendar-legend {
+    font-size: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.legend-color {
+    width: 25px;
+    height: 25px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    flex-shrink: 0;
+}
+
+.legend-color.past-date.has-appointments {
+    background-color: #fff3cd;
+    border-color: #ffc107;
+}
+
+.legend-color.available-date {
+    background-color: #e8f5e8;
+    border-color: #4caf50;
+}
+
+.legend-color.past-date {
+    background-color: #f0f0f0;
+    border-color: #ddd;
+}
+
+.legend-text {
+    color: #495057;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+/* Адаптивность для мобильных */
+@media (max-width: 768px) {
+    .calendar-legend {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .legend-item {
+        width: 100%;
+    }
+    
+    .legend-text {
+        font-size: 12px;
+        white-space: normal;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendar-legend {
+        padding: 0.8rem;
+    }
+    
+    .legend-color {
+        width: 19px;
+        height: 19px;
+    }
+    
+    .legend-text {
+        font-size: 11px;
+    }
+}

@@ -445,3 +445,64 @@
         padding: 2rem;
     }
 }
+
+
+/* Стили для легенды календаря */
+.calendar-legend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 14px;
+    color: #666;
+}
+
+.legend-color {
+    width: 25px;
+    height: 25px;
+    border-radius: 6px;
+    border: 1px solid transparent;
+}
+
+.legend-available {
+    background-color: #e8f5e8;
+    border-color: #4caf50;
+}
+
+.legend-unavailable {
+    background-color: #f0f0f0;
+    border-color: #707070;
+}
+
+.legend-past {
+    background-color: #f0f0f0;
+    border-color: #ddd;
+}
+
+
+/* Адаптивность для легенды */
+@media (max-width: 768px) {
+    .calendar-legend {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: flex-start;
+    }
+    
+    .legend-item {
+        font-size: 14px;
+    }
+    
+    .legend-color {
+        width: 25px;
+        height: 25px;
+    }
+}
