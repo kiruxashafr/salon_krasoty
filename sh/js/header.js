@@ -29,6 +29,7 @@ async function loadHomeContent() {
         console.error('Ошибка загрузки контента:', error);
     }
 }
+
 async function loadLinks() {
     try {
         const response = await fetch('/api/links');
@@ -38,12 +39,11 @@ async function loadLinks() {
         
         const data = await response.json();
         if (data.message === 'success') {
-            applyLinks(data.data);
-            updatePhoneNumber(data.data);
+            await applyLinks(data.data);
         }
     } catch (error) {
         console.error('Ошибка загрузки ссылок:', error);
-        applyDefaultLinks();
+        await applyDefaultLinks();
     }
 }
 
@@ -118,13 +118,14 @@ function applyContactVisibility(visibility) {
 
 
 // Функция обновления номера телефона
-function updatePhoneNumber(links) {
-    if (links.phone_contact) {
+function updatePhoneNumber(links, visibility) {
+    if (links && links.phone_contact && visibility.phone_contact) {
         const phoneNumberElement = document.querySelector('.phone-number');
         if (phoneNumberElement) {
             const formattedPhone = formatPhoneNumber(links.phone_contact);
             phoneNumberElement.textContent = formattedPhone;
             phoneNumberElement.href = `tel:${links.phone_contact.replace(/\D/g, '')}`;
+            phoneNumberElement.style.display = 'block';
         }
         
         const phoneLinks = document.querySelectorAll('a[href^="tel:"]');
@@ -133,6 +134,12 @@ function updatePhoneNumber(links) {
                 link.href = `tel:${links.phone_contact.replace(/\D/g, '')}`;
             }
         });
+    } else {
+        // Скрываем номер телефона если не доступен
+        const phoneNumberElement = document.querySelector('.phone-number');
+        if (phoneNumberElement) {
+            phoneNumberElement.style.display = 'none';
+        }
     }
 }
 
@@ -201,105 +208,197 @@ function updateAdminPhoto(photoUrl) {
     }
 }
 
-// Функция применения ссылок ко всем элементам страницы
-function applyLinks(links) {
-    // Ссылка на Telegram бота (кнопка в герое)
-    const telegramBotBtn = document.querySelector('.buttonn');
-    if (telegramBotBtn && links.telegram_bot) {
-        telegramBotBtn.href = links.telegram_bot;
+// Обновленная функция applyLinks
+async function applyLinks(links) {
+    try {
+        // Загружаем видимость контактов
+        const visibilityResponse = await fetch('/api/contact-visibility');
+        const visibilityData = await visibilityResponse.json();
+        
+        let visibility = {};
+        if (visibilityData.message === 'success') {
+            visibility = visibilityData.data;
+        } else {
+            // Значения по умолчанию если ошибка
+            visibility = {
+                'vk_contact': true,
+                'telegram_contact': true,
+                'whatsapp_contact': true,
+                'email_contact': true,
+                'phone_contact': true,
+                'telegram_bot': true
+            };
+        }
+        
+        // Ссылка на Telegram бота (кнопка в герое)
+        const telegramBotBtn = document.querySelector('.buttonn');
+        if (telegramBotBtn) {
+            if (links.telegram_bot && visibility.telegram_bot) {
+                telegramBotBtn.href = links.telegram_bot;
+                telegramBotBtn.style.display = 'flex';
+            } else {
+                telegramBotBtn.style.display = 'none';
+            }
+        }
+        
+        // Ссылки в хедере (модальное окно меню)
+        updateHeaderLinks(links, visibility);
+        
+        // Ссылки в секции контактов
+        updateContactSectionLinks(links, visibility);
+        
+        // Ссылки в модальном окне "О нас"
+        updateAboutModalLinks(links, visibility);
+        
+        // Обновляем номер телефона
+        updatePhoneNumber(links, visibility);
+        
+    } catch (error) {
+        console.error('Ошибка применения ссылок:', error);
+        // При ошибке используем значения по умолчанию
+        const defaultVisibility = {
+            'vk_contact': true,
+            'telegram_contact': true,
+            'whatsapp_contact': true,
+            'email_contact': true,
+            'phone_contact': true,
+            'telegram_bot': true
+        };
+        
+        updateHeaderLinks(links, defaultVisibility);
+        updateContactSectionLinks(links, defaultVisibility);
+        updateAboutModalLinks(links, defaultVisibility);
+        updatePhoneNumber(links, defaultVisibility);
     }
-    
-    // Ссылки в хедере (модальное окно меню)
-    updateHeaderLinks(links);
-    
-    // Ссылки в секции контактов
-    updateContactSectionLinks(links);
-    
-    // Ссылки в модальном окне "О нас"
-    updateAboutModalLinks(links);
 }
 
 // Обновление ссылок в хедере (модальное окно меню)
-function updateHeaderLinks(links) {
+
+// Обновление ссылок в хедере (модальное окно меню)
+function updateHeaderLinks(links, visibility) {
     const modal = document.getElementById('modal');
     if (!modal) return;
     
-    if (links.vk_contact) {
-        const vkLinks = modal.querySelectorAll('a[href*="vk.com"]');
-        vkLinks.forEach(link => link.href = links.vk_contact);
+    const contactBox = modal.querySelector('.contact-box');
+    if (!contactBox) return;
+    
+    // VK ссылка
+    const vkLink = contactBox.querySelector('.menu-link-vk');
+    if (vkLink) {
+        if (links.vk_contact && visibility.vk_contact) {
+            vkLink.href = links.vk_contact;
+            vkLink.style.display = 'flex';
+        } else {
+            vkLink.style.display = 'none';
+        }
     }
     
-    if (links.telegram_contact) {
-        const tgLinks = modal.querySelectorAll('a[href*="t.me"]');
-        tgLinks.forEach(link => {
-            if (!link.href.includes('shafrbeautybot')) {
-                link.href = links.telegram_contact;
-            }
-        });
+    // Telegram ссылка
+    const tgLink = contactBox.querySelector('.menu-link-telegram');
+    if (tgLink) {
+        if (links.telegram_contact && visibility.telegram_contact) {
+            tgLink.href = links.telegram_contact;
+            tgLink.style.display = 'flex';
+        } else {
+            tgLink.style.display = 'none';
+        }
+    }
+    
+    // Phone ссылка
+    const phoneLink = contactBox.querySelector('.menu-link-phone');
+    if (phoneLink) {
+        if (links.phone_contact && visibility.phone_contact) {
+            phoneLink.href = `tel:${links.phone_contact.replace(/\D/g, '')}`;
+            phoneLink.style.display = 'flex';
+        } else {
+            phoneLink.style.display = 'none';
+        }
     }
 }
 
+
 // Обновление ссылок в секции контактов
-function updateContactSectionLinks(links) {
+function updateContactSectionLinks(links, visibility) {
     const contactSection = document.getElementById('contacts-section');
     if (!contactSection) return;
     
     // VK ссылка
     if (links.vk_contact) {
         const vkLink = contactSection.querySelector('a.contact-link-vk');
-        if (vkLink) vkLink.href = links.vk_contact;
+        if (vkLink) {
+            vkLink.href = links.vk_contact;
+            vkLink.style.display = visibility.vk_contact ? 'flex' : 'none';
+        }
     }
     
     // Telegram ссылка
     if (links.telegram_contact) {
         const tgLink = contactSection.querySelector('a.contact-link-telegram');
-        if (tgLink) tgLink.href = links.telegram_contact;
+        if (tgLink) {
+            tgLink.href = links.telegram_contact;
+            tgLink.style.display = visibility.telegram_contact ? 'flex' : 'none';
+        }
     }
     
     // WhatsApp ссылка
     if (links.whatsapp_contact) {
         const waLink = contactSection.querySelector('a.contact-link-whatsapp');
-        if (waLink) waLink.href = links.whatsapp_contact;
+        if (waLink) {
+            waLink.href = links.whatsapp_contact;
+            waLink.style.display = visibility.whatsapp_contact ? 'flex' : 'none';
+        }
     }
     
     // Email ссылка
     if (links.email_contact) {
         const emailLink = contactSection.querySelector('a.contact-link-mail');
-        if (emailLink) emailLink.href = `mailto:${links.email_contact}`;
+        if (emailLink) {
+            emailLink.href = `mailto:${links.email_contact}`;
+            emailLink.style.display = visibility.email_contact ? 'flex' : 'none';
+        }
     }
     
-    // Phone ссылка - ДОБАВЛЯЕМ ЭТУ ЧАСТЬ
+    // Phone ссылка
     if (links.phone_contact) {
         const phoneLink = contactSection.querySelector('a.contact-link-phone');
         if (phoneLink) {
             phoneLink.href = `tel:${links.phone_contact.replace(/\D/g, '')}`;
+            phoneLink.style.display = visibility.phone_contact ? 'flex' : 'none';
         }
-    }
-    
-    // Обновляем номер телефона в тексте
-    if (links.phone_contact) {
-        updatePhoneNumber(links);
     }
 }
 
+
 // Обновление ссылок в модальном окне "О нас"
-function updateAboutModalLinks(links) {
+function updateAboutModalLinks(links, visibility) {
     const aboutModal = document.getElementById('about-modal');
     if (!aboutModal) return;
     
-    if (links.vk_contact) {
-        const vkLinks = aboutModal.querySelectorAll('a[href*="vk.com"]');
-        vkLinks.forEach(link => link.href = links.vk_contact);
-    }
+    // Здесь можно добавить логику для контактов в модальном окне "О нас"
+    // если они там есть
+}
+
+// Функция для ссылок по умолчанию (на случай ошибки)
+async function applyDefaultLinks() {
+    const defaultLinks = {
+        vk_contact: 'https://m.vk.com/shafranov_k',
+        telegram_contact: 'https://t.me/Shafranov_k',
+        whatsapp_contact: 'https://wa.me/qr/QKNVZOAIILZNM1',
+        email_contact: 'mailto:kirshafranov@gmail.com',
+        phone_contact: '89255355278',
+        telegram_bot: 'https://t.me/shafrbeautybot'
+    };
     
-    if (links.telegram_contact) {
-        const tgLinks = aboutModal.querySelectorAll('a[href*="t.me"]');
-        tgLinks.forEach(link => {
-            if (!link.href.includes('shafrbeautybot')) {
-                link.href = links.telegram_contact;
-            }
-        });
-    }
+    const defaultVisibility = {
+        'vk_contact': true,
+        'telegram_contact': true, 
+        'whatsapp_contact': true,
+        'email_contact': true,
+        'phone_contact': true,
+        'telegram_bot': true
+    };
+    
+    await applyLinks(defaultLinks, defaultVisibility);
 }
 
 // Функция для ссылок по умолчанию (на случай ошибки)
