@@ -1,0 +1,23 @@
+{
+  "id": "/admin/",
+  "name": "Панель управления",
+  "short_name": "Admin",
+  "description": "Страница администратора",
+  "start_url": "/admin/",
+  "scope": "/admin/",
+  "icons": [
+    {
+      "src": "/photo/favicon/192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/photo/favicon/512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#320001",
+  "background_color": "#3a0000",
+  "display": "standalone"
+}

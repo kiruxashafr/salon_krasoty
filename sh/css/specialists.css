@@ -1,3 +1,4 @@
+
 .specialists-section {
     padding: 4rem 2rem;
     background-color: #f9f9f9;
@@ -529,7 +530,6 @@ background-color: #f0f0f0;
 
 
 
-
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
     .modal-service-item {
@@ -603,62 +603,49 @@ background-color: #f0f0f0;
 }
 
 
-/* Добавьте эти стили в ваш CSS файл */
-
+/* Обновленные стили для заголовка модального окна специалиста - без фото, только текст слева */
 .specialist-modal-header {
-    padding: 1.5rem;
-
+    padding: 1.5rem 0;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1.5rem;
 }
 
 .specialist-header-content {
     display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.specialist-header-image {
-    width: 80px;
-    height: 80px;
-    border-radius: 50%;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    border: 3px solid white;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
 }
 
 .specialist-header-info h1 {
     margin: 0 0 0.5rem 0;
-    font-size: 1.5rem;
+    font-size: 1em;
+    font-weight: bold;
     color: #333;
-    font-family: 'acrobat', serif;
+    font-family: 'acrobat', Arial, sans-serif;
+    text-transform: uppercase;
 }
 
 .specialist-modal-description {
     margin: 0;
     color: #666;
-    font-size: 1rem;
+    font-size: 1em;
     line-height: 1.4;
+    font-family: 'acrobat', Arial, sans-serif;
 }
 
 /* Адаптивность для мобильных устройств */
 @media (max-width: 768px) {
     .specialist-header-content {
-        flex-direction: column;
-        text-align: center;
+        text-align: left;
         gap: 0.75rem;
     }
     
-    .specialist-header-image {
-        width: 70px;
-        height: 70px;
-    }
-    
     .specialist-header-info h1 {
-        font-size: 1.3rem;
+        font-size: 2em;
     }
     
     .specialist-modal-description {
-        font-size: 0.9rem;
+        font-size: 1em;
     }
 }

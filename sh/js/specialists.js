@@ -514,7 +514,6 @@ function showSpecialistModalWithInfo(specialistId, services, specialistInfo) {
     const specialistHeader = specialistInfo ? `
         <div class="specialist-modal-header">
             <div class="specialist-header-content">
-                <div class="specialist-header-image" style="background-image: url('${specialistInfo.фото || 'photo/работники/default.jpg'}')"></div>
                 <div class="specialist-header-info">
                     <h1>${specialistInfo.имя}</h1>
                     <p class="specialist-modal-description">${specialistInfo.описание || 'Профессиональный мастер'}</p>

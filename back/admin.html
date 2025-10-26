@@ -1,11 +1,31 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <link rel="icon" type="image/png" href="photo/favicon/лого минимализм.png">
+<!-- Современные браузеры (компьютеры) - смена по теме -->
+<link rel="icon" type="image/png" href="/photo/favicon/logo бел.png" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/photo/favicon/logo черн.png" media="(prefers-color-scheme: light)">
+
+<!-- ОСНОВНАЯ иконка для мобильных и браузеров без поддержки media -->
+<link rel="icon" type="image/x-icon" href="/photo/favicon/logo бел.png">
+<link rel="icon" type="image/png" href="/photo/favicon/logo бел.png">
+
+<!-- Apple Touch Icon (обязательно для iOS) -->
+<link rel="apple-touch-icon" href="/photo/favicon/192.png">
+
+<!-- Дополнительные размеры для надежности -->
+<link rel="icon" type="image/png" sizes="32x32" href="/photo/favicon/logo бел1.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/photo/favicon/logo бел1.png">
+
+<!-- Манифест -->
+<link rel="manifest" href="/admin.webmanifest">
+
+<!-- Цвета темы -->
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Панель администратора</title>
+    <title>Панель управления</title>
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/master.css">
     <link rel="stylesheet" href="css/master.css">

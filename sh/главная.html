@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="ru" translate="no">
 <head>
-    <link rel="icon" type="image/png" href="photo/favicon/лого минимализм.png">
+    <link rel="manifest" href="/site.webmanifest">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Zapisall</title>
@@ -9,10 +9,34 @@
     <meta property="og:description" content="Профессиональные услуги от лучших мастеров. Запись онлайн">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://zapisall.ru/">
-    <meta property="og:image" content="https://zapisall.ru/photo/фавикон/Group 12.png">
+    <meta property="og:image" content="https://zapisall.ru/photo/favicon/Group 12.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Shafranov">
+
+
+
+<!-- Современные браузеры (компьютеры) - смена по теме -->
+<link rel="icon" type="image/png" href="/photo/favicon/logo бел.png" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" href="/photo/favicon/logo черн.png" media="(prefers-color-scheme: light)">
+
+<!-- ОСНОВНАЯ иконка для мобильных и браузеров без поддержки media -->
+<link rel="icon" type="image/x-icon" href="/photo/favicon/logo бел.png">
+<link rel="icon" type="image/png" href="/photo/favicon/logo бел.png">
+
+<!-- Apple Touch Icon (обязательно для iOS) -->
+<link rel="apple-touch-icon" href="/photo/favicon/192.png">
+
+<!-- Дополнительные размеры для надежности -->
+<link rel="icon" type="image/png" sizes="32x32" href="/photo/favicon/logo бел1.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/photo/favicon/logo бел1.png">
+
+<!-- Манифест -->
+<link rel="manifest" href="/site.webmanifest">
+
+<!-- Цвета темы -->
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
 
 
     <!-- Предзагрузка критических шрифтов -->
@@ -33,6 +57,7 @@
     <link rel="stylesheet" href="css/order.css">
     <link rel="stylesheet" href="css/about.css">
     <link rel="stylesheet" href="css/loader.css">
+
 
 
 
@@ -86,8 +111,8 @@
         <section class="fullscreen-img-hero" id="main-section">
 
     <picture>
-        <source media="(max-width: 500px)" srcset="photo/header/mobile-m.jpg">
-        <source media="(min-width: 501px) and (max-width: 1200px)" srcset="photo/header/plansh-m.jpg">
+        <source media="(max-width: 470px)" srcset="photo/header/mobile-m.jpg">
+        <source media="(min-width: 471px) and (max-width: 1200px)" srcset="photo/header/plansh-m.jpg">
         <img src="photo/header/desktop-m.jpg" alt="Фоновое изображение" class="fullscreen-img-hero-image">
     </picture>
         <div class="fullscreen-img-hero-content">
