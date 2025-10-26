@@ -345,10 +345,7 @@
     transform: translateX(5px);
 }
 
-.modal-specialist-item.selected-specialist {
-    background-color: #e6f7ff;
-    border-color: #91d5ff;
-}
+
 
 .specialist-image {
     width: 60px;

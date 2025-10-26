@@ -279,11 +279,14 @@ function checkDateHasValidTimeSlotsSpecialist(specialistId, serviceId, date) {
                 }
 
                 const today = new Date().toISOString().split('T')[0];
+                
+                // Если это не сегодня, то все слоты доступны
                 if (date !== today) {
                     resolve(true);
                     return;
                 }
 
+                // Если это сегодня, проверяем есть ли доступные слоты
                 const now = new Date();
                 const currentHours = now.getHours();
                 const currentMinutes = now.getMinutes();
@@ -293,9 +296,11 @@ function checkDateHasValidTimeSlotsSpecialist(specialistId, serviceId, date) {
                     const [hours, minutes] = slot.время.split(':').map(Number);
                     const slotTotalMinutes = hours * 60 + minutes;
                     
-                    return slotTotalMinutes >= currentTotalMinutes - 120;
+                    // Слот доступен если до него осталось больше 2 часов
+                    return slotTotalMinutes > currentTotalMinutes + 120;
                 });
 
+                console.log(`Date ${date} has valid slots: ${hasValidSlots}, current time: ${currentHours}:${currentMinutes}`);
                 resolve(hasValidSlots);
             })
             .catch(() => resolve(false));
@@ -388,6 +393,7 @@ function checkServiceAvailabilitySpecialist(specialistId, services, startDate, e
                         return;
                     }
 
+                    // Проверяем каждый доступный день на наличие валидных слотов времени
                     const datePromises = data.availableDates.map(date => {
                         return checkDateHasValidTimeSlotsSpecialist(specialistId, service.id, date);
                     });
@@ -445,12 +451,42 @@ function fetchSpecialistsWithAvailability() {
         });
 }
 
+// specialists.js
+
+// Обновите функцию showSpecialistModal
 function showSpecialistModal(specialistId, services) {
     const modal = document.getElementById('specialist-modal');
     const modalContent = modal.querySelector('.specialist-modal-content');
     
     window.specialistCurrentSpecialistId = specialistId;
     window.specialistCurrentStep = 'services';
+    
+    // Загружаем информацию о мастере
+    fetch(`/api/specialist/${specialistId}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                window.specialistCurrentSpecialist = data.data;
+                showSpecialistModalWithInfo(specialistId, services, data.data);
+            } else {
+                showSpecialistModalWithInfo(specialistId, services, null);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching specialist info:', error);
+            showSpecialistModalWithInfo(specialistId, services, null);
+        });
+}
+
+// Новая функция для отображения модального окна с информацией о мастере
+function showSpecialistModalWithInfo(specialistId, services, specialistInfo) {
+    const modal = document.getElementById('specialist-modal');
+    const modalContent = modal.querySelector('.specialist-modal-content');
     
     let servicesHTML = '';
     if (services && services.length > 0) {
@@ -474,8 +510,22 @@ function showSpecialistModal(specialistId, services) {
         servicesHTML = '<p>Нет доступных услуг для этого специалиста</p>';
     }
     
+    // Добавляем информацию о мастере в верхнюю часть
+    const specialistHeader = specialistInfo ? `
+        <div class="specialist-modal-header">
+            <div class="specialist-header-content">
+                <div class="specialist-header-image" style="background-image: url('${specialistInfo.фото || 'photo/работники/default.jpg'}')"></div>
+                <div class="specialist-header-info">
+                    <h1>${specialistInfo.имя}</h1>
+                    <p class="specialist-modal-description">${specialistInfo.описание || 'Профессиональный мастер'}</p>
+                </div>
+            </div>
+        </div>
+    ` : '';
+    
     modalContent.innerHTML = `
         <button class="close-modal-btn" onclick="closeSpecialistModal()">⨉</button>
+        ${specialistHeader}
         <div class="modal-step" id="specialist-step-services">
             <h2>Выберите услугу</h2>
             <div class="modal-services-list">
@@ -508,7 +558,7 @@ function showSpecialistModal(specialistId, services) {
         </div>
     `;
     
-    console.log('Showing specialist modal');
+    console.log('Showing specialist modal with info');
     modal.style.display = 'block';
 }
 
@@ -631,7 +681,6 @@ function generateDateGridSpecialist(availableDates) {
     ];
     
     currentMonthElement.textContent = `${monthNames[window.specialistCurrentMonth]} ${window.specialistCurrentYear}`;
-    
     dateGrid.innerHTML = '';
     
     const firstDay = new Date(window.specialistCurrentYear, window.specialistCurrentMonth, 1);
@@ -655,45 +704,53 @@ function generateDateGridSpecialist(availableDates) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    const now = new Date();
-    const currentHours = now.getHours();
-    const currentMinutes = now.getMinutes();
+    // Создаем промисы для проверки каждой даты
+    const datePromises = [];
     
     for (let day = 1; day <= daysInMonth; day++) {
-        const dateCell = document.createElement('div');
-        dateCell.className = 'date-cell';
-        
         const currentDate = new Date(window.specialistCurrentYear, window.specialistCurrentMonth, day);
         const formattedDate = `${window.specialistCurrentYear}-${(window.specialistCurrentMonth + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         
         const isToday = currentDate.toDateString() === today.toDateString();
+        const isPast = currentDate < today;
         
-        if (currentDate < today) {
-            dateCell.classList.add('past-date');
-            dateCell.textContent = day;
-        } else if (availableDates.includes(formattedDate)) {
-            if (isToday) {
+        // Для доступных дат проверяем есть ли валидные слоты
+        if (!isPast && availableDates.includes(formattedDate)) {
+            datePromises.push(
+                checkDateHasValidTimeSlotsSpecialist(window.specialistCurrentSpecialistId, window.specialistCurrentServiceId, formattedDate)
+                    .then(hasValidSlots => ({ day, formattedDate, isToday, isPast, hasValidSlots }))
+            );
+        } else {
+            datePromises.push(Promise.resolve({ day, formattedDate, isToday, isPast, hasValidSlots: false }));
+        }
+    }
+    
+    // Ждем завершения всех проверок и отображаем даты
+    Promise.all(datePromises).then(results => {
+        results.forEach(({ day, formattedDate, isToday, isPast, hasValidSlots }) => {
+            const dateCell = document.createElement('div');
+            dateCell.className = 'date-cell';
+            
+            if (isPast) {
+                dateCell.classList.add('past-date');
+                dateCell.textContent = day;
+            } else if (hasValidSlots) {
                 dateCell.classList.add('available-date');
                 dateCell.textContent = day;
                 dateCell.onclick = () => selectDateSpecialist(day);
                 dateCell.title = 'Есть доступное время';
             } else {
-                dateCell.classList.add('available-date');
+                dateCell.classList.add('no-availability');
                 dateCell.textContent = day;
-                dateCell.onclick = () => selectDateSpecialist(day);
-                dateCell.title = 'Есть доступное время';
+                dateCell.title = 'Нет доступного времени';
             }
-        } else {
-            dateCell.classList.add('no-availability');
-            dateCell.textContent = day;
-            dateCell.title = 'Нет доступного времени';
-        }
+            
+            dateGrid.appendChild(dateCell);
+        });
         
-        dateGrid.appendChild(dateCell);
-    }
-    
-    // Добавляем легенду после календаря
-    addCalendarLegendSpecialist();
+        // Добавляем легенду после календаря
+        addCalendarLegendSpecialist();
+    });
 }
 
 function addCalendarLegendSpecialist() {
@@ -785,32 +842,38 @@ function displayTimeSlotsSpecialist(timeSlots) {
     const now = new Date();
     const currentHours = now.getHours();
     const currentMinutes = now.getMinutes();
+    const currentTotalMinutes = currentHours * 60 + currentMinutes;
     
     const today = new Date();
     const isToday = window.specialistSelectedDate === today.toISOString().split('T')[0];
     
+    let hasAvailableSlots = false;
+    
     console.log('Displaying time slots:', timeSlots);
     timeSlots.forEach(slot => {
         const [hours, minutes] = slot.время.split(':').map(Number);
+        const slotTotalMinutes = hours * 60 + minutes;
+        
+        let isAvailable = true;
         
         if (isToday) {
-            const slotTotalMinutes = hours * 60 + minutes;
-            const currentTotalMinutes = currentHours * 60 + currentMinutes;
-            
-            if (slotTotalMinutes < currentTotalMinutes - 120) {
-                console.log(`Skipping past time slot: ${slot.время}`);
-                return;
-            }
+            // Слот доступен только если до него больше 2 часов
+            isAvailable = slotTotalMinutes > currentTotalMinutes + 120;
         }
         
-        const timeBtn = document.createElement('button');
-        timeBtn.className = 'time-slot-btn';
-        timeBtn.textContent = slot.время;
-        timeBtn.onclick = () => bookAppointmentSpecialist(slot.id, slot.время);
-        timeSlotsContainer.appendChild(timeBtn);
+        if (isAvailable) {
+            hasAvailableSlots = true;
+            const timeBtn = document.createElement('button');
+            timeBtn.className = 'time-slot-btn';
+            timeBtn.textContent = slot.время;
+            timeBtn.onclick = () => bookAppointmentSpecialist(slot.id, slot.время);
+            timeSlotsContainer.appendChild(timeBtn);
+        } else {
+            console.log(`Skipping unavailable time slot: ${slot.время}`);
+        }
     });
     
-    if (timeSlotsContainer.children.length === 0) {
+    if (!hasAvailableSlots) {
         timeSlotsContainer.innerHTML = '<p>Нет доступного времени на выбранную дату</p>';
     }
 }
