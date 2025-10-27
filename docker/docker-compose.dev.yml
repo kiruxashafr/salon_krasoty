@@ -1,0 +1,37 @@
+services:
+  server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.server
+    ports:
+      - "${PORT}:${PORT}"
+    volumes:
+      - ../database.db:/app/database.db
+      - ../photo:/app/photo
+      - ../sh:/app/sh
+      - ../back:/app/back
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--max-time", "10", "-f", "http://localhost:${PORT}"]
+      interval: 1s
+      timeout: 10s
+      retries: 1
+    env_file:
+      - .env
+
+  bot:
+    build:
+      context: ../bot
+      dockerfile: ../docker/Dockerfile.bot
+    volumes:
+      - ../bot:/app
+    environment:
+      - API_BASE_URL=http://server:${PORT}
+    depends_on:
+      server:
+        condition: service_healthy
+    restart: unless-stopped
+    env_file:
+      - .env  # Добавьте эту строку

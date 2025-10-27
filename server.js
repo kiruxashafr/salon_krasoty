@@ -5,6 +5,7 @@ const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
 const sharp = require('sharp');
+const heicConvert = require('heic-convert');
 
 // Загружаем переменные окружения из .env файла
 require('dotenv').config();
@@ -241,7 +242,7 @@ const upload = multer({
     }
 });
 
-const heicConvert = require('heic-convert');
+
 
 // Обработчик для мастеров с поддержкой HEIC через heic-convert
 app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
@@ -760,7 +761,6 @@ db.get("SELECT COUNT(*) as count FROM ссылки", [], (err, row) => {
     if (err) {
         console.error('Error checking links table:', err.message);
     } else if (row.count === 0) {
-        console.log('Adding default links...');
         const defaultLinks = [
             ['vk_contact', 'https://m.vk.com/shafranov_k', 'Ссылка на VK', 1],
             ['telegram_contact', 'https://t.me/Shafranov_k', 'Ссылка на Telegram', 1],
@@ -808,7 +808,7 @@ app.get('/api/contact-visibility', (req, res) => {
             }
         });
         
-        console.log('Видимость контактов из БД:', visibility);
+
         
         res.json({
             message: "success",
