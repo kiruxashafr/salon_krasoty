@@ -2770,14 +2770,12 @@ app.post('/api/client', (req, res) => {
 });
 
 // API endpoint для обновления клиента
+// server.js - уже существует
 app.patch('/api/client/:id', (req, res) => {
     const clientId = req.params.id;
-    const { tg_id } = req.body;
+    const { tg_id } = req.body;  // Может быть null
     
-    if (!tg_id) {
-        return res.status(400).json({ error: 'tg_id обязателен' });
-    }
-    
+    // Разрешаем null значения для сброса привязки
     const sql = `UPDATE клиенты SET tg_id = ? WHERE id = ?`;
     
     db.run(sql, [tg_id, clientId], function(err) {

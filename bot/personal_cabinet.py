@@ -95,9 +95,11 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         logger.error(f"Error fetching client data: {e}")
         message_text = "🔑 Личный кабинет"
 
+    # Обновленная клавиатура с 4 кнопками
     keyboard = [
-        [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
         [InlineKeyboardButton("○ Актуальные записи", callback_data='cabinet_current')],
+        [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')],
+        [InlineKeyboardButton("⎋ Выйти из личного кабинета", callback_data='cabinet_logout')],
         [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -123,22 +125,97 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         else:
             await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
-
-
-
 async def handle_personal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback для личного кабинета"""
     query = update.callback_query
     await query.answer()
     data = query.data
     user_id = update.effective_user.id
+    
+    print(f"DEBUG: Personal cabinet callback: {data} from user: {user_id}")  # Отладочная информация
 
     if data == 'cabinet_history':
         await show_history(update, context, user_id)
     elif data == 'cabinet_current':
         await show_current_appointments(update, context, user_id)
+    elif data == 'cabinet_logout':
+        print(f"DEBUG: Logout requested for user: {user_id}")  # Отладочная информация
+        await logout_from_cabinet(update, context, user_id)
     elif data == 'personal_cabinet':
         await show_personal_cabinet(update, context)
+
+
+
+async def logout_from_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Выйти из личного кабинета - установить уникальный tg_id и вернуться в главное меню"""
+    query = update.callback_query
+    
+    try:
+        # Получаем данные клиента для поиска ID
+        response = requests.get(f"{API_BASE_URL}/api/client/by-tg/{user_id}")
+        logger.info(f"DEBUG: Client by tg response status: {response.status_code}")
+        logger.info(f"DEBUG: Client by tg response text: {response.text}")
+        
+        if response.status_code == 200:
+            data = response.json()
+            
+            if data.get('message') == 'success' and data.get('data'):
+                client_data = data['data']
+                client_id = client_data['id']
+                
+                # Создаем уникальное значение для tg_id, которое не будет конфликтовать
+                # Используем отрицательное значение с префиксом "deleted_"
+                unique_tg_id = f"deleted_{user_id}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                update_response = requests.patch(
+                    f"{API_BASE_URL}/api/client/{client_id}", 
+                    json={'tg_id': unique_tg_id}
+                )
+                logger.info(f"DEBUG: Update client response status: {update_response.status_code}")
+                logger.info(f"DEBUG: Update client response text: {update_response.text}")
+                
+                if update_response.status_code == 200:
+                    update_data = update_response.json()
+                    if update_data.get('message') == 'success':
+                        # Удаляем состояние пользователя если есть
+                        if user_id in personal_states:
+                            del personal_states[user_id]
+                        
+                        message_text = "✅ Вы вышли из личного кабинета. Для доступа потребуется повторная регистрация."
+                        
+                        # Сначала показываем сообщение о выходе
+                        await query.edit_message_caption(caption=message_text)
+                        
+                        # Затем отправляем новое сообщение с главным меню
+                        from menu_handlers import show_main_menu
+                        await show_main_menu(update, context)
+                        
+                        return
+                    else:
+                        message_text = "❌ Ошибка при обновлении данных"
+                else:
+                    message_text = "❌ Ошибка сервера при обновлении"
+            else:
+                message_text = "❌ Клиент не найден"
+        else:
+            message_text = "❌ Ошибка подключения к серверу"
+            
+        # Если дошли сюда, значит произошла ошибка
+        await query.edit_message_caption(caption=message_text)
+            
+    except Exception as e:
+        logger.error(f"Error during logout: {e}", exc_info=True)
+        message_text = "❌ Ошибка подключения к серверу"
+        
+        try:
+            await query.edit_message_caption(caption=message_text)
+        except Exception as edit_error:
+            logger.error(f"Error editing message: {edit_error}")
+            await query.message.reply_text(message_text)
+
+
+
+
 
 async def handle_personal_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений для регистрации в личном кабинете"""

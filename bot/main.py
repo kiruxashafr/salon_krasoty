@@ -98,7 +98,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Обрабатываем callback запросы личного кабинета
-    if data in ['personal_cabinet', 'cabinet_history', 'cabinet_current']:
+    # Обрабатываем callback запросы личного кабинета
+    if data in ['personal_cabinet', 'cabinet_history', 'cabinet_current', 'cabinet_logout']:
         await handle_personal_callback(update, context)
         return
     

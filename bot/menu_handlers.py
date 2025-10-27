@@ -605,7 +605,52 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_personal_cabinet(update, context)
 
 
+# menu_handlers.py - добавить эту функцию
+async def logout_from_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
+    """Выйти из личного кабинета - сбросить tg_id и вернуться в главное меню"""
+    query = update.callback_query
+    
+    try:
+        # Получаем данные клиента для поиска ID
+        response = requests.get(f"{API_BASE_URL}/api/client/by-tg/{user_id}")
+        data = response.json()
 
+        if data['message'] == 'success' and data['data']:
+            client_data = data['data']
+            client_id = client_data['id']
+            
+            # Сбрасываем tg_id в NULL
+            update_response = requests.patch(f"{API_BASE_URL}/api/client/{client_id}", json={'tg_id': None})
+            
+            if update_response.json()['message'] == 'success':
+                message_text = "✅ Вы вышли из личного кабинета. Для доступа потребуется повторная регистрация."
+                
+                # Показываем главное меню
+                await show_main_menu(update, context)
+                
+                # Отправляем сообщение о выходе (если есть сообщение для редактирования)
+                if hasattr(query, 'message') and query.message:
+                    await query.message.reply_text(message_text)
+            else:
+                message_text = "❌ Ошибка при выходе из личного кабинета"
+                if hasattr(query, 'edit_message_caption'):
+                    await query.edit_message_caption(caption=message_text)
+                else:
+                    await query.message.reply_text(message_text)
+        else:
+            message_text = "❌ Вы не были зарегистрированы в личном кабинете"
+            if hasattr(query, 'edit_message_caption'):
+                await query.edit_message_caption(caption=message_text)
+            else:
+                await query.message.reply_text(message_text)
+            
+    except Exception as e:
+        logger.error(f"Error during logout: {e}")
+        message_text = "❌ Ошибка подключения к серверу"
+        if hasattr(query, 'edit_message_caption'):
+            await query.edit_message_caption(caption=message_text)
+        else:
+            await query.message.reply_text(message_text)
 async def show_booking_options_with_master(query, master_id):
     """Показать варианты записи для выбранного мастера"""
     from main import show_services_for_specialist
