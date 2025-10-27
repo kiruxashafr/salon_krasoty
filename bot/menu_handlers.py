@@ -230,7 +230,40 @@ async def show_contacts_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.edit_message_text(text=message, reply_markup=reply_markup)
 
 
+def get_photo_url(photo_path, default_type='master'):
+    """Получить корректный URL фото, используя default если основное отсутствует"""
+    if not photo_path or photo_path == '':
+        if default_type == 'master':
+            return f"{API_BASE_URL}/photo/работники/default.jpg"
+        elif default_type == 'service':
+            return f"{API_BASE_URL}/photo/услуги/default.jpg"
+        elif default_type == 'admin':
+            return f"{API_BASE_URL}/photo/администратор/admin_default.jpg"
+    
+    # Проверяем существование фото на сервере
+    try:
+        response = requests.head(f"{API_BASE_URL}/{photo_path}", timeout=2)
+        if response.status_code == 200:
+            return f"{API_BASE_URL}/{photo_path}"
+        else:
+            # Если фото не найдено, используем default
+            if 'работники' in photo_path or 'master' in photo_path:
+                return f"{API_BASE_URL}/photo/работники/default.jpg"
+            elif 'услуги' in photo_path or 'service' in photo_path:
+                return f"{API_BASE_URL}/photo/услуги/default.jpg"
+            else:
+                return f"{API_BASE_URL}/photo/работники/default.jpg"
+    except:
+        # В случае ошибки используем default
+        if 'работники' in photo_path or 'master' in photo_path:
+            return f"{API_BASE_URL}/photo/работники/default.jpg"
+        elif 'услуги' in photo_path or 'service' in photo_path:
+            return f"{API_BASE_URL}/photo/услуги/default.jpg"
+        else:
+            return f"{API_BASE_URL}/photo/работники/default.jpg"
+        
 
+        
 def format_phone_number(phone):
     """Форматирование номера телефона для отображения в формате +79711990304"""
     # Убираем все нецифровые символы
@@ -324,55 +357,49 @@ async def show_master_detail(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
 async def show_masters_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню мастеров"""
-    query = update.callback_query
-    photo_url = f"{API_BASE_URL}/photo/images/master.jpg"
     try:
         response = requests.get(f"{API_BASE_URL}/api/specialists")
         data = response.json()
         
         if data['message'] == 'success':
             masters = data['data']
-            keyboard = []
             
+            if not masters:
+                await update.message.reply_text("На данный момент нет доступных мастеров.")
+                return
+            
+            # Отправляем фото и информацию о каждом мастере
             for master in masters:
-                keyboard.append([
-                    InlineKeyboardButton(
-                        f"♢ {master['имя']}",
-                        callback_data=f'master_detail_{master["id"]}'
-                    )
-                ])
-            
-            keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='back_to_main')])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            message_text = (
-                "♢ Наши мастера\n\n"
-                "Нажмите на мастера чтобы узнать больше:"
-            )
-            
-            try:
-                # Скачиваем фото
-                photo_response = requests.get(photo_url)
-                if photo_response.status_code == 200:
-                    photo_data = photo_response.content
-                    media = InputMediaPhoto(media=photo_data, caption=message_text)
-                    await query.edit_message_media(media=media, reply_markup=reply_markup)
-                else:
-                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-            except Exception as e:
-                logger.error(f"Error in show_masters_menu: {e}")
-                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-        else:
-            message_text = "❌ Ошибка загрузки мастеров"
-            keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                photo_url = get_photo_url(master.get('фото'), 'master')
+                caption = f"♢ {master['имя']}\n\n{master.get('описание', '')}"
                 
+                keyboard = [
+                    [InlineKeyboardButton("📅 Записаться к мастеру", callback_data=f'master_detail_{master["id"]}')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                try:
+                    await context.bot.send_photo(
+                        chat_id=update.effective_chat.id,
+                        photo=photo_url,
+                        caption=caption,
+                        reply_markup=reply_markup
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending master photo: {e}")
+                    # Если не удалось отправить фото, отправляем текстовое сообщение
+                    await update.message.reply_text(
+                        text=caption,
+                        reply_markup=reply_markup
+                    )
+        else:
+            await update.message.reply_text("❌ Ошибка загрузки списка мастеров")
+            
     except Exception as e:
-        logger.error(f"Error fetching masters: {e}")
-        message_text = "❌ Ошибка подключения к серверу"
-        keyboard = [[InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        logger.error(f"Error in show_masters_menu: {e}")
+        await update.message.reply_text("❌ Ошибка подключения к серверу")
+
+
 
 async def show_services_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Показать меню услуг"""

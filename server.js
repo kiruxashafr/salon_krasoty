@@ -1073,20 +1073,7 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'back', 'admin.html'));
 });
 
-// API endpoint to get all services
-app.get('/api/services', (req, res) => {
-    const sql = "SELECT * FROM услуги WHERE доступен = 1 ORDER BY категория, название";
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        res.json({
-            message: "success",
-            data: rows
-        });
-    });
-});
+
 
 
 // API endpoint to add service
@@ -1275,7 +1262,7 @@ app.delete('/api/service/:id', (req, res) => {
     });
 });
 
-// API endpoint to get all specialists
+// В endpoint для получения мастеров
 app.get('/api/specialists', (req, res) => {
     const sql = "SELECT id, имя, описание, фото FROM мастера WHERE доступен = 1 ORDER BY имя";
     db.all(sql, [], (err, rows) => {
@@ -1283,9 +1270,38 @@ app.get('/api/specialists', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
+        
+        // Обрабатываем фото
+        const processedRows = rows.map(master => ({
+            ...master,
+            фото: master.фото && master.фото !== '' ? master.фото : 'photo/работники/default.jpg'
+        }));
+        
         res.json({
             message: "success",
-            data: rows
+            data: processedRows
+        });
+    });
+});
+
+// В endpoint для получения услуг
+app.get('/api/services', (req, res) => {
+    const sql = "SELECT * FROM услуги WHERE доступен = 1 ORDER BY категория, название";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        // Обрабатываем фото
+        const processedRows = rows.map(service => ({
+            ...service,
+            фото: service.фото && service.фото !== '' ? service.фото : 'photo/услуги/default.jpg'
+        }));
+        
+        res.json({
+            message: "success",
+            data: processedRows
         });
     });
 });
