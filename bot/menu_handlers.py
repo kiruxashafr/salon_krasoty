@@ -35,16 +35,32 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
     
+    # Получаем название салона и ссылку на сайт из базы данных
+    salon_name = None
+    site_link = None
+    try:
+        # Получаем название салона из таблицы страниц
+        pages_response = requests.get(f"{API_BASE_URL}/api/pages/главная")
+        if pages_response.json()['message'] == 'success':
+            pages_data = pages_response.json()['data']
+            salon_name = pages_data.get('название_салона')
+        
+        # Получаем ссылку на сайт
+        links_response = requests.get(f"{API_BASE_URL}/api/links")
+        if links_response.json()['message'] == 'success':
+            links = links_response.json()['data']
+            site_link = links.get('site_link')
+    except Exception as e:
+        logger.error(f"Error fetching salon data: {e}")
+    
     keyboard = [
         [
             InlineKeyboardButton("✮ Мастера", callback_data='masters_menu'),
             InlineKeyboardButton("⌘ Услуги", callback_data='services_menu')
         ],
         [InlineKeyboardButton("✎ Записаться", callback_data='book_appointment')],
-
-
         [
-            InlineKeyboardButton("🛈 Контакты", callback_data='contacts_menu'),  # Новая кнопка
+            InlineKeyboardButton("🛈 Контакты", callback_data='contacts_menu'),
             InlineKeyboardButton("⎋ Личный кабинет", callback_data='personal_cabinet') 
         ]
     ]
@@ -54,7 +70,15 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append([InlineKeyboardButton("♔ Админ-панель", callback_data='admin_panel')])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
-    message_text = "☰ Главное меню"
+    
+    # Формируем текст сообщения с приветствием и ссылкой на сайт
+    if salon_name:
+        message_text = f"○ Добро пожаловать в {salon_name}!"
+    else:
+        message_text = "○ Добро пожаловать!"
+
+    if site_link:
+        message_text += f"\n\n○ Наш сайт: {site_link}"
     
     photo_url = f"{API_BASE_URL}/photo/images/main.jpg"
     

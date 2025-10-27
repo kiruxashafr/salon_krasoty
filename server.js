@@ -817,6 +817,32 @@ app.get('/api/contact-visibility', (req, res) => {
     });
 });
 
+
+// server.js - добавить в секцию инициализации базы данных
+// Проверяем и добавляем название салона по умолчанию
+db.get("SELECT COUNT(*) as count FROM страницы WHERE страница = 'главная' AND элемент = 'название_салона'", [], (err, row) => {
+    if (err) {
+        console.error('Error checking salon name:', err.message);
+    } else if (row.count === 0) {
+        // Добавляем название салона по умолчанию
+        const insertSql = "INSERT INTO страницы (страница, элемент, текст) VALUES (?, ?, ?)";
+        db.run(insertSql, ['главная', 'название_салона', 'Салон Красоты']);
+        console.log('Added default salon name');
+    }
+});
+
+// Проверяем и добавляем ссылку на сайт по умолчанию
+db.get("SELECT COUNT(*) as count FROM ссылки WHERE тип = 'site_link'", [], (err, row) => {
+    if (err) {
+        console.error('Error checking site_link:', err.message);
+    } else if (row.count === 0) {
+        // Добавляем ссылку на сайт по умолчанию
+        const insertSql = "INSERT INTO ссылки (тип, url, описание, доступен) VALUES (?, ?, ?, ?)";
+        db.run(insertSql, ['site_link', 'https://ваш-сайт.ru', 'Ссылка на сайт', 1]);
+        console.log('Added default site_link');
+    }
+});
+
 // Обновить endpoint для обновления доступности
 app.patch('/api/contact-visibility/:type', (req, res) => {
     const contactType = req.params.type;
