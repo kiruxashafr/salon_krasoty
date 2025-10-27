@@ -49,38 +49,6 @@ WEEKDAY_MAP = {
     'Sun': 'вс'
 }
 
-def get_photo_url(photo_path, default_type='master'):
-    """Получить корректный URL фото, используя default если основное отсутствует"""
-    if not photo_path or photo_path == '':
-        if default_type == 'master':
-            return f"{API_BASE_URL}/photo/работники/default.jpg"
-        elif default_type == 'service':
-            return f"{API_BASE_URL}/photo/услуги/default.jpg"
-        elif default_type == 'admin':
-            return f"{API_BASE_URL}/photo/администратор/admin_default.jpg"
-    
-    # Проверяем существование фото на сервере
-    try:
-        response = requests.head(f"{API_BASE_URL}/{photo_path}", timeout=2)
-        if response.status_code == 200:
-            return f"{API_BASE_URL}/{photo_path}"
-        else:
-            # Если фото не найдено, используем default
-            if 'работники' in photo_path or 'master' in photo_path:
-                return f"{API_BASE_URL}/photo/работники/default.jpg"
-            elif 'услуги' in photo_path or 'service' in photo_path:
-                return f"{API_BASE_URL}/photo/услуги/default.jpg"
-            else:
-                return f"{API_BASE_URL}/photo/работники/default.jpg"
-    except:
-        # В случае ошибки используем default
-        if 'работники' in photo_path or 'master' in photo_path:
-            return f"{API_BASE_URL}/photo/работники/default.jpg"
-        elif 'услуги' in photo_path or 'service' in photo_path:
-            return f"{API_BASE_URL}/photo/услуги/default.jpg"
-        else:
-            return f"{API_BASE_URL}/photo/работники/default.jpg"
-        
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик команды /start"""
     await show_main_menu(update, context)
