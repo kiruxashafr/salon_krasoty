@@ -571,7 +571,7 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 
-        
+
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик callback запросов меню"""
     query = update.callback_query
@@ -619,8 +619,18 @@ async def show_booking_options_with_master(query, master_id):
             [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        try:
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        except Exception as edit_error:
+            logger.error(f"Error editing error message: {edit_error}")
+            await query.message.reply_text(text=message_text, reply_markup=reply_markup)
 
+
+
+            
 async def show_booking_options_with_service(query, service_id):
     """Показать варианты записи для выбранной услуги"""
     from main import show_specialists_for_service

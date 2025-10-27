@@ -441,55 +441,14 @@ async def show_specialists_for_service(query, service_id):
                     [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
-                return
-            
-            keyboard = []
-            for specialist in specialists:
-                # Проверяем доступное время в будущем
-                dates_response = requests.get(
-                    f"{API_BASE_URL}/api/specialist/{specialist['id']}/service/{service_id}/available-dates",
-                    params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
-                )
-                
-                if (dates_response.json()['message'] == 'success' and 
-                    dates_response.json()['availableDates']):
-                    keyboard.append([
-                        InlineKeyboardButton(
-                            f"{specialist['имя']}",
-                            callback_data=f'select_specialist_{specialist["id"]}_{service_id}'
-                        )
-                    ])
-            
-            # Добавляем кнопку "Расписание для всех мастеров"
-            keyboard.append([
-                InlineKeyboardButton(
-                    "≣ Расписание для всех мастеров",
-                    callback_data=f'all_specialists_schedule_{service_id}'
-                )
-            ])
-            
-            if not keyboard:
-                message_text = (
-                    "❌ Нет мастеров со свободным временем для этой услуги\n\n"
-                    "Попробуйте выбрать другую услугу или посмотреть позже."
-                )
-                keyboard = [
-                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
-                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
-                ]
-                reply_markup = InlineKeyboardMarkup(keyboard)
                 try:
-                    photo_response = requests.get(photo_url)
-                    if photo_response.status_code == 200:
-                        photo_data = photo_response.content
-                        media = InputMediaPhoto(media=photo_data, caption=message_text)
-                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    if query.message.photo:
+                        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
                     else:
                         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 except Exception as e:
-                    logger.error(f"Error in show_specialists_for_service (no specialists): {e}")
-                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                    logger.error(f"Error editing message (no specialists): {e}")
+                    await query.message.reply_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_service')])
@@ -514,7 +473,10 @@ async def show_specialists_for_service(query, service_id):
                 [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching specialists for service: {e}")
@@ -523,7 +485,15 @@ async def show_specialists_for_service(query, service_id):
             [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        try:
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        except Exception as edit_error:
+            logger.error(f"Error editing error message: {edit_error}")
+            await query.message.reply_text(text=message_text, reply_markup=reply_markup)
+
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
@@ -542,7 +512,17 @@ async def show_services_for_specialist(query, specialist_id):
                     [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
-                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                
+                try:
+                    # Пытаемся отредактировать сообщение в зависимости от его типа
+                    if query.message.photo:
+                        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error editing message (no services): {e}")
+                    # Если не удалось отредактировать, отправляем новое сообщение
+                    await query.message.reply_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard = []
@@ -576,13 +556,27 @@ async def show_services_for_specialist(query, specialist_id):
                     photo_response = requests.get(photo_url)
                     if photo_response.status_code == 200:
                         photo_data = photo_response.content
-                        media = InputMediaPhoto(media=photo_data, caption=message_text)
-                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                        # Пытаемся отредактировать с фото
+                        try:
+                            media = InputMediaPhoto(media=photo_data, caption=message_text)
+                            await query.edit_message_media(media=media, reply_markup=reply_markup)
+                        except Exception as media_error:
+                            logger.error(f"Error editing media (no services): {media_error}")
+                            # Если не удалось отредактировать медиа, пробуем изменить текст/подпись
+                            if query.message.photo:
+                                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                            else:
+                                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                     else:
-                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                        # Если фото недоступно, редактируем текст/подпись
+                        if query.message.photo:
+                            await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                        else:
+                            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 except Exception as e:
                     logger.error(f"Error in show_services_for_specialist (no services): {e}")
-                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                    # Последняя попытка - отправляем новое сообщение
+                    await query.message.reply_text(text=message_text, reply_markup=reply_markup)
                 return
             
             keyboard.append([InlineKeyboardButton("↲ Назад", callback_data='choose_specialist')])
@@ -597,17 +591,26 @@ async def show_services_for_specialist(query, specialist_id):
                     media = InputMediaPhoto(media=photo_data, caption=message_text)
                     await query.edit_message_media(media=media, reply_markup=reply_markup)
                 else:
-                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                    if query.message.photo:
+                        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             except Exception as e:
                 logger.error(f"Error in show_services_for_specialist: {e}")
-                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                if query.message.photo:
+                    await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
             message_text = "❌ Ошибка загрузки услуг"
             keyboard = [
                 [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             
     except Exception as e:
         logger.error(f"Error fetching services for specialist: {e}")
@@ -616,7 +619,16 @@ async def show_services_for_specialist(query, specialist_id):
             [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        try:
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        except Exception as edit_error:
+            logger.error(f"Error editing error message: {edit_error}")
+            await query.message.reply_text(text=message_text, reply_markup=reply_markup)
+
+
 
 async def show_date_selection(query, specialist_id, service_id, target_date_str=None):
     """Показать выбор даты для бронирования с учетом свободного времени"""
