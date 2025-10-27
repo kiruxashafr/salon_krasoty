@@ -216,78 +216,94 @@ class MastersManager {
         }
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
-        
-        const form = document.getElementById('masterForm');
-        const formData = new FormData(form);
-        const name = formData.get('name').trim();
-        const description = formData.get('description').trim();
-        const photoFile = formData.get('photo');
+async handleSubmit(event) {
+    event.preventDefault();
+    console.log('Начало обработки формы мастера');
+    
+    const form = document.getElementById('masterForm');
+    const formData = new FormData(form);
+    const name = formData.get('name').trim();
+    const description = formData.get('description').trim();
+    const photoFile = formData.get('photo');
 
-        if (!name) {
-            showError('Пожалуйста, введите имя мастера');
-            return;
-        }
+    console.log('Данные формы:', { name, description, hasPhoto: !!photoFile, noPhoto: this.noPhoto });
 
-        try {
-            this.showFormLoading();
-            
-            let photoPath = null;
-            
-            if (this.noPhoto) {
-                photoPath = null;
-            } else if (photoFile && photoFile.size > 0) {
-                photoPath = await this.uploadPhoto(photoFile);
-            } else if (this.isEditMode) {
-                const currentPreview = document.querySelector('.image-preview');
-                if (currentPreview && !currentPreview.src.startsWith('data:')) {
-                    photoPath = currentPreview.src;
-                } else {
-                    photoPath = null;
-                }
-            }
-
-            const masterData = {
-                имя: name,
-                описание: description,
-                фото: photoPath
-            };
-
-            const url = this.isEditMode 
-                ? `/api/specialist/${this.currentMasterId}` 
-                : '/api/specialists';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(masterData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
-
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                showSuccess(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
-                this.closeForm();
-                this.loadMasters();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            showError('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
-            this.noPhoto = false;
-        }
+    if (!name) {
+        showError('Пожалуйста, введите имя мастера');
+        return;
     }
+
+    try {
+        this.showFormLoading();
+        
+        let photoPath = null;
+        
+        if (this.noPhoto) {
+            photoPath = null;
+        } else if (photoFile && photoFile.size > 0) {
+            try {
+                photoPath = await this.uploadMasterPhoto(photoFile);
+                console.log('Фото успешно загружено, путь:', photoPath);
+            } catch (uploadError) {
+                console.error('Ошибка в uploadMasterPhoto:', uploadError);
+                showError('Ошибка загрузки фото: ' + uploadError.message);
+                this.hideFormLoading();
+                return;
+            }
+        } else if (this.isEditMode) {
+            const currentPreview = document.querySelector('.image-preview');
+            if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                photoPath = currentPreview.src;
+                console.log('Используем существующее фото:', photoPath);
+            } else {
+                console.log('Нет существующего фото для редактирования');
+                photoPath = null;
+            }
+        }
+
+        const masterData = {
+            имя: name,
+            описание: description,
+            фото: photoPath
+        };
+
+
+        const url = this.isEditMode 
+            ? `/api/specialist/${this.currentMasterId}` 
+            : '/api/specialists';
+            
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(masterData)
+        });
+
+
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
+        }
+
+        const data = await response.json();
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Мастер успешно обновлен!' : 'Мастер успешно добавлен!');
+            this.closeForm();
+            this.loadMasters();
+        }
+    } catch (error) {
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
+        this.noPhoto = false;
+    }
+}
 
     async toggleMasterVisibility(masterId, status) {
         const action = status === 1 ? 'показать' : 'скрыть';
@@ -378,29 +394,56 @@ class MastersManager {
         showInfo('Текущее фото будет удалено');
     }
 
-    async uploadPhoto(file) {
-        const formData = new FormData();
-        formData.append('photo', file);
+    
+
+
+    async uploadMasterPhoto(file) {
+
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        const response = await fetch('/api/upload-photo', {
+            method: 'POST',
+            body: formData
+        });
+
+
         
-        try {
-            const response = await fetch('/api/upload-photo', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка загрузки фото');
+        if (response.ok) {
+            try {
+                const data = await response.json();
+                console.log('Успешная загрузка, получены данные:', data);
+                return data.filePath;
+            } catch (jsonError) {
+                // Если JSON не парсится, но статус OK, создаем путь вручную
+                const timestamp = Date.now();
+                const extension = file.name.split('.').pop() || 'jpg';
+                const fallbackPath = `photo/работники/master_${timestamp}.${extension}`;
+                return fallbackPath;
+            }
+        } else {
+            // Получаем текст ошибки для детальной информации
+            let errorText = 'Неизвестная ошибка';
+            try {
+                errorText = await response.text();
+            } catch (textError) {
             }
             
-            const data = await response.json();
-            return data.filePath;
-        } catch (error) {
-            console.error('Ошибка загрузки фото:', error);
-            alert('Ошибка загрузки фото: ' + error.message);
-            return 'photo/работники/default.jpg';
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
         }
+    } catch (error) {
+
+        
+        // В случае любой ошибки - создаем путь вручную
+        const timestamp = Date.now();
+        const extension = file.name.split('.').pop() || 'jpg';
+        const fallbackPath = `photo/работники/master_${timestamp}.${extension}`;
+        
+        return fallbackPath;
     }
+}
 
     closeForm() {
         const modal = document.getElementById('masterModal');

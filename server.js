@@ -232,19 +232,18 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     fileFilter: function (req, file, cb) {
-        // Проверяем что файл является изображением
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Только изображения разрешены'), false);
-        }
+        // Разрешаем ВСЕ файлы без исключения
+        console.log('Принят файл:', file.originalname, 'тип:', file.mimetype);
+        cb(null, true);
     },
     limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB limit
+        fileSize: 10 * 1024 * 1024 // 10MB
     }
 });
 
-// API endpoint для загрузки фото
+const heicConvert = require('heic-convert');
+
+// Обработчик для мастеров с поддержкой HEIC через heic-convert
 app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
     try {
         if (!req.file) {
@@ -254,26 +253,43 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
         let filePath = req.file.path;
         let filename = req.file.filename;
 
-        // Проверяем, является ли файл HEIC/HEIF
+
+        // Конвертируем HEIC в JPEG если нужно
         if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || path.extname(filename).toLowerCase() === '.heic') {
-            // Конвертируем в JPEG
-            const newFilename = filename.replace(/\.[^/.]+$/, ".jpg"); // Заменяем расширение на .jpg
-            const newFilePath = path.join(path.dirname(filePath), newFilename);
+            console.log('Обнаружен HEIC файл, конвертируем в JPEG...');
+            
+            try {
+                const newFilename = filename.replace(/\.[^/.]+$/, ".jpg");
+                const newFilePath = path.join(path.dirname(filePath), newFilename);
 
-            await sharp(filePath)
-                .jpeg({ quality: 90 }) // Качество 90% для баланса размера/качества
-                .toFile(newFilePath);
+                // Читаем HEIC файл
+                const inputBuffer = fs.readFileSync(filePath);
+                
+                // Конвертируем в JPEG
+                const outputBuffer = await heicConvert({
+                    buffer: inputBuffer,
+                    format: 'JPEG',
+                    quality: 0.8
+                });
 
-            // Удаляем оригинальный HEIC
-            fs.unlinkSync(filePath);
+                // Сохраняем JPEG
+                fs.writeFileSync(newFilePath, outputBuffer);
 
-            // Обновляем пути
-            filePath = newFilePath;
-            filename = newFilename;
+                // Удаляем оригинальный HEIC файл
+                fs.unlinkSync(filePath);
+                
+                filePath = newFilePath;
+                filename = newFilename;
+                
+            } catch (conversionError) {
+                // Если конвертация не удалась, удаляем файл и возвращаем ошибку
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+                return res.status(400).json({ error: 'Не удалось обработать HEIC файл: ' + conversionError.message });
+            }
         }
 
-        console.log('Файл сохранен по пути:', filePath);
-        console.log('Имя файла:', filename);
 
         res.json({
             message: "success",
@@ -281,7 +297,10 @@ app.post('/api/upload-photo', upload.single('photo'), async (req, res) => {
         });
     } catch (error) {
         console.error('Ошибка загрузки фото:', error);
-        res.status(500).json({ error: 'Ошибка загрузки фото' });
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Ошибка загрузки фото: ' + error.message });
     }
 });
 
@@ -384,8 +403,7 @@ app.get('/api/admin-data', (req, res) => {
         });
     });
 });
-
-// Добавить после существующего upload-photo endpoint
+// server.js - ИСПРАВЛЕННАЯ версия serviceStorage
 const serviceStorage = multer.diskStorage({
     destination: function (req, file, cb) {
         const dir = path.join(__dirname, 'photo/услуги/');
@@ -396,41 +414,110 @@ const serviceStorage = multer.diskStorage({
     },
     filename: function (req, file, cb) {
         const timestamp = Date.now();
+        // НЕ меняем расширение здесь - пусть обработчик сам решает
         const extension = path.extname(file.originalname);
         const safeName = `service_${timestamp}${extension}`;
         cb(null, safeName);
     }
 });
 
+
 const uploadService = multer({ 
     storage: serviceStorage,
     fileFilter: function (req, file, cb) {
-        if (file.mimetype.startsWith('image/')) {
-            cb(null, true);
-        } else {
-            cb(new Error('Только изображения разрешены'), false);
-        }
+        // Разрешаем ВСЕ файлы без исключения
+        console.log('Принят файл услуги:', file.originalname, 'тип:', file.mimetype);
+        cb(null, true);
     },
     limits: {
-        fileSize: 5 * 1024 * 1024
+        fileSize: 10 * 1024 * 1024 // 10MB
     }
 });
 
-app.post('/api/upload-service-photo', uploadService.single('photo'), (req, res) => {
+
+
+// Замените существующий endpoint /api/upload-service-photo на этот:
+
+// Обработчик для услуг с поддержкой HEIC через heic-convert
+// Замените endpoint /api/upload-service-photo на этот:
+
+// server.js - замените существующий endpoint /api/upload-service-photo на этот:
+
+// server.js - ЗАМЕНИТЕ существующий endpoint /api/upload-service-photo на этот:
+
+app.post('/api/upload-service-photo', uploadService.single('photo'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'Файл не был загружен' });
         }
+
+        let filePath = req.file.path;
+        let filename = req.file.filename;
+
+
+
+        // Конвертируем HEIC в JPEG если нужно - ТОЧНО ТАК ЖЕ КАК ДЛЯ МАСТЕРОВ
+        if (req.file.mimetype === 'image/heic' || req.file.mimetype === 'image/heif' || 
+            path.extname(req.file.originalname).toLowerCase() === '.heic' ||
+            path.extname(filename).toLowerCase() === '.heic') {
+            console.log('Обнаружен HEIC файл услуги, конвертируем в JPEG...');
+            
+            try {
+                const newFilename = filename.replace(/\.[^/.]+$/, ".jpg");
+                const newFilePath = path.join(path.dirname(filePath), newFilename);
+
+                // Читаем HEIC файл
+                const inputBuffer = fs.readFileSync(filePath);
+                
+                // Конвертируем в JPEG используя heic-convert (ТОЧНО ТАК ЖЕ КАК ДЛЯ МАСТЕРОВ)
+                const outputBuffer = await heicConvert({
+                    buffer: inputBuffer,
+                    format: 'JPEG',
+                    quality: 0.8
+                });
+
+                // Сохраняем JPEG
+                fs.writeFileSync(newFilePath, outputBuffer);
+
+                // Удаляем оригинальный HEIC файл
+                fs.unlinkSync(filePath);
+                
+                filePath = newFilePath;
+                filename = newFilename;
+                
+            } catch (conversionError) {
+                // Если конвертация не удалась, удаляем файл и возвращаем ошибку
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                }
+                return res.status(400).json({ error: 'Не удалось обработать HEIC файл услуги: ' + conversionError.message });
+            }
+        }
+
+
+        // Всегда возвращаем путь с правильным расширением
+        const fileExtension = path.extname(filename).toLowerCase();
+        let returnedFilePath = 'photo/услуги/' + filename;
         
+        // Если это был HEIC файл, меняем расширение в возвращаемом пути
+        if (fileExtension === '.heic') {
+            returnedFilePath = returnedFilePath.replace(/\.heic$/i, '.jpg');
+        }
+
         res.json({
             message: "success",
-            filePath: 'photo/услуги/' + req.file.filename
+            filePath: returnedFilePath
         });
     } catch (error) {
         console.error('Ошибка загрузки фото услуги:', error);
-        res.status(500).json({ error: 'Ошибка загрузки фото' });
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: 'Ошибка загрузки фото услуги: ' + error.message });
     }
 });
+
+
 
 // Добавить endpoint для получения всех услуг
 app.get('/api/services-all', (req, res) => {

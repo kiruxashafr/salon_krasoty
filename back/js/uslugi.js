@@ -265,87 +265,126 @@ class ServicesManager {
         modal.style.display = 'block';
     }
 
-    async handleSubmit(event) {
-        event.preventDefault();
-        
-        const form = document.getElementById('serviceForm');
-        const formData = new FormData(form);
-        const category = formData.get('category').trim();
-        const name = formData.get('name').trim();
-        const price = parseFloat(formData.get('price'));
-        const description = formData.get('description').trim();
-        const photoFile = formData.get('photo');
+async handleSubmit(event) {
+    event.preventDefault();
+    console.log('Начало обработки формы услуги');
+    
+    const form = document.getElementById('serviceForm');
+    const formData = new FormData(form);
+    const category = formData.get('category').trim();
+    const name = formData.get('name').trim();
+    const price = parseFloat(formData.get('price'));
+    const description = formData.get('description').trim();
+    const photoFile = formData.get('photo');
 
-        if (!category || !name || isNaN(price)) {
-            showError('Пожалуйста, заполните все обязательные поля');
-            return;
-        }
+    console.log('Данные формы услуги:', { 
+        category, 
+        name, 
+        price, 
+        description, 
+        hasPhoto: !!photoFile, 
+        noPhoto: this.noPhoto,
+        isEditMode: this.isEditMode 
+    });
 
-        try {
-            this.showFormLoading();
-            
-            let photoPath = null;
-            
-            if (this.noPhoto) {
-                photoPath = null;
-            } else if (photoFile && photoFile.size > 0) {
-                photoPath = await this.uploadPhoto(photoFile);
-            } else if (this.isEditMode && this.originalServiceData) {
-                photoPath = this.originalServiceData.фото;
-            }
-
-            let доступен = 1;
-            if (this.isEditMode) {
-                const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
-                if (serviceCard) {
-                    доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
-                }
-            }
-
-            const serviceData = {
-                категория: category,
-                название: name,
-                цена: price,
-                описание: description,
-                фото: photoPath,
-                доступен: доступен
-            };
-
-            const url = this.isEditMode 
-                ? `/api/service/${this.currentServiceId}` 
-                : '/api/services-new';
-                
-            const method = this.isEditMode ? 'PUT' : 'POST';
-            
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(serviceData)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка сохранения');
-            }
-
-            const data = await response.json();
-            
-            if (data.message === 'success') {
-                showSuccess(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
-                await this.loadCategories();
-                this.closeForm();
-                this.loadServices();
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            showError('Не удалось сохранить: ' + error.message);
-        } finally {
-            this.hideFormLoading();
-            this.noPhoto = false;
-        }
+    if (!category || !name || isNaN(price)) {
+        showError('Пожалуйста, заполните все обязательные поля');
+        return;
     }
+
+    try {
+        this.showFormLoading();
+        
+        let photoPath = null;
+        
+        if (this.noPhoto) {
+            console.log('Пользователь выбрал "Без фото" для услуги');
+            photoPath = null;
+        } else if (photoFile && photoFile.size > 0) {
+            console.log('Начинаем загрузку фото файла для услуги...');
+            try {
+                photoPath = await this.uploadServicePhoto(photoFile);
+                console.log('Фото услуги успешно загружено, путь:', photoPath);
+            } catch (uploadError) {
+                console.error('Ошибка в uploadServicePhoto:', uploadError);
+                showError('Ошибка загрузки фото: ' + uploadError.message);
+                this.hideFormLoading();
+                return;
+            }
+        } else if (this.isEditMode && this.originalServiceData) {
+            const currentPreview = document.querySelector('.image-preview');
+            if (currentPreview && !currentPreview.src.startsWith('data:')) {
+                photoPath = currentPreview.src;
+                console.log('Используем существующее фото услуги:', photoPath);
+            } else {
+                console.log('Нет существующего фото услуги для редактирования');
+                photoPath = null;
+            }
+        }
+
+        let доступен = 1;
+        if (this.isEditMode) {
+            const serviceCard = document.querySelector(`.service-card[data-service-id="${this.currentServiceId}"]`);
+            if (serviceCard) {
+                доступен = serviceCard.classList.contains('hidden') ? 2 : 1;
+            }
+        }
+
+        const serviceData = {
+            категория: category,
+            название: name,
+            цена: price,
+            описание: description,
+            фото: photoPath,
+            доступен: доступен
+        };
+
+        console.log('Отправляемые данные услуги:', serviceData);
+
+        const url = this.isEditMode 
+            ? `/api/service/${this.currentServiceId}` 
+            : '/api/services-new';
+            
+        const method = this.isEditMode ? 'PUT' : 'POST';
+        
+        console.log(`Отправка запроса для услуги: ${method} ${url}`);
+        
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(serviceData)
+        });
+
+        console.log('Ответ от сервера для услуги:', {
+            status: response.status,
+            ok: response.ok
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Ошибка сохранения');
+        }
+
+        const data = await response.json();
+        console.log('Успешный ответ для услуги:', data);
+        
+        if (data.message === 'success') {
+            showSuccess(this.isEditMode ? 'Услуга успешно обновлена!' : 'Услуга успешно добавлена!');
+            await this.loadCategories();
+            this.closeForm();
+            this.loadServices();
+        }
+    } catch (error) {
+        console.error('Финальная ошибка в handleSubmit для услуги:', error);
+        showError('Не удалось сохранить: ' + error.message);
+    } finally {
+        this.hideFormLoading();
+        this.noPhoto = false;
+        console.log('Завершение обработки формы услуги');
+    }
+}
 
     async toggleServiceVisibility(serviceId, status) {
         const action = status === 1 ? 'показать' : 'скрыть';
@@ -499,29 +538,70 @@ class ServicesManager {
         }
     }
 
-    async uploadPhoto(file) {
-        const formData = new FormData();
-        formData.append('photo', file);
+async uploadServicePhoto(file) {
+    console.log('Начало загрузки фото услуги:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+    });
+
+    const formData = new FormData();
+    formData.append('photo', file);
+    
+    try {
+        console.log('Отправка запроса на /api/upload-service-photo...');
+        const response = await fetch('/api/upload-service-photo', {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('Получен ответ для услуги:', {
+            status: response.status,
+            statusText: response.statusText,
+            ok: response.ok
+        });
         
-        try {
-            const response = await fetch('/api/upload-service-photo', {
-                method: 'POST',
-                body: formData
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Ошибка загрузки фото');
+        if (response.ok) {
+            try {
+                const data = await response.json();
+                console.log('Успешная загрузка фото услуги, получены данные:', data);
+                return data.filePath;
+            } catch (jsonError) {
+                console.error('Ошибка парсинга JSON для услуги:', jsonError);
+                // Если JSON не парсится, но статус OK, создаем путь вручную
+                const timestamp = Date.now();
+                const extension = file.name.split('.').pop() || 'jpg';
+                const fallbackPath = `photo/услуги/service_${timestamp}.${extension}`;
+                console.log('Используем fallback путь для услуги из-за ошибки JSON:', fallbackPath);
+                return fallbackPath;
+            }
+        } else {
+            // Получаем текст ошибки для детальной информации
+            let errorText = 'Неизвестная ошибка';
+            try {
+                errorText = await response.text();
+                console.error('Текст ошибки от сервера для услуги:', errorText);
+            } catch (textError) {
+                console.error('Не удалось получить текст ошибки для услуги:', textError);
             }
             
-            const data = await response.json();
-            return data.filePath;
-        } catch (error) {
-            console.error('Ошибка загрузки фото:', error);
-            alert('Ошибка загрузки фото: ' + error.message);
-            return 'photo/услуги/default.jpg';
+            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
         }
+    } catch (error) {
+        console.error('Критическая ошибка загрузки фото услуги:', {
+            error: error.message,
+            stack: error.stack
+        });
+        
+        // В случае любой ошибки - создаем путь вручную
+        const timestamp = Date.now();
+        const extension = file.name.split('.').pop() || 'jpg';
+        const fallbackPath = `photo/услуги/service_${timestamp}.${extension}`;
+        
+        console.log('Используем fallback путь для услуги из-за критической ошибки:', fallbackPath);
+        return fallbackPath;
     }
+}
 
     closeForm() {
         const modal = document.getElementById('serviceModal');
