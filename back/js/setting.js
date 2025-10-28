@@ -203,7 +203,9 @@ class NotificationSettingsManager {
         }
     }
 
-    // setting.js - добавьте этот метод в класс NotificationSettingsManager
+
+
+
 async uploadAdminPhoto(file) {
     const formData = new FormData();
     formData.append('photo', file);
@@ -235,18 +237,21 @@ async uploadAdminPhoto(file) {
         return false;
     }
 }
-
 handleAdminPhotoUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    if (!file.type.startsWith('image/')) {
-        this.showNotification('Пожалуйста, выберите изображение', 'error');
+    // Проверка типа файла
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        this.showNotification('❌ Неверный формат файла! Разрешены только JPEG, JPG, PNG или WebP', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
         return;
     }
     
     if (file.size > 5 * 1024 * 1024) {
         this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
         return;
     }
     
@@ -291,33 +296,37 @@ handleAdminPhotoUpload(event) {
         }
     }
 
-    handleDefaultPhotoUpload(type, event) {
-        const file = event.target.files[0];
-        if (!file) return;
-        
-        if (!file.type.startsWith('image/')) {
-            this.showNotification('Пожалуйста, выберите изображение', 'error');
-            return;
-        }
-        
-        if (file.size > 5 * 1024 * 1024) {
-            this.showNotification('Размер файла не должен превышать 5MB', 'error');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const previewId = `default${type}Preview`;
-            const preview = document.getElementById(previewId);
-            if (preview) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-            }
-        };
-        reader.readAsDataURL(file);
-        
-        this.uploadDefaultPhoto(type, file);
+handleDefaultPhotoUpload(type, event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    // Проверка типа файла
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        this.showNotification('❌ Неверный формат файла! Разрешены только JPEG, JPG, PNG или WebP', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
+        return;
     }
+    
+    if (file.size > 5 * 1024 * 1024) {
+        this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewId = `default${type}Preview`;
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            preview.src = e.target.result;
+            preview.style.display = 'block';
+        }
+    };
+    reader.readAsDataURL(file);
+    
+    this.uploadDefaultPhoto(type, file);
+}
 
     openPhotoSettingsModal() {
         const modal = document.getElementById('photoSettingsModal');
@@ -539,13 +548,17 @@ handleHeaderPhotoUpload(type, event) {
     const file = event.target.files[0];
     if (!file) return;
     
-    if (!file.type.startsWith('image/')) {
-        this.showNotification('Пожалуйста, выберите изображение', 'error');
+    // Проверка типа файла
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+        this.showNotification('❌ Неверный формат файла! Разрешены только JPEG, JPG, PNG или WebP', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
         return;
     }
     
     if (file.size > 5 * 1024 * 1024) {
         this.showNotification('Размер файла не должен превышать 5MB', 'error');
+        event.target.value = ''; // Очищаем поле выбора файла
         return;
     }
     
@@ -614,6 +627,7 @@ class ContentManager {
 
 // setting.js - обновленный метод loadLinks в ContentManager
 // setting.js - обновленный метод loadLinks в ContentManager
+// setting.js - обновленный метод loadLinks в ContentManager
 async loadLinks() {
     try {
         // Загружаем ссылки
@@ -625,7 +639,7 @@ async loadLinks() {
             }
         }
 
-        // Загружаем видимость контактов (включая telegram_bot)
+        // Загружаем видимость контактов (исключая site_link)
         const visibilityResponse = await fetch('/api/contact-visibility');
         if (visibilityResponse.ok) {
             const visibilityData = await visibilityResponse.json();
@@ -845,8 +859,10 @@ validatePhoneInput(input) {
         this.displayContent();
     }
 // setting.js - обновленный метод generateLinksForm
+// setting.js - обновленный метод generateLinksForm
 generateLinksForm() {
     const linksConfig = [
+        { key: 'site_link', label: 'Ссылка на сайт', placeholder: 'https://ваш-сайт.ru' },
         { key: 'telegram_bot', label: 'Telegram бот', placeholder: 'https://t.me/your_bot' },
         { key: 'vk_contact', label: 'VK контакт', placeholder: 'https://vk.com/your_page' },
         { key: 'telegram_contact', label: 'Telegram контакт', placeholder: 'https://t.me/username' },
@@ -858,7 +874,11 @@ generateLinksForm() {
     return `
         <div class="links-management">
             <h4>Контактные ссылки:</h4>
-            ${linksConfig.map(link => `
+            ${linksConfig.map(link => {
+                // Для site_link не показываем переключатель видимости
+                const showVisibility = link.key !== 'site_link';
+                
+                return `
                 <div class="link-item-with-visibility">
                     <div class="link-content">
                         <label>${link.label}:</label>
@@ -873,6 +893,7 @@ generateLinksForm() {
                             💾 Сохранить
                         </button>
                     </div>
+                    ${showVisibility ? `
                     <div class="visibility-control">
                         <label class="visibility-toggle">
                             <input type="checkbox" 
@@ -883,16 +904,23 @@ generateLinksForm() {
                         </label>
                         <span class="visibility-label">Видимость</span>
                     </div>
+                    ` : '<div class="visibility-spacer"></div>'}
                     ${link.key === 'phone_contact' ? '<div class="phone-hint">Формат: 89255355278 (11 цифр, начинается с 8)</div>' : ''}
                 </div>
-            `).join('')}
+            `}).join('')}
         </div>
     `;
 }
 
 
 // setting.js - добавьте в класс ContentManager
+// setting.js - добавьте в класс ContentManager
 async toggleLinkVisibility(linkType, isVisible) {
+    // site_link не имеет переключателя видимости
+    if (linkType === 'site_link') {
+        return;
+    }
+    
     try {
         const response = await fetch(`/api/contact-visibility/${linkType}`, {
             method: 'PATCH',
@@ -918,8 +946,10 @@ async toggleLinkVisibility(linkType, isVisible) {
 }
 
 // Вспомогательный метод для получения названия ссылки
+// Вспомогательный метод для получения названия ссылки
 getLinkLabel(linkType) {
     const labels = {
+        'site_link': 'Сайта',
         'vk_contact': 'VK',
         'telegram_contact': 'Telegram',
         'whatsapp_contact': 'WhatsApp',
@@ -941,37 +971,7 @@ getLinkLabel(linkType) {
     }
 
 
-async uploadAdminPhoto(file) {
-    const formData = new FormData();
-    formData.append('photo', file);
-    
-    try {
-        const response = await fetch('/api/upload-default-admin-photo', {
-            method: 'POST',
-            body: formData
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.message === 'success') {
-                // Обновляем превью с временной меткой чтобы избежать кэширования
-                const preview = document.getElementById('adminPhotoPreview');
-                if (preview) {
-                    const timestamp = new Date().getTime();
-                    preview.src = `photo/администратор/admin_default.jpg?t=${timestamp}`;
-                }
-                
-                this.showNotification('✅ Фото администратора успешно обновлено!', 'success');
-                return true;
-            }
-        }
-        throw new Error('Ошибка загрузки фото');
-    } catch (error) {
-        console.error('Ошибка загрузки фото администратора:', error);
-        this.showNotification('Ошибка загрузки фото', 'error');
-        return false;
-    }
-}
+
 
 // Метод подтверждения загрузки
 showPhotoConfirmation(type) {
@@ -1082,6 +1082,7 @@ async saveContent(elementKey, value) {
     }
 }
 
+// setting.js - исправленный метод saveLink
 // setting.js - исправленный метод saveLink
 async saveLink(linkKey) {
     const input = document.getElementById(`link_input_${linkKey}`);
@@ -1696,12 +1697,12 @@ function loadSettingsSection() {
                             <div class="photo-upload-area">
                                 <img id="headerMobilePreview" class="default-photo-preview" 
                                     style="display: none; max-width: 200px; max-height: 150px;">
-                                <div class="photo-info">Рекомендуемый размер: 489x870px</div>
                                 <input type="file" id="headerMobilePhoto" 
                                     accept="image/*" class="photo-input">
                                 <label for="headerMobilePhoto" class="photo-upload-btn">
                                     📸 Выбрать фон
                                 </label>
+                                <small>Рекомендуемый размер: 489x870px</small>
                             </div>
                         </div>
                         
@@ -1710,12 +1711,12 @@ function loadSettingsSection() {
                             <div class="photo-upload-area">
                                 <img id="headerPlanshPreview" class="default-photo-preview" 
                                     style="display: none; max-width: 200px; max-height: 150px;">
-                                <div class="photo-info">Рекомендуемый размер: 1055x870px</div>
                                 <input type="file" id="headerPlanshPhoto" 
                                     accept="image/*" class="photo-input">
                                 <label for="headerPlanshPhoto" class="photo-upload-btn">
                                     📸 Выбрать фон
                                 </label>
+                                <small>Рекомендуемый размер: 1055x870px</small>
                             </div>
                         </div>
                         
@@ -1724,12 +1725,12 @@ function loadSettingsSection() {
                             <div class="photo-upload-area">
                                 <img id="headerDesktopPreview" class="default-photo-preview" 
                                     style="display: none; max-width: 200px; max-height: 150px;">
-                                <div class="photo-info">Рекомендуемый размер: 1761x870px</div>
                                 <input type="file" id="headerDesktopPhoto" 
                                     accept="image/*" class="photo-input">
                                 <label for="headerDesktopPhoto" class="photo-upload-btn">
                                     📸 Выбрать фон
                                 </label>
+                                <small>Рекомендуемый размер: 1761x870px</small>
                             </div>
                         </div>
                     </div>

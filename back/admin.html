@@ -26,6 +26,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель управления</title>
+    <link rel="stylesheet" href="css/loader-a.css">
     <link rel="stylesheet" href="css/admin.css">
     <link rel="stylesheet" href="css/master.css">
     <link rel="stylesheet" href="css/master.css">
@@ -37,7 +38,7 @@
     <link rel="stylesheet" href="css/secure.css">
     <link rel="stylesheet" href="css/setting.css">
     <link rel="stylesheet" href="css/statistic.css">
-    <link rel="stylesheet" href="css/loader.css">
+
 
 
 
@@ -46,6 +47,23 @@
 
 </head>
 <body>
+
+<div class="loader-wrapper">
+	<div class="loader">
+    <div class="roller"></div>
+    <div class="roller"></div>
+  </div>
+  
+  <div id="loader2" class="loader">
+    <div class="roller"></div>
+    <div class="roller"></div>
+  </div>
+  
+  <div id="loader3" class="loader">
+    <div class="roller"></div>
+    <div class="roller"></div>
+  </div>
+</div>
     <!-- Боковое меню -->
     <div class="sidebar">
         <div class="close-menu" id="closeMenu"></div>
@@ -156,6 +174,7 @@
 
 
     <!-- Подключаем скрипты -->
+    <script src="js/loader.js"></script>
     <script src="js/admin.js"></script>
     <script src="js/master.js"></script>
     <script src="js/uslugi.js"></script>

@@ -55,10 +55,11 @@ const adminPhotoStorage = multer.diskStorage({
 const uploadAdminPhoto = multer({ 
     storage: adminPhotoStorage,
     fileFilter: function (req, file, cb) {
-        if (file.mimetype.startsWith('image/')) {
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Только изображения разрешены'), false);
+            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
         }
     },
     limits: {
@@ -85,13 +86,15 @@ const headerStorage = multer.diskStorage({
     }
 });
 
+// Для загрузки фоновых фото
 const uploadHeader = multer({ 
     storage: headerStorage,
     fileFilter: function (req, file, cb) {
-        if (file.mimetype.startsWith('image/')) {
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Только изображения разрешены'), false);
+            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
         }
     },
     limits: {
@@ -233,12 +236,17 @@ const storage = multer.diskStorage({
 const upload = multer({ 
     storage: storage,
     fileFilter: function (req, file, cb) {
-        // Разрешаем ВСЕ файлы без исключения
-        console.log('Принят файл:', file.originalname, 'тип:', file.mimetype);
-        cb(null, true);
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
+            console.log('Принят файл:', file.originalname, 'тип:', file.mimetype);
+            cb(null, true);
+        } else {
+            console.log('Отклонен файл:', file.originalname, 'тип:', file.mimetype);
+            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
+        }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB
+        fileSize: 10 * 1024 * 1024
     }
 });
 
@@ -423,15 +431,21 @@ const serviceStorage = multer.diskStorage({
 });
 
 
+// Для загрузки фото услуг
 const uploadService = multer({ 
     storage: serviceStorage,
     fileFilter: function (req, file, cb) {
-        // Разрешаем ВСЕ файлы без исключения
-        console.log('Принят файл услуги:', file.originalname, 'тип:', file.mimetype);
-        cb(null, true);
+        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (allowedMimes.includes(file.mimetype)) {
+            console.log('Принят файл услуги:', file.originalname, 'тип:', file.mimetype);
+            cb(null, true);
+        } else {
+            console.log('Отклонен файл услуги:', file.originalname, 'тип:', file.mimetype);
+            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
+        }
     },
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB
+        fileSize: 10 * 1024 * 1024
     }
 });
 
@@ -535,13 +549,19 @@ app.get('/api/services-all', (req, res) => {
     });
 });
 
-// Обработчик ошибок multer
+// server.js - добавьте этот middleware после всех upload endpoints
 app.use((error, req, res, next) => {
     if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_FILE_SIZE') {
             return res.status(400).json({ error: 'Размер файла слишком большой (макс. 5MB)' });
         }
     }
+    
+    // Обработка ошибок валидации формата
+    if (error.message && error.message.includes('Разрешены только файлы')) {
+        return res.status(400).json({ error: error.message });
+    }
+    
     res.status(400).json({ error: error.message });
 });
 

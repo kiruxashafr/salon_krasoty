@@ -1158,45 +1158,81 @@ function showBookingSuccessService() {
     const masterPhoto = window.serviceCurrentSpecialist?.фото || 'photo/работники/default.jpg';
     const formattedDate = formatDateService(window.serviceSelectedDate);
     
-    stepContent.innerHTML = `
-        <div class="booking-success">
-            <div class="success-header">
-                <div class="success-icon">✓</div>
-                <h3>Запись подтверждена!</h3>
-            </div>
-            
-            <div class="booking-summary" style="margin: 1.5rem 0;">
-                <div class="booking-summary-header">
-                    <img src="${masterPhoto}" alt="${window.serviceCurrentSpecialist?.имя || 'Мастер'}" class="booking-summary-avatar" onerror="this.src='photo/работники/default.jpg'">
-                    <div class="booking-summary-title">
-                        <h3>${window.serviceCurrentService.название}</h3>
-                        <p>${window.serviceCurrentSpecialist ? window.serviceCurrentSpecialist.имя : 'Неизвестно'}</p>
-                    </div>
-                </div>
+    // Получаем ссылку на Telegram бота из базы данных
+    fetch('/api/links')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.message === 'success') {
+                const telegramBotUrl = data.data.telegram_bot || 'https://t.me/shafrbeautybot';
                 
-                <div class="booking-summary-content">
-                    <span class="booking-summary-datetime">${formattedDate} в ${window.serviceSelectedTime}</span>
-                    <span class="booking-summary-price">${window.serviceCurrentService.цена} ₽</span>
-                </div>
-            </div>
-            
-            <div class="success-buttons">
-                <a href="https://t.me/shafrbeautybot" target="_blank" class="telegram-btn">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 16 16">
-                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.287 5.906c-.778.324-2.334.994-4.666 2.01-.378.15-.577.298-.595.442-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294.26.006.549-.1.868-.32 2.179-1.471 3.304-2.214 3.374-2.23.05-.012.12-.026.166.016.047.041.042.12.037.141-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8.154 8.154 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629.093.06.183.125.27.187.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.426 1.426 0 0 0-.013-.315.337.337 0 0 0-.114-.217.526.526 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09z"/>
-                    </svg>
-                    Управляйте записями<br>Получайте уведомления
-                </a>
-                <button class="close-success-btn" onclick="closeServiceModal()">Закрыть</button>
-            </div>
-        </div>
-    `;
-    
-    document.querySelector('.service-modal-content').innerHTML = '';
-    document.querySelector('.service-modal-content').appendChild(stepContent);
-    
-    window.serviceCurrentStep = 'success';
+                stepContent.innerHTML = `
+                    <div class="booking-success">
+                        <div class="success-header">
+                            <div class="success-icon">✓</div>
+                            <h3>Запись подтверждена!</h3>
+                        </div>
+                        
+                        <div class="booking-summary" style="margin: 1.5rem 0;">
+                            <div class="booking-summary-header">
+                                <img src="${masterPhoto}" alt="${window.serviceCurrentSpecialist?.имя || 'Мастер'}" class="booking-summary-avatar" onerror="this.src='photo/работники/default.jpg'">
+                                <div class="booking-summary-title">
+                                    <h3>${window.serviceCurrentService.название}</h3>
+                                    <p>${window.serviceCurrentSpecialist ? window.serviceCurrentSpecialist.имя : 'Неизвестно'}</p>
+                                </div>
+                            </div>
+                            
+                            <div class="booking-summary-content">
+                                <span class="booking-summary-datetime">${formattedDate} в ${window.serviceSelectedTime}</span>
+                                <span class="booking-summary-price">${window.serviceCurrentService.цена} ₽</span>
+                            </div>
+                        </div>
+                        
+                        <div class="success-buttons">
+                            <a href="${telegramBotUrl}" target="_blank" class="telegram-btn">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.287 5.906c-.778.324-2.334.994-4.666 2.01-.378.15-.577.298-.595.442-.03.243.275.339.69.47l.175.055c.408.133.958.288 1.243.294.26.006.549-.1.868-.32 2.179-1.471 3.304-2.214 3.374-2.23.05-.012.12-.026.166.016.047.041.042.12.037.141-.03.129-1.227 1.241-1.846 1.817-.193.18-.33.307-.358.336a8.154 8.154 0 0 1-.188.186c-.38.366-.664.64.015 1.088.327.216.589.393.85.571.284.194.568.387.936.629.093.06.183.125.27.187.331.236.63.448.997.414.214-.02.435-.22.547-.82.265-1.417.786-4.486.906-5.751a1.426 1.426 0 0 0-.013-.315.337.337 0 0 0-.114-.217.526.526 0 0 0-.31-.093c-.3.005-.763.166-2.984 1.09z"/>
+                                </svg>
+                                Управляйте записями<br>Получайте уведомления
+                            </a>
+                            <button class="close-success-btn" onclick="closeServiceModalAndReload()">Закрыть</button>
+                        </div>
+                    </div>
+                `;
+                
+                document.querySelector('.service-modal-content').innerHTML = '';
+                document.querySelector('.service-modal-content').appendChild(stepContent);
+                
+                window.serviceCurrentStep = 'success';
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching Telegram bot URL:', error);
+            // В случае ошибки используем ссылку по умолчанию
+            showDefaultSuccessService();
+        });
 }
+
+function closeServiceModalAndReload() {
+    console.log('Closing service modal and reloading page');
+    document.getElementById('service-modal').style.display = 'none';
+    
+    // Сброс переменных
+    window.serviceCurrentServiceId = null;
+    window.serviceCurrentService = null;
+    window.serviceCurrentSpecialistId = null;
+    window.serviceSelectedDate = null;
+    window.serviceAvailableDates = {};
+    window.serviceCurrentStep = null;
+    
+    // Перезагрузка страницы
+    location.reload();
+}
+
 
 function showNoSpecialistsMessage(service) {
     const modal = document.getElementById('service-modal');
