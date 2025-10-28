@@ -538,10 +538,11 @@ app.get('/api/services-all', (req, res) => {
 });
 
 // server.js - добавьте этот middleware после всех upload endpoints
+// server.js - добавьте этот middleware после всех upload endpoints
 app.use((error, req, res, next) => {
     if (error instanceof multer.MulterError) {
         if (error.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({ error: 'Размер файла слишком большой (макс. 5MB)' });
+            return res.status(400).json({ error: 'Размер файла слишком большой (макс. 10MB)' });
         }
     }
     

@@ -233,6 +233,12 @@ async handleSubmit(event) {
         return;
     }
 
+    // Проверка размера файла на клиенте
+    if (photoFile && photoFile.size > 10 * 1024 * 1024) {
+        showError('Размер файла слишком большой. Максимальный размер: 10MB');
+        return;
+    }
+
     try {
         this.showFormLoading();
         
@@ -246,9 +252,17 @@ async handleSubmit(event) {
                 console.log('Фото успешно загружено, путь:', photoPath);
             } catch (uploadError) {
                 console.error('Ошибка в uploadMasterPhoto:', uploadError);
-                showError('Ошибка загрузки фото: ' + uploadError.message);
-                this.hideFormLoading();
-                return;
+                
+                // Если ошибка связана с размером файла, прерываем выполнение
+                if (uploadError.message.includes('Размер файла превышает')) {
+                    showError(uploadError.message);
+                    this.hideFormLoading();
+                    return;
+                }
+                
+                // Для других ошибок продолжаем без фото
+                showWarning('Фото не было загружено, но мастер будет сохранен');
+                photoPath = null;
             }
         } else if (this.isEditMode) {
             const currentPreview = document.querySelector('.image-preview');
@@ -260,6 +274,7 @@ async handleSubmit(event) {
                 photoPath = null;
             }
         }
+
 
         const masterData = {
             имя: name,
@@ -298,6 +313,7 @@ async handleSubmit(event) {
             this.loadMasters();
         }
     } catch (error) {
+        console.error('Общая ошибка:', error);
         showError('Не удалось сохранить: ' + error.message);
     } finally {
         this.hideFormLoading();
@@ -397,50 +413,56 @@ async handleSubmit(event) {
     
 
 
-    async uploadMasterPhoto(file) {
-
-
+async uploadMasterPhoto(file) {
     const formData = new FormData();
     formData.append('photo', file);
     
     try {
+        console.log('Отправка файла:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
+        });
+
         const response = await fetch('/api/upload-photo', {
             method: 'POST',
             body: formData
         });
 
-
+        console.log('Статус ответа:', response.status);
         
-        if (response.ok) {
-            try {
-                const data = await response.json();
-                console.log('Успешная загрузка, получены данные:', data);
-                return data.filePath;
-            } catch (jsonError) {
-                // Если JSON не парсится, но статус OK, создаем путь вручную
-                const timestamp = Date.now();
-                const extension = file.name.split('.').pop() || 'jpg';
-                const fallbackPath = `photo/работники/master_${timestamp}.${extension}`;
-                return fallbackPath;
-            }
-        } else {
-            // Получаем текст ошибки для детальной информации
-            let errorText = 'Неизвестная ошибка';
-            try {
-                errorText = await response.text();
-            } catch (textError) {
+        if (!response.ok) {
+            if (response.status === 413) {
+                throw new Error('Размер файла превышает допустимый лимит (10MB)');
             }
             
-            throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 200)}`);
+            let errorText = 'Ошибка загрузки файла';
+            try {
+                const errorData = await response.json();
+                errorText = errorData.error || errorText;
+            } catch {
+                errorText = await response.text();
+            }
+            throw new Error(errorText);
         }
-    } catch (error) {
 
+        const data = await response.json();
+        console.log('Успешная загрузка, получены данные:', data);
+        return data.filePath;
         
-        // В случае любой ошибки - создаем путь вручную
+    } catch (error) {
+        console.error('Ошибка загрузки фото:', error);
+        
+        if (error.message.includes('Размер файла превышает')) {
+            throw error; // Пробрасываем ошибку размера файла
+        }
+        
+        // Для других ошибок создаем путь вручную (резервный вариант)
         const timestamp = Date.now();
         const extension = file.name.split('.').pop() || 'jpg';
         const fallbackPath = `photo/работники/master_${timestamp}.${extension}`;
         
+        console.log('Используем резервный путь:', fallbackPath);
         return fallbackPath;
     }
 }
