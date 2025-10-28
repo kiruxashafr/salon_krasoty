@@ -2,26 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Устанавливаем системные зависимости для обработки изображений
-RUN apk add --no-cache \
-    curl \
-    libheif \
-    vips \
-    vips-dev \
-    vips-tools \
-    libimagequant \
-    libpng \
-    libjpeg-turbo \
-    libwebp \
-    tiff \
-    giflib \
-    glib \
-    expat
-
 # Копируем package.json отдельно для кэширования
 COPY package*.json ./
 
-# Устанавливаем npm зависимости с поддержкой native модулей
+# Устанавливаем зависимости с поддержкой sharp, heic-convert и добавляем curl
 RUN apk add --no-cache --virtual .build-deps \
     build-base \
     python3 \
@@ -29,7 +13,11 @@ RUN apk add --no-cache --virtual .build-deps \
     g++ \
     cmake \
     pkgconfig \
-    && npm install --production \
+    libheif-dev \
+    && apk add --no-cache \
+    curl \
+    libheif \
+    && npm install --include=optional --production --verbose \
     && apk del .build-deps
 
 # Копируем остальные файлы
