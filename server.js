@@ -232,21 +232,15 @@ const storage = multer.diskStorage({
         cb(null, safeName);
     }
 });
-
 const upload = multer({ 
     storage: storage,
     fileFilter: function (req, file, cb) {
-        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (allowedMimes.includes(file.mimetype)) {
-            console.log('Принят файл:', file.originalname, 'тип:', file.mimetype);
-            cb(null, true);
-        } else {
-            console.log('Отклонен файл:', file.originalname, 'тип:', file.mimetype);
-            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
-        }
+        // Разрешаем ВСЕ файлы без исключения
+        console.log('Принят файл:', file.originalname, 'тип:', file.mimetype);
+        cb(null, true);
     },
     limits: {
-        fileSize: 10 * 1024 * 1024
+        fileSize: 10 * 1024 * 1024 // 10MB
     }
 });
 
@@ -431,21 +425,15 @@ const serviceStorage = multer.diskStorage({
 });
 
 
-// Для загрузки фото услуг
 const uploadService = multer({ 
     storage: serviceStorage,
     fileFilter: function (req, file, cb) {
-        const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (allowedMimes.includes(file.mimetype)) {
-            console.log('Принят файл услуги:', file.originalname, 'тип:', file.mimetype);
-            cb(null, true);
-        } else {
-            console.log('Отклонен файл услуги:', file.originalname, 'тип:', file.mimetype);
-            cb(new Error('Разрешены только файлы JPEG, JPG, PNG или WebP'), false);
-        }
+        // Разрешаем ВСЕ файлы без исключения
+        console.log('Принят файл услуги:', file.originalname, 'тип:', file.mimetype);
+        cb(null, true);
     },
     limits: {
-        fileSize: 10 * 1024 * 1024
+        fileSize: 10 * 1024 * 1024 // 10MB
     }
 });
 
