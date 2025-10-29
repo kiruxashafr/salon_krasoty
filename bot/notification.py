@@ -325,9 +325,49 @@ async def send_daily_user_notifications():
     except Exception as e:
         logger.error(f"Ошибка отправки ежедневных уведомлений: {e}")
 
+
+def get_salon_phone():
+    """Получить номер телефона салона из базы данных"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/api/links")
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('message') == 'success':
+                phone = data.get('data', {}).get('phone_contact')
+                if phone:
+                    # Форматируем номер для красивого отображения
+                    return format_phone_number(phone)
+        return "+7 (XXX) XXX-XX-XX"  # Запасной вариант
+    except Exception as e:
+        logger.error(f"Ошибка получения телефона салона: {e}")
+        return "+7 (XXX) XXX-XX-XX"
+
+def format_phone_number(phone):
+    """Форматирование номера телефона для отображения в формате +79711990304"""
+    # Убираем все нецифровые символы
+    cleaned = ''.join(filter(str.isdigit, phone))
+    
+    # Если номер начинается с 7 или 8 и имеет 11 цифр (российский номер)
+    if cleaned.startswith(('7', '8')) and len(cleaned) == 11:
+        return f"+{cleaned}" if cleaned.startswith('7') else f"+7{cleaned[1:]}"
+    # Если номер уже в международном формате (начинается с +7)
+    elif cleaned.startswith('7') and len(cleaned) == 11:
+        return f"+{cleaned}"
+    # Если номер короткий (возможно, без кода страны)
+    elif len(cleaned) == 10:
+        return f"+7{cleaned}"
+    # Для других случаев возвращаем как есть
+    else:
+        return f"+{cleaned}" if cleaned and not cleaned.startswith('+') else cleaned
+
+    
+
+
 async def send_user_daily_notification(appointment):
     """Отправка ежедневного уведомления пользователю"""
     try:
+        salon_phone = get_salon_phone()
+        
         # Форматируем дату в понятный формат
         appointment_date = datetime.strptime(appointment['дата'], '%Y-%m-%d')
         formatted_date = appointment_date.strftime('%d.%m.%Y')
@@ -342,14 +382,14 @@ async def send_user_daily_notification(appointment):
             " Мы также напомним вам:\n"
             "• За 1 час до записи\n\n"
             "≣ Пожалуйста, не опаздывайте!\n"
-            "≣ Контакты салона: +7 (XXX) XXX-XX-XX"
+            f"≣ Контакты салона: {salon_phone}"
         )
                 
         # Используем функцию с фото, is_client=True для клиентов
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
             message=message,
-            is_client=True  # КЛИЕНТ - показываем личный кабинет
+            is_client=True
         )
         
         if success:
@@ -368,6 +408,9 @@ async def send_user_daily_notification(appointment):
         
     except Exception as e:
         logger.error(f"Ошибка отправки daily уведомления: {e}")
+
+
+
 
 async def send_hourly_notifications():
     """Упрощенная версия отправки уведомлений за час до записи"""
@@ -411,6 +454,8 @@ async def send_hourly_notifications():
 async def send_user_hourly_notification(appointment):
     """Отправка уведомления пользователю за час до записи"""
     try:
+        salon_phone = get_salon_phone()
+        
         # Форматируем дату в понятный формат
         appointment_date = datetime.strptime(appointment['дата'], '%Y-%m-%d')
         formatted_date = appointment_date.strftime('%d.%m.%Y')
@@ -422,14 +467,14 @@ async def send_user_hourly_notification(appointment):
             f"♢ Мастер: {appointment['мастер_имя']}\n"
             f"♢ Стоимость: {appointment['цена']}₽\n\n"
             "♢ Рекомендуем выезжать заранее!\n"
-            "♢ Контакты салона: +7 (XXX) XXX-XX-XX"
+            f"♢ Контакты салона: {salon_phone}"
         )
         
         # Используем функцию с фото, is_client=True для клиентов
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
             message=message,
-            is_client=True  # КЛИЕНТ - показываем личный кабинет
+            is_client=True
         )
         
         if success:
@@ -448,6 +493,9 @@ async def send_user_hourly_notification(appointment):
         
     except Exception as e:
         logger.error(f"Ошибка отправки hourly уведомления: {e}")
+
+
+
 
 async def send_daily_master_notifications():
     """Упрощенная версия отправки ежедневных уведомлений мастерам"""
@@ -639,6 +687,8 @@ async def check_new_appointments():
 async def send_immediate_client_notification(appointment):
     """Немедленная отправка уведомления клиенту о successful записи"""
     try:
+        salon_phone = get_salon_phone()
+        
         # Форматируем дату в понятный формат
         appointment_date = datetime.strptime(appointment['дата'], '%Y-%m-%d')
         formatted_date = appointment_date.strftime('%d.%m.%Y')
@@ -653,6 +703,7 @@ async def send_immediate_client_notification(appointment):
             "≣ Мы напомним вам о записи:\n"
             "• За день до визита (в 18:00)\n"
             "• За час до записи\n\n"
+            f"≣ Контакты салона: {salon_phone}\n\n"
             "≣ Все ваши записи можно посмотреть в личном кабинете"
         )
         
@@ -660,7 +711,7 @@ async def send_immediate_client_notification(appointment):
         success = await send_notification_with_photo(
             chat_id=appointment['клиент_tg_id'], 
             message=message,
-            is_client=True  # КЛИЕНТ - показываем личный кабинет
+            is_client=True
         )
             
         if success:
@@ -677,7 +728,6 @@ async def send_immediate_client_notification(appointment):
         
     except Exception as e:
         logger.error(f"Ошибка отправки немедленного уведомления клиенту: {e}")
-
 
 def shutdown_notifications():
     """Остановка системы уведомлений"""

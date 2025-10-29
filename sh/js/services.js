@@ -534,7 +534,7 @@ function checkDateHasValidTimeSlotsService(specialistId, serviceId, date) {
                     return;
                 }
 
-                // Если это сегодня, проверяем есть ли доступные слоты
+                // Если это сегодня, проверяем есть ли слоты в будущем
                 const now = new Date();
                 const currentHours = now.getHours();
                 const currentMinutes = now.getMinutes();
@@ -544,11 +544,11 @@ function checkDateHasValidTimeSlotsService(specialistId, serviceId, date) {
                     const [hours, minutes] = slot.время.split(':').map(Number);
                     const slotTotalMinutes = hours * 60 + minutes;
                     
-                    // Слот доступен если до него осталось больше 2 часов
-                    return slotTotalMinutes > currentTotalMinutes + 120;
+                    // Слот доступен если он еще не наступил
+                    return slotTotalMinutes > currentTotalMinutes;
                 });
 
-                console.log(`Date ${date} has valid slots: ${hasValidSlots}, current time: ${currentHours}:${currentMinutes}`);
+                console.log(`Date ${date} has valid slots: ${hasValidSlots}, current time: ${currentHours}:${currentMinutes}, total minutes: ${currentTotalMinutes}`);
                 resolve(hasValidSlots);
             })
             .catch(() => resolve(false));
@@ -903,7 +903,8 @@ function displayTimeSlotsService(timeSlots) {
     
     let hasAvailableSlots = false;
     
-    console.log('Displaying time slots:', timeSlots);
+    console.log('Displaying time slots for today:', isToday, 'current time:', currentHours + ':' + currentMinutes);
+    
     timeSlots.forEach(slot => {
         const [hours, minutes] = slot.время.split(':').map(Number);
         const slotTotalMinutes = hours * 60 + minutes;
@@ -911,8 +912,8 @@ function displayTimeSlotsService(timeSlots) {
         let isAvailable = true;
         
         if (isToday) {
-            // Слот доступен только если до него больше 2 часов
-            isAvailable = slotTotalMinutes > currentTotalMinutes + 120;
+            // Слот доступен только если он еще не наступил
+            isAvailable = slotTotalMinutes > currentTotalMinutes;
         }
         
         if (isAvailable) {
@@ -922,8 +923,9 @@ function displayTimeSlotsService(timeSlots) {
             timeBtn.textContent = slot.время;
             timeBtn.onclick = () => bookAppointmentService(slot.id, slot.время);
             timeSlotsContainer.appendChild(timeBtn);
+            console.log(`Slot ${slot.время} is available (${slotTotalMinutes} > ${currentTotalMinutes})`);
         } else {
-            console.log(`Skipping unavailable time slot: ${slot.время}`);
+            console.log(`Skipping unavailable time slot: ${slot.время} (${slotTotalMinutes} <= ${currentTotalMinutes})`);
         }
     });
     
