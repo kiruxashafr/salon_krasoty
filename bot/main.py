@@ -435,6 +435,9 @@ async def show_specialists_for_service(query, service_id):
         if data['message'] == 'success':
             specialists = data['data']
             
+            # ИНИЦИАЛИЗИРУЕМ keyboard ПЕРЕД ИСПОЛЬЗОВАНИЕМ
+            keyboard = []
+            
             if not specialists:
                 message_text = "❌ Нет доступных мастеров для этой услуги"
                 keyboard = [
@@ -449,6 +452,56 @@ async def show_specialists_for_service(query, service_id):
                         await query.edit_message_text(text=message_text, reply_markup=reply_markup)
                 except Exception as e:
                     logger.error(f"Error editing message (no specialists): {e}")
+                    await query.message.reply_text(text=message_text, reply_markup=reply_markup)
+                return
+            
+            # Теперь keyboard уже инициализирована, можно добавлять кнопки
+            for specialist in specialists:
+                # Проверяем доступное время в будущем
+                dates_response = requests.get(
+                    f"{API_BASE_URL}/api/specialist/{specialist['id']}/service/{service_id}/available-dates",
+                    params={'start': datetime.now().strftime('%Y-%m-%d'), 'end': '2099-12-31'}
+                )
+                
+                if (dates_response.json()['message'] == 'success' and 
+                    dates_response.json()['availableDates']):
+                    keyboard.append([
+                        InlineKeyboardButton(
+                            f"{specialist['имя']}",
+                            callback_data=f'select_specialist_{specialist["id"]}_{service_id}'
+                        )
+                    ])
+            
+            if not keyboard:
+                message_text = (
+                    "❌ Нет мастеров со свободным временем для этой услуги\n\n"
+                    "Попробуйте выбрать другую услугу или посмотреть позже."
+                )
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад", callback_data='choose_service')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='cancel_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                try:
+                    photo_response = requests.get(photo_url)
+                    if photo_response.status_code == 200:
+                        photo_data = photo_response.content
+                        try:
+                            media = InputMediaPhoto(media=photo_data, caption=message_text)
+                            await query.edit_message_media(media=media, reply_markup=reply_markup)
+                        except Exception as media_error:
+                            logger.error(f"Error editing media (no specialists): {media_error}")
+                            if query.message.photo:
+                                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                            else:
+                                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                    else:
+                        if query.message.photo:
+                            await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                        else:
+                            await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error in show_specialists_for_service (no specialists): {e}")
                     await query.message.reply_text(text=message_text, reply_markup=reply_markup)
                 return
             
@@ -494,7 +547,6 @@ async def show_specialists_for_service(query, service_id):
         except Exception as edit_error:
             logger.error(f"Error editing error message: {edit_error}")
             await query.message.reply_text(text=message_text, reply_markup=reply_markup)
-
 
 async def show_services_for_specialist(query, specialist_id):
     """Показать услуги для выбранного мастера (проверяя доступное время в будущем)"""
