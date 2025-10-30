@@ -5,7 +5,12 @@ WORKDIR /app
 # Устанавливаем системные зависимости
 RUN apt-get update && apt-get install -y \
     curl \
+    tzdata \ 
     && rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем часовой пояс Москвы
+RUN ln -fs /usr/share/zoneinfo/Europe/Moscow /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata  # ← ДОБАВИТЬ ЭТИ СТРОКИ
 
 # Копируем requirements.txt если есть, или устанавливаем зависимости напрямую
 COPY requirements.txt ./
@@ -20,7 +25,6 @@ RUN pip install --no-cache-dir \
 
 # Копируем файлы бота
 COPY . .
-
 
 # Создаем пользователя для безопасности
 RUN groupadd -r botuser && useradd -r -g botuser botuser

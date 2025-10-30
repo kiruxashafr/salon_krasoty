@@ -28,6 +28,19 @@ if not BOT_TOKEN:
 # Установите часовой пояс Moscow (UTC+3)
 TIMEZONE = pytz.timezone('Europe/Moscow')
 
+# Функции для работы с московским временем
+def get_moscow_time():
+    """Всегда возвращает московское время"""
+    return datetime.now(TIMEZONE)
+
+def get_moscow_date():
+    """Возвращает дату в московском времени"""
+    return get_moscow_time().date()
+
+def get_moscow_datetime():
+    """Возвращает datetime в московском времени"""
+    return get_moscow_time()
+
 # Глобальные переменные
 bot = None
 scheduler = None
@@ -42,25 +55,25 @@ def initialize_notifications():
         print(f"DEBUG: Initializing notifications with BOT_TOKEN = {bot_token}")
         if not bot_token:
             raise ValueError("BOT_TOKEN is not set or empty")
-        bot = Bot(token=bot_token.strip())  # Strip to remove any whitespace
+        bot = Bot(token=bot_token.strip())
         
         # Создаем отдельный event loop для уведомлений
         notification_loop = asyncio.new_event_loop()
         asyncio.set_event_loop(notification_loop)
         
-        # УБЕРИТЕ timezone=TIMEZONE - используем системное время сервера
-        scheduler = AsyncIOScheduler(event_loop=notification_loop)
+        # ИСПРАВЛЕНО: Указываем московский часовой пояс для планировщика
+        scheduler = AsyncIOScheduler(event_loop=notification_loop, timezone=TIMEZONE)
         
-        # Уведомления будут срабатывать в 18:00 по времени сервера
+        # ИСПРАВЛЕНО: Уведомления будут срабатывать в 18:00 по МОСКОВСКОМУ времени
         scheduler.add_job(
             send_daily_master_notifications,
-            CronTrigger(hour=18, minute=0),  # БЕЗ timezone
+            CronTrigger(hour=16, minute=38, timezone=TIMEZONE),  # ДОБАВЛЕНО timezone
             id='daily_master_notifications'
         )
         
         scheduler.add_job(
             send_daily_user_notifications,
-            CronTrigger(hour=18, minute=0),  # БЕЗ timezone
+            CronTrigger(hour=16, minute=39, timezone=TIMEZONE),  # ДОБАВЛЕНО timezone
             id='daily_user_notifications'
         )
         
@@ -89,7 +102,8 @@ def initialize_notifications():
         )
         
         scheduler.start()
-        logger.info("✅ Система уведомлений инициализирована")
+        current_time = get_moscow_time()
+        logger.info(f"✅ Система уведомлений инициализирована. Московское время: {current_time}")
         
     except Exception as e:
         logger.error(f"❌ Ошибка инициализации уведомлений: {e}")
@@ -188,10 +202,11 @@ async def send_notification_without_photo(chat_id: int, message: str, is_client:
 async def check_new_master_appointments():
     """Проверка новых записей для уведомления мастеров (только созданные сегодня)"""
     try:
-        logger.info("🔄 Проверка новых записей для уведомления мастеров (сегодня)")
+        current_time = get_moscow_time()
+        logger.info(f"🔄 Проверка новых записей для уведомления мастеров. Московское время: {current_time}")
         
-        # Получаем записи, созданные сегодня
-        today_date = datetime.now(TIMEZONE).strftime('%Y-%m-%d')
+        # ИСПРАВЛЕНО: Получаем записи, созданные сегодня по московскому времени
+        today_date = get_moscow_date().strftime('%Y-%m-%d')
         
         response = requests.get(
             f"{API_BASE_URL}/api/appointments",
@@ -289,7 +304,8 @@ async def send_master_new_appointment_notification(appointment):
 async def send_daily_user_notifications():
     """Упрощенная версия отправки ежедневных уведомлений пользователям"""
     try:
-        logger.info("🔄 Проверка ежедневных уведомлений пользователям (упрощенная версия)")
+        current_time = get_moscow_time()
+        logger.info(f"🔄 Проверка ежедневных уведомлений пользователям. Московское время: {current_time}")
         
         # Используем новый упрощенный endpoint
         response = requests.get(f"{API_BASE_URL}/api/appointments-for-daily-simple")
@@ -311,7 +327,7 @@ async def send_daily_user_notifications():
             try:
                 await send_user_daily_notification(appointment)
                 daily_notifications_sent += 1
-                await asyncio.sleep(0.5)  # Задержка между отправками
+                await asyncio.sleep(0.5)
                     
             except Exception as e:
                 logger.error(f"Ошибка обработки записи {appointment.get('id')}: {e}")
@@ -415,7 +431,8 @@ async def send_user_daily_notification(appointment):
 async def send_hourly_notifications():
     """Упрощенная версия отправки уведомлений за час до записи"""
     try:
-        logger.info("🔄 Проверка уведомлений за час до записи (упрощенная версия)")
+        current_time = get_moscow_time()
+        logger.info(f"🔄 Проверка уведомлений за час до записи. Московское время: {current_time}")
         
         # Используем новый упрощенный endpoint
         response = requests.get(f"{API_BASE_URL}/api/appointments-for-hourly-simple")
@@ -437,7 +454,7 @@ async def send_hourly_notifications():
             try:
                 await send_user_hourly_notification(appointment)
                 hourly_notifications_sent += 1
-                await asyncio.sleep(0.5)  # Задержка между отправками
+                await asyncio.sleep(0.5)
                     
             except Exception as e:
                 logger.error(f"Ошибка обработки записи {appointment.get('id')}: {e}")
@@ -500,10 +517,11 @@ async def send_user_hourly_notification(appointment):
 async def send_daily_master_notifications():
     """Упрощенная версия отправки ежедневных уведомлений мастерам"""
     try:
-        logger.info("🔄 Проверка ежедневных уведомлений мастерам")
+        current_time = get_moscow_time()
+        logger.info(f"🔄 Проверка ежедневных уведомлений мастерам. Московское время: {current_time}")
         
-        # Получаем завтрашнюю дату
-        tomorrow = (datetime.now(TIMEZONE) + timedelta(days=1)).strftime('%Y-%m-%d')
+        # ИСПРАВЛЕНО: Получаем завтрашнюю дату по московскому времени
+        tomorrow = (get_moscow_date() + timedelta(days=1)).strftime('%Y-%m-%d')
         
         # Получаем всех мастеров
         response = requests.get(f"{API_BASE_URL}/api/specialists-all")
@@ -558,7 +576,7 @@ async def send_daily_master_notifications():
                     success = await send_notification_with_photo(
                         chat_id=master['tg_id'], 
                         message=message,
-                        is_client=False  # МАСТЕР - не показываем личный кабинет
+                        is_client=False
                     )
                     
                     if success:
@@ -626,10 +644,11 @@ async def send_master_daily_notification(master_id, tg_id, date):
 async def check_new_appointments():
     """Проверка новых записей для уведомления клиентов (только созданные сегодня)"""
     try:
-        logger.info("🔄 Проверка новых записей для уведомления клиентов (сегодня)")
+        current_time = get_moscow_time()
+        logger.info(f"🔄 Проверка новых записей для уведомления клиентов. Московское время: {current_time}")
         
-        # Получаем записи, созданные сегодня
-        today_date = datetime.now(TIMEZONE).strftime('%Y-%m-%d')
+        # ИСПРАВЛЕНО: Получаем записи, созданные сегодня по московскому времени
+        today_date = get_moscow_date().strftime('%Y-%m-%d')
         
         response = requests.get(
             f"{API_BASE_URL}/api/appointments",
