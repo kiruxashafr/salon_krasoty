@@ -597,11 +597,20 @@ async def show_service_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик callback запросов меню"""
+    """Обработчик callback запросов меню - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
     query = update.callback_query
     await query.answer()
     
     data = query.data
+    
+    print(f"DEBUG: Menu callback: {data}")  # Отладочная информация
+    
+    # Обработка callback'ов личного кабинета и пагинации
+    if (data in ['personal_cabinet', 'cabinet_history', 'cabinet_current', 'cabinet_logout'] or 
+        data.startswith('cabinet_history_page_') or 
+        data.startswith('cabinet_current_page_')):
+        await handle_personal_callback(update, context)
+        return
     
     if data == 'back_to_main':
         await show_main_menu(update, context)
@@ -609,7 +618,7 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_masters_menu(update, context)
     elif data == 'services_menu':
         await show_services_menu(update, context)
-    elif data == 'contacts_menu':  # Новая обработка
+    elif data == 'contacts_menu':
         await show_contacts_menu(update, context)
     elif data.startswith('master_detail_'):
         master_id = data.split('_')[2]
@@ -625,8 +634,10 @@ async def handle_menu_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await show_booking_options_with_service(query, service_id)
     elif data == 'cancel_to_main':
         await show_main_menu(update, context)
-    elif data == 'personal_cabinet':
-        await show_personal_cabinet(update, context)
+    else:
+        # Если callback не распознан, логируем и возвращаем в главное меню
+        logger.warning(f"Unknown menu callback: {data}")
+        await show_main_menu(update, context)
 
 
 # menu_handlers.py - добавить эту функцию

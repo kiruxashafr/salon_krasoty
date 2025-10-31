@@ -126,24 +126,44 @@ async def show_cabinet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             await update.message.reply_text(text=message_text, reply_markup=reply_markup)
 
 async def handle_personal_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик callback для личного кабинета"""
+    """Обработчик callback для личного кабинета - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
     query = update.callback_query
     await query.answer()
     data = query.data
     user_id = update.effective_user.id
     
-    print(f"DEBUG: Personal cabinet callback: {data} from user: {user_id}")  # Отладочная информация
+    print(f"DEBUG: Personal cabinet callback: {data} from user: {user_id}")
 
     if data == 'cabinet_history':
         await show_history(update, context, user_id)
     elif data == 'cabinet_current':
         await show_current_appointments(update, context, user_id)
     elif data == 'cabinet_logout':
-        print(f"DEBUG: Logout requested for user: {user_id}")  # Отладочная информация
+        print(f"DEBUG: Logout requested for user: {user_id}")
         await logout_from_cabinet(update, context, user_id)
     elif data == 'personal_cabinet':
         await show_personal_cabinet(update, context)
-
+    # Обработка пагинации для истории - ИСПРАВЛЕНО!
+    elif data.startswith('cabinet_history_page_'):
+        try:
+            page = int(data.split('_')[3])
+            await show_appointments(update, context, user_id, is_history=True, page=page)
+        except (IndexError, ValueError) as e:
+            logger.error(f"Error parsing history page: {e}")
+            await show_history(update, context, user_id)
+    # Обработка пагинации для актуальных записей - ИСПРАВЛЕНО!
+    elif data.startswith('cabinet_current_page_'):
+        try:
+            page = int(data.split('_')[3])
+            await show_appointments(update, context, user_id, is_history=False, page=page)
+        except (IndexError, ValueError) as e:
+            logger.error(f"Error parsing current page: {e}")
+            await show_current_appointments(update, context, user_id)
+    else:
+        # Если callback не распознан, возвращаем в главное меню
+        logger.warning(f"Unknown personal cabinet callback: {data}")
+        from menu_handlers import show_main_menu
+        await show_main_menu(update, context)
 
 
 async def logout_from_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
@@ -212,10 +232,6 @@ async def logout_from_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE
         except Exception as edit_error:
             logger.error(f"Error editing message: {edit_error}")
             await query.message.reply_text(message_text)
-
-
-
-
 
 async def handle_personal_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Обработчик текстовых сообщений для регистрации в личном кабинете"""
@@ -289,17 +305,21 @@ def validate_phone(phone):
     return re.match(pattern, phone) is not None
 
 async def show_history(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
-    """Показать историю записей (прошлые)"""
-    await show_appointments(update, context, user_id, is_history=True)
+    """Показать историю записей (прошлые) с пагинацией"""
+    await show_appointments(update, context, user_id, is_history=True, page=0)
 
 async def show_current_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int):
-    """Показать актуальные записи (будущие)"""
-    await show_appointments(update, context, user_id, is_history=False)
+    """Показать актуальные записи (будущие) с пагинацией"""
+    await show_appointments(update, context, user_id, is_history=False, page=0)
 
-async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, is_history: bool):
-    """Общий метод для показа записей"""
+
+
+async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, is_history: bool, page: int = 0):
+    """Общий метод для показа записей с пагинацией - ИСПРАВЛЕННАЯ ВЕРСИЯ"""
     query = update.callback_query
     photo_url = f"{API_BASE_URL}/photo/images/lk.jpg"
+
+    print(f"DEBUG: show_appointments called - is_history: {is_history}, page: {page}, user_id: {user_id}")
 
     try:
         # Сначала находим client_id по tg_id
@@ -309,8 +329,9 @@ async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             raise Exception("Client not found")
 
         client_id = client_data['data']['id']
+        print(f"DEBUG: Found client_id: {client_id}")
 
-        # Получаем все записи клиента (аналогично client.js)
+        # Получаем все записи клиента
         response = requests.get(f"{API_BASE_URL}/api/client/{client_id}/appointments")
         data = response.json()
 
@@ -318,41 +339,141 @@ async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             appointments = data['data']['appointments']
             now = datetime.now().date()
 
+            print(f"DEBUG: Total appointments found: {len(appointments)}")
+
             # Фильтруем записи
-            filtered_appointments = [
-                app for app in appointments
-                if (datetime.strptime(app['дата'], '%Y-%m-%d').date() < now) == is_history
-            ]
+            if is_history:
+                # История: все записи до сегодняшнего дня
+                filtered_appointments = [
+                    app for app in appointments
+                    if datetime.strptime(app['дата'], '%Y-%m-%d').date() < now
+                ]
+                section_title = "≣ История записей"
+                callback_prefix = "cabinet_history_page_"
+            else:
+                # Актуальные: сегодня и будущие записи
+                filtered_appointments = [
+                    app for app in appointments
+                    if datetime.strptime(app['дата'], '%Y-%m-%d').date() >= now
+                ]
+                section_title = "○ Актуальные записи"
+                callback_prefix = "cabinet_current_page_"
+
+            print(f"DEBUG: Filtered appointments - history: {is_history}, count: {len(filtered_appointments)}")
+
+            # Сортируем записи
+            if is_history:
+                # История: от новых к старым
+                filtered_appointments.sort(key=lambda x: (x['дата'], x['время']), reverse=True)
+            else:
+                # Актуальные: от ближайших к дальним
+                filtered_appointments.sort(key=lambda x: (x['дата'], x['время']))
 
             if not filtered_appointments:
-                message_text = "❌ Нет записей в этом разделе."
-            else:
-                message_text = f"{'≣ История записей' if is_history else '≣ Актуальные записи'}\n\n"
-                for app in sorted(filtered_appointments, key=lambda x: x['дата'], reverse=not is_history):
-                    message_text += (
-                        f"≣ {app['дата']} {app['время']}\n"
-                        f"✮ {app['услуга_название']}\n"
-                        f"♢ {app['мастер_имя']}\n"
-                        f"₽ {app['цена']}₽\n\n"
-                    )
+                message_text = f"❌ {'Нет записей в истории' if is_history else 'Нет актуальных записей'}."
+                keyboard = [
+                    [InlineKeyboardButton("↲ Назад в кабинет", callback_data='personal_cabinet')],
+                    [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                
+                try:
+                    if query.message.photo:
+                        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                except Exception as e:
+                    logger.error(f"Error showing empty appointments: {e}")
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+                return
 
-            keyboard = [
-                [InlineKeyboardButton("↲ Назад в кабинет", callback_data='personal_cabinet')],
-                [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
-            ]
+            # Пагинация - по 5 записей на страницу
+            page_size = 5
+            total_pages = (len(filtered_appointments) + page_size - 1) // page_size
+            
+            # Корректируем номер страницы, если он выходит за пределы
+            if page >= total_pages:
+                page = total_pages - 1
+            if page < 0:
+                page = 0
+                
+            start_idx = page * page_size
+            end_idx = start_idx + page_size
+            page_appointments = filtered_appointments[start_idx:end_idx]
+
+            print(f"DEBUG: Pagination - page: {page}, total_pages: {total_pages}, showing: {len(page_appointments)}")
+
+            message_text = f"{section_title}\n\n"
+            
+            for i, app in enumerate(page_appointments, start=start_idx + 1):
+                # Форматируем дату для лучшего отображения
+                appointment_date = datetime.strptime(app['дата'], '%Y-%m-%d').date()
+                date_display = appointment_date.strftime('%d.%m.%Y')
+                
+                message_text += (
+                    f"{i}. {date_display} {app['время']}\n"
+                    f"   ✮ {app['услуга_название']}\n"
+                    f"   ♢ {app['мастер_имя']}\n"
+                    f"   ₽ {app['цена']}₽\n\n"
+                )
+
+            # Добавляем информацию о странице
+            if total_pages > 1:
+                message_text += f"📄 Страница {page + 1} из {total_pages}\n\n"
+
+            # Создаем клавиатуру с пагинацией - ИСПРАВЛЕНО!
+            keyboard = []
+            
+            # Кнопки пагинации
+            pagination_buttons = []
+            if page > 0:
+                prev_callback = f'{callback_prefix}{page-1}'
+                pagination_buttons.append(InlineKeyboardButton("⬅️ Назад", callback_data=prev_callback))
+                print(f"DEBUG: Added prev button with callback: {prev_callback}")
+            
+            if page < total_pages - 1:
+                next_callback = f'{callback_prefix}{page+1}'
+                pagination_buttons.append(InlineKeyboardButton("Вперед ➡️", callback_data=next_callback))
+                print(f"DEBUG: Added next button with callback: {next_callback}")
+            
+            if pagination_buttons:
+                keyboard.append(pagination_buttons)
+
+            # Основные кнопки
+            if is_history:
+                other_button = [InlineKeyboardButton("○ Актуальные записи", callback_data='cabinet_current')]
+            else:
+                other_button = [InlineKeyboardButton("≣ История записей", callback_data='cabinet_history')]
+            
+            keyboard.append(other_button)
+            keyboard.append([InlineKeyboardButton("↲ Назад в кабинет", callback_data='personal_cabinet')])
+            keyboard.append([InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')])
+
             reply_markup = InlineKeyboardMarkup(keyboard)
+
+            print(f"DEBUG: Final keyboard: {keyboard}")
 
             try:
                 photo_response = requests.get(photo_url)
                 if photo_response.status_code == 200:
                     photo_data = photo_response.content
-                    media = InputMediaPhoto(media=photo_data, caption=message_text)
-                    await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    if query.message.photo:
+                        media = InputMediaPhoto(media=photo_data, caption=message_text)
+                        await query.edit_message_media(media=media, reply_markup=reply_markup)
+                    else:
+                        await query.message.reply_photo(photo=photo_data, caption=message_text, reply_markup=reply_markup)
+                        await query.delete_message()
                 else:
-                    await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                    if query.message.photo:
+                        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                    else:
+                        await query.edit_message_text(text=message_text, reply_markup=reply_markup)
             except Exception as e:
                 logger.error(f"Error showing appointments: {e}")
-                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                if query.message.photo:
+                    await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+                else:
+                    await query.edit_message_text(text=message_text, reply_markup=reply_markup)
         else:
             raise Exception("Error fetching appointments")
 
@@ -364,4 +485,11 @@ async def show_appointments(update: Update, context: ContextTypes.DEFAULT_TYPE, 
             [InlineKeyboardButton("☰ Главное меню", callback_data='back_to_main')]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+        try:
+            if query.message.photo:
+                await query.edit_message_caption(caption=message_text, reply_markup=reply_markup)
+            else:
+                await query.edit_message_text(text=message_text, reply_markup=reply_markup)
+        except Exception as edit_error:
+            logger.error(f"Error editing error message: {edit_error}")
+            await query.message.reply_text(text=message_text, reply_markup=reply_markup)

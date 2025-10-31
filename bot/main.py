@@ -98,8 +98,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Обрабатываем callback запросы личного кабинета
-    # Обрабатываем callback запросы личного кабинета
-    if data in ['personal_cabinet', 'cabinet_history', 'cabinet_current', 'cabinet_logout']:
+    if data in ['personal_cabinet', 'cabinet_history', 'cabinet_current', 'cabinet_logout'] or \
+    data.startswith('cabinet_history_page_') or data.startswith('cabinet_current_page_'):
         await handle_personal_callback(update, context)
         return
     
